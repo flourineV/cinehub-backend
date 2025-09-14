@@ -26,16 +26,14 @@ public class RefreshTokenService {
     @Autowired
     private JwtUtil jwtUtil;
     
-    public RefreshToken createRefreshToken(User user, String userAgent) {
-        // Delete existing refresh token for this user and user agent
-        Optional<RefreshToken> existingToken = refreshTokenRepository.findByUserAndUserAgent(user, userAgent);
-        existingToken.ifPresent(refreshTokenRepository::delete);
+    public RefreshToken createRefreshToken(User user) {
+        // Delete existing refresh tokens for this user (if any)
+        refreshTokenRepository.deleteByUser(user);
         
         // Create new refresh token
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setUser(user);
         refreshToken.setToken(jwtUtil.generateRefreshToken());
-        refreshToken.setUserAgent(userAgent);
         refreshToken.setExpiresAt(LocalDateTime.now().plusSeconds(refreshTokenDurationMs / 1000));
         
         return refreshTokenRepository.save(refreshToken);

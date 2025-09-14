@@ -166,13 +166,47 @@ application.log
 .env.test.local
 .env.production.local
 
+# JWT & Security keys
+*.key
+*.pem
+*.p12
+*.jks
+keystore/
+secrets/
+
+# API Keys & Credentials
+application-secrets.properties
+application-*.yml
+application-*.yaml
+secrets.yml
+secrets.yaml
+config/secrets/
+credentials.json
+
 # Docker
 docker-compose.override.yml
 .dockerignore
+docker-compose.local.yml
+Dockerfile.local
+
+# Kubernetes
+k8s-secrets.yml
+*-secret.yml
+*-secret.yaml
 
 # Spring Boot specific
 spring.log
 *.original
+application-local.yml
+application-local.yaml
+bootstrap-local.yml
+bootstrap-local.yaml
+
+# Microservices config
+**/config-repo/
+eureka-server.properties
+consul.properties
+vault.properties
 
 # H2 Database files
 *.h2.db
@@ -260,3 +294,78 @@ dev/
 dist/
 build/
 target/
+
+# SSL Certificates
+*.crt
+*.csr
+*.der
+*.p7b
+*.p7c
+*.pfx
+
+# Backup files
+*.backup
+*.bak
+*.old
+*.orig
+
+# Cache directories
+.cache/
+cache/
+.tmp/
+
+# IDE workspace files
+workspace.xml
+tasks.xml
+dictionaries/
+shelf/
+
+# macOS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+
+# Windows specific
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# Archives
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Compiled Python (if any Python scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Documentation build
+docs/_build/
+site/
+
+# Terraform (if using infrastructure as code)
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Ansible (if using for deployment)
+*.retry
+ansible.cfg.local
+
+# Monitoring & Observability
+prometheus.yml.local
+grafana.ini.local
+jaeger.yml.local

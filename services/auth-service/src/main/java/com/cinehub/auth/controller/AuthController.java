@@ -27,6 +27,7 @@ public class AuthController {
     }
     
     @PostMapping("/signin")
+    // User can login with email, username, or phone number
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
         try {
             JwtResponse jwtResponse = authService.signIn(loginRequest, request);

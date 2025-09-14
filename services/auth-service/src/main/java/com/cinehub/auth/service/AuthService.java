@@ -36,45 +36,63 @@ public class AuthService {
     private AuthenticationManager authenticationManager;
     
     public JwtResponse signUp(SignUpRequest signUpRequest, HttpServletRequest request) {
+        // Validate password confirmation
+        if (!signUpRequest.getPassword().equals(signUpRequest.getConfirmPassword())) {
+            throw new RuntimeException("Password and confirm password do not match!");
+        }
+        
         // Check if user already exists
         if (userRepository.existsByEmail(signUpRequest.getEmail())) {
             throw new RuntimeException("Email is already taken!");
         }
         
+        // Check if username already exists
+        if (userRepository.existsByUsername(signUpRequest.getUsername())) {
+            throw new RuntimeException("Username is already taken!");
+        }
+        
+        // Check if phone number already exists
+        if (userRepository.existsByPhoneNumber(signUpRequest.getPhoneNumber())) {
+            throw new RuntimeException("Phone number is already taken!");
+        }
+        
         // Create new user
-        User user = new User();
-        user.setEmail(signUpRequest.getEmail());
-        user.setPasswordHash(passwordEncoder.encode(signUpRequest.getPassword()));
-        user.setFullName(signUpRequest.getFullName());
-        user.setRole(User.Role.USER);
+        User user = User.builder()
+                .email(signUpRequest.getEmail())
+                .fullName(signUpRequest.getFullName())
+                .dateOfBirth(signUpRequest.getDateOfBirth())
+                .username(signUpRequest.getUsername())
+                .phoneNumber(signUpRequest.getPhoneNumber())
+                .nationalId(signUpRequest.getNationalId())
+                .passwordHash(passwordEncoder.encode(signUpRequest.getPassword()))
+                .role(User.Role.USER)
+                .build();
         
         User savedUser = userRepository.save(user);
         
         // Generate tokens
         String accessToken = jwtUtil.generateAccessToken(savedUser.getId(), savedUser.getEmail());
-        String userAgent = request.getHeader("User-Agent");
-        RefreshToken refreshToken = refreshTokenService.createRefreshToken(savedUser, userAgent);
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(savedUser);
         
         return new JwtResponse(accessToken, refreshToken.getToken(), new UserResponse(savedUser));
     }
     
     public JwtResponse signIn(LoginRequest loginRequest, HttpServletRequest request) {
-        // Authenticate user
+        // Authenticate user - UserDetailsService will handle finding user by email/username/phone
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        loginRequest.getEmail(),
+                        loginRequest.getUsernameOrEmailOrPhone(),
                         loginRequest.getPassword()
                 )
         );
         
-        // Get user
-        User user = userRepository.findByEmail(loginRequest.getEmail())
+        // Get user after successful authentication
+        User user = userRepository.findByEmailOrUsernameOrPhoneNumber(loginRequest.getUsernameOrEmailOrPhone())
                 .orElseThrow(() -> new RuntimeException("User not found"));
         
         // Generate tokens
         String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail());
-        String userAgent = request.getHeader("User-Agent");
-        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user, userAgent);
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
         
         return new JwtResponse(accessToken, refreshToken.getToken(), new UserResponse(user));
     }
@@ -85,8 +103,7 @@ public class AuthService {
                 .map(RefreshToken::getUser)
                 .map(user -> {
                     String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail());
-                    String userAgent = request.getHeader("User-Agent");
-                    RefreshToken newRefreshToken = refreshTokenService.createRefreshToken(user, userAgent);
+                    RefreshToken newRefreshToken = refreshTokenService.createRefreshToken(user);
                     
                     // Delete old refresh token
                     refreshTokenService.deleteByToken(refreshTokenString);
