@@ -1,28 +1,27 @@
 package com.cinehub.movie.repository;
 
 import com.cinehub.movie.entity.Movie;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 @Repository
-public interface MovieRepository extends JpaRepository<Movie, Long> {
+public interface MovieRepository extends MongoRepository<Movie, String> {
     
     List<Movie> findByGenre(String genre);
     
-    List<Movie> findByReleaseYear(Integer releaseYear);
+    List<Movie> findByReleaseDate(LocalDate releaseDate);
     
     List<Movie> findByDirector(String director);
+
+    List<Movie> findByStatus(String status);
     
-    @Query("SELECT m FROM Movie m WHERE m.title LIKE %:title%")
-    List<Movie> findByTitleContaining(@Param("title") String title);
+    @Query("{ 'title': { $regex: ?0, $options: 'i' } }") //ignore capitalization
+    List<Movie> findByTitle(String title);
     
-    @Query("SELECT m FROM Movie m WHERE m.rating >= :minRating")
-    List<Movie> findByRatingGreaterThanEqual(@Param("minRating") Double minRating);
-    
-    Optional<Movie> findByTitleAndReleaseYear(String title, Integer releaseYear);
+    @Query("{ 'rating': { $gte: ?0 } }")
+    List<Movie> findByRatingGreaterThanEqual(Double minRating);
 }
