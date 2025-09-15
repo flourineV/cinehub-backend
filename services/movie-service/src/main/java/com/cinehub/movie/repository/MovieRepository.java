@@ -11,7 +11,7 @@ import java.util.List;
 @Repository
 public interface MovieRepository extends MongoRepository<Movie, String> {
     
-    List<Movie> findByGenre(String genre);
+    List<Movie> findByGenresContaining(String genre); //only 1 genre
     
     List<Movie> findByReleaseDate(LocalDate releaseDate);
     

@@ -43,16 +43,16 @@ public class MovieController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteMovie(@PathVariable String id) {
+    public ResponseEntity<String> deleteMovie(@PathVariable String id) {
         return movieService.deleteMovie(id) ? 
-                ResponseEntity.noContent().build() : 
+                ResponseEntity.ok("Movie deleted successfully") : 
                 ResponseEntity.notFound().build();
     }
 
     // Search
     @GetMapping("/genre/{genre}")
     public ResponseEntity<List<Movie>> findByGenre(@PathVariable String genre) {
-        return ResponseEntity.ok(movieService.findByGenre(genre));
+        return ResponseEntity.ok(movieService.findByGenres(genre));
     }
 
     @GetMapping("/release-date/{date}")

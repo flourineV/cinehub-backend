@@ -62,8 +62,8 @@ public class MovieService {
     }
 
     // Search methods
-    public List<Movie> findByGenre(String genre) {
-        return movieRepository.findByGenre(genre);
+    public List<Movie> findByGenres(String genre) {
+        return movieRepository.findByGenresContaining(genre);
     }
 
     public List<Movie> findByReleaseDate(LocalDate releaseDate) {
