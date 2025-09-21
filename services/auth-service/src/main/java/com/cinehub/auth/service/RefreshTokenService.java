@@ -6,9 +6,11 @@ import com.cinehub.auth.repository.RefreshTokenRepository;
 import com.cinehub.auth.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -26,16 +28,14 @@ public class RefreshTokenService {
     @Autowired
     private JwtUtil jwtUtil;
     
-    public RefreshToken createRefreshToken(User user, String userAgent) {
-        // Delete existing refresh token for this user and user agent
-        Optional<RefreshToken> existingToken = refreshTokenRepository.findByUserAndUserAgent(user, userAgent);
-        existingToken.ifPresent(refreshTokenRepository::delete);
+    public RefreshToken createRefreshToken(User user) {
+        // Delete existing refresh tokens for this user (if any)
+        refreshTokenRepository.deleteByUser(user);
         
         // Create new refresh token
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setUser(user);
         refreshToken.setToken(jwtUtil.generateRefreshToken());
-        refreshToken.setUserAgent(userAgent);
         refreshToken.setExpiresAt(LocalDateTime.now().plusSeconds(refreshTokenDurationMs / 1000));
         
         return refreshTokenRepository.save(refreshToken);
@@ -48,7 +48,7 @@ public class RefreshTokenService {
     public RefreshToken verifyExpiration(RefreshToken token) {
         if (token.isExpired()) {
             refreshTokenRepository.delete(token);
-            throw new RuntimeException("Refresh token was expired. Please make a new signin request");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token was expired. Please make a new signin request");
         }
         return token;
     }
