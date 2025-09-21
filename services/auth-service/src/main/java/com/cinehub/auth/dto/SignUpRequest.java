@@ -2,25 +2,15 @@ package com.cinehub.auth.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class SignUpRequest {
-    
-    @NotBlank(message = "Full name is required")
-    @Size(max = 100, message = "Full name must be less than 100 characters")
-    private String fullName;
-    
-    @NotNull(message = "Date of birth is required")
-    private LocalDate dateOfBirth;
     
     @NotBlank(message = "Phone number is required")
     @Size(max = 15, message = "Phone number must be less than 15 characters")

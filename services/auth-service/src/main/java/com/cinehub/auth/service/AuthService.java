@@ -7,12 +7,14 @@ import com.cinehub.auth.repository.UserRepository;
 import com.cinehub.auth.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
 
@@ -38,29 +40,32 @@ public class AuthService {
     public JwtResponse signUp(SignUpRequest signUpRequest, HttpServletRequest request) {
         // Validate password confirmation
         if (!signUpRequest.getPassword().equals(signUpRequest.getConfirmPassword())) {
-            throw new RuntimeException("Password and confirm password do not match!");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password and confirm password do not match!");
         }
         
         // Check if user already exists
         if (userRepository.existsByEmail(signUpRequest.getEmail())) {
-            throw new RuntimeException("Email is already taken!");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already taken!");
         }
         
         // Check if username already exists
         if (userRepository.existsByUsername(signUpRequest.getUsername())) {
-            throw new RuntimeException("Username is already taken!");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username is already taken!");
         }
         
         // Check if phone number already exists
         if (userRepository.existsByPhoneNumber(signUpRequest.getPhoneNumber())) {
-            throw new RuntimeException("Phone number is already taken!");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Phone number is already taken!");
+        }
+        
+        // Check if national ID already exists
+        if (userRepository.existsByNationalId(signUpRequest.getNationalId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "National ID is already taken!");
         }
         
         // Create new user
         User user = User.builder()
                 .email(signUpRequest.getEmail())
-                .fullName(signUpRequest.getFullName())
-                .dateOfBirth(signUpRequest.getDateOfBirth())
                 .username(signUpRequest.getUsername())
                 .phoneNumber(signUpRequest.getPhoneNumber())
                 .nationalId(signUpRequest.getNationalId())
@@ -71,10 +76,10 @@ public class AuthService {
         User savedUser = userRepository.save(user);
         
         // Generate tokens
-        String accessToken = jwtUtil.generateAccessToken(savedUser.getId(), savedUser.getEmail());
+        String accessToken = jwtUtil.generateAccessToken(savedUser.getId(), savedUser.getEmail(), savedUser.getRole().name());
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(savedUser);
         
-        return new JwtResponse(accessToken, refreshToken.getToken(), new UserResponse(savedUser));
+        return new JwtResponse(accessToken, refreshToken.getToken(), "Bearer", new UserResponse(savedUser));
     }
     
     public JwtResponse signIn(LoginRequest loginRequest, HttpServletRequest request) {
@@ -88,13 +93,13 @@ public class AuthService {
         
         // Get user after successful authentication
         User user = userRepository.findByEmailOrUsernameOrPhoneNumber(loginRequest.getUsernameOrEmailOrPhone())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         
         // Generate tokens
-        String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail());
+        String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
         
-        return new JwtResponse(accessToken, refreshToken.getToken(), new UserResponse(user));
+        return new JwtResponse(accessToken, refreshToken.getToken(), "Bearer", new UserResponse(user));
     }
     
     public JwtResponse refreshToken(String refreshTokenString, HttpServletRequest request) {
@@ -102,15 +107,15 @@ public class AuthService {
                 .map(refreshTokenService::verifyExpiration)
                 .map(RefreshToken::getUser)
                 .map(user -> {
-                    String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail());
+                    String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
                     RefreshToken newRefreshToken = refreshTokenService.createRefreshToken(user);
                     
                     // Delete old refresh token
                     refreshTokenService.deleteByToken(refreshTokenString);
                     
-                    return new JwtResponse(accessToken, newRefreshToken.getToken(), new UserResponse(user));
+                    return new JwtResponse(accessToken, newRefreshToken.getToken(), "Bearer", new UserResponse(user));
                 })
-                .orElseThrow(() -> new RuntimeException("Refresh token is not in database!"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token is not in database!"));
     }
     
     public void signOut(String refreshTokenString) {
