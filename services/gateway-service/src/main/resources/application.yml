@@ -1,0 +1,60 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway-service
+  cloud:
+    gateway:
+      routes:
+        # Auth Service Routes
+        - id: auth-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - name: JwtAuthenticationFilter
+              args:
+                exclude-paths: /api/auth/signin,/api/auth/signup,/api/auth/refreshtoken
+
+        # User Profile Service Routes  
+        - id: user-profile-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/profiles/**
+          filters:
+            - name: JwtAuthenticationFilter
+
+        # Movie Service Routes (for future)
+        - id: movie-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/movies/**
+          filters:
+            - name: JwtAuthenticationFilter
+
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "http://localhost:5173"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+
+# JWT Configuration
+jwt:
+  secret: "cinehub-secret-key-2024-very-long-and-secure-key-for-jwt-signing"
+  expiration: 86400000 # 24 hours in milliseconds
+
+# Logging
+logging:
+  level:
+    com.cinehub.gateway: DEBUG
+    org.springframework.cloud.gateway: DEBUG
