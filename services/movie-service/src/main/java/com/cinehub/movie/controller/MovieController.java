@@ -1,85 +1,56 @@
 package com.cinehub.movie.controller;
 
-import com.cinehub.movie.entity.Movie;
-import com.cinehub.movie.entity.Movie.Review;
+import com.cinehub.movie.entity.MovieDetail;
+import com.cinehub.movie.entity.MovieSummary;
 import com.cinehub.movie.service.MovieService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/movies")
+@RequiredArgsConstructor
 public class MovieController {
 
-    @Autowired
-    private MovieService movieService;
+    private final MovieService movieService;
 
-    // CRUD
-   @GetMapping
-    public ResponseEntity<List<Movie>> getAllMovies() {
-        return ResponseEntity.ok(movieService.getAllMovies());
+    // ================== SYNC ==================
+    @PostMapping("/sync")
+    public ResponseEntity<String> syncMovies() {
+        movieService.syncMovies();
+        return ResponseEntity.ok("Movies synced successfully!");
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Movie> getMovieById(@PathVariable String id) {
-        return movieService.getMovieById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    // ================== LIST NOW PLAYING ==================
+    @GetMapping("/now-playing")
+    public ResponseEntity<Page<MovieSummary>> getNowPlaying(Pageable pageable) {
+        Page<MovieSummary> movies = movieService.getNowPlayingMovies(pageable);
+        return ResponseEntity.ok(movies);
     }
 
-    @PostMapping
-    public ResponseEntity<Movie> createMovie(@RequestBody Movie movie) {
-        return ResponseEntity.ok(movieService.createMovie(movie));
+    // ================== LIST UPCOMING ==================
+    @GetMapping("/upcoming")
+    public ResponseEntity<Page<MovieSummary>> getUpcoming(Pageable pageable) {
+        Page<MovieSummary> movies = movieService.getUpcomingMovies(pageable);
+        return ResponseEntity.ok(movies);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Movie> updateMovie(@PathVariable String id, @RequestBody Movie movieDetails) {
-        return movieService.updateMovie(id, movieDetails)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    // ================== SEARCH ==================
+    @GetMapping("/search")
+    public ResponseEntity<Page<MovieSummary>> searchMovies(
+            @RequestParam String title,
+            Pageable pageable
+    ) {
+        Page<MovieSummary> movies = movieService.searchMovies(title, pageable);
+        return ResponseEntity.ok(movies);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteMovie(@PathVariable String id) {
-        return movieService.deleteMovie(id) ? 
-                ResponseEntity.ok("Movie deleted successfully") : 
-                ResponseEntity.notFound().build();
-    }
-
-    // Search
-    @GetMapping("/genre/{genre}")
-    public ResponseEntity<List<Movie>> findByGenre(@PathVariable String genre) {
-        return ResponseEntity.ok(movieService.findByGenres(genre));
-    }
-
-    @GetMapping("/release-date/{date}")
-    public ResponseEntity<List<Movie>> findByReleaseDate(@PathVariable String date) {
-        return ResponseEntity.ok(movieService.findByReleaseDate(LocalDate.parse(date)));
-    }
-
-    @GetMapping("/director/{director}")
-    public ResponseEntity<List<Movie>> findByDirector(@PathVariable String director) {
-        return ResponseEntity.ok(movieService.findByDirector(director));
-    }
-
-    @GetMapping("/title/{title}")
-    public ResponseEntity<List<Movie>> findByTitle(@PathVariable String title) {
-        return ResponseEntity.ok(movieService.findByTitle(title));
-    }
-
-    @GetMapping("/rating/{minRating}")
-    public ResponseEntity<List<Movie>> findByRatingGreaterThanEqual(@PathVariable Double minRating) {
-        return ResponseEntity.ok(movieService.findByRatingGreaterThanEqual(minRating));
-    }
-
-    // Review 
-    @PostMapping("/{movieId}/reviews")
-    public ResponseEntity<Movie> addReview(@PathVariable String movieId, @RequestBody Review review) {
-        return movieService.addReview(movieId, review)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    // ================== DETAIL ==================
+    @GetMapping("/{tmdbId}")
+    public ResponseEntity<MovieDetail> getMovieDetail(@PathVariable Integer tmdbId) {
+        MovieDetail movie = movieService.getMovieDetail(tmdbId);
+        return ResponseEntity.ok(movie);
     }
 }

@@ -1,101 +1,237 @@
 package com.cinehub.movie.service;
 
-import com.cinehub.movie.entity.Movie;
-import com.cinehub.movie.entity.Movie.Rating;
-import com.cinehub.movie.entity.Movie.Review;
-import com.cinehub.movie.repository.MovieRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.cinehub.movie.dto.TMDb.TMDbCreditsResponse;
+import com.cinehub.movie.dto.TMDb.TMDbMovieResponse;
+import com.cinehub.movie.dto.TMDb.TMDbReleaseDatesResponse;
+import com.cinehub.movie.entity.MovieDetail;
+import com.cinehub.movie.entity.MovieSummary;
+import com.cinehub.movie.repository.MovieDetailRepository;
+import com.cinehub.movie.repository.MovieSummaryRepository;
+import com.cinehub.movie.service.client.TMDbClient;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-
-import java.util.List;
-import java.util.Optional;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
+
 public class MovieService {
+    
+    private final MovieSummaryRepository movieSummaryRepository;
+    private final MovieDetailRepository movieDetailRepository;
+    private final TMDbClient tmdbClient; //client gọi TMDb API
 
-    @Autowired
-    private MovieRepository movieRepository;
+    public void syncMovies(){
+        log.info("[{}] Starting movie sync from TMDb...", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
-    public List<Movie> getAllMovies() {
-        return movieRepository.findAll();
+        //Lấy dữ liệu từ TMDb
+        List<TMDbMovieResponse> nowPlaying = tmdbClient.fetchNowPlaying();
+        List<TMDbMovieResponse> upcoming   = tmdbClient.fetchUpcoming();
+
+        // Merge lại 2 list
+        List<TMDbMovieResponse> allMovies = new ArrayList<>();
+        allMovies.addAll(nowPlaying);
+        allMovies.addAll(upcoming);
+
+        Set<Integer> activeTmdbIds = allMovies.stream().map(TMDbMovieResponse::getId).collect(Collectors.toSet());
+
+        for (TMDbMovieResponse movie : nowPlaying){
+            syncMovie(movie, "NOW_PLAYING");
+        }
+        for (TMDbMovieResponse movie : upcoming){
+            syncMovie(movie, "UPCOMING");
+        }
+
+        //Xóa phim k còn active
+        List<MovieSummary> dbMovies = movieSummaryRepository.findAll();
+        for (MovieSummary summary : dbMovies){
+            if (!activeTmdbIds.contains(summary.getTmdbId())){
+                movieSummaryRepository.deleteByTmdbId(summary.getTmdbId());
+                movieDetailRepository.deleteByTmdbId(summary.getTmdbId());
+                log.info("Deleted movie with tmdb={}", summary.getTmdbId());
+            }
+        }
+        log.info("[{}] Movie sync completed. {} movies active.",
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                activeTmdbIds.size());
     }
 
-    public Optional<Movie> getMovieById(String id) {
-        return movieRepository.findById(id);
+    private void syncMovie(TMDbMovieResponse movie, String status) {
+        // Gọi thêm API phụ
+        TMDbCreditsResponse credits = tmdbClient.fetchCredits(movie.getId());
+        TMDbReleaseDatesResponse releaseDates = tmdbClient.fetchReleaseDates(movie.getId());
+        String trailer = tmdbClient.fetchTrailerKey(movie.getId());
+
+        // Lấy age rating từ release_dates
+        String age = extractAgeRating(releaseDates);
+
+        // --- Summary ---
+        MovieSummary summary = movieSummaryRepository.findByTmdbId(movie.getId())
+                .orElse(new MovieSummary());
+
+        summary.setTmdbId(movie.getId());
+        summary.setTitle(movie.getTitle());
+        summary.setPosterUrl(movie.getPosterPath());
+        summary.setStatus(status);
+        summary.setSpokenLanguages(
+            movie.getSpokenLanguages().stream()
+                .map(TMDbMovieResponse.SpokenLanguage::getIso6391)
+                .toList()
+        );
+        summary.setCountry(
+                movie.getProductionCountries().isEmpty() ? null :
+                        movie.getProductionCountries().get(0).getName()
+        );
+        summary.setTime(movie.getRuntime());
+        summary.setGenres(movie.getGenres().stream().map(TMDbMovieResponse.Genre::getName).toList());
+        summary.setAge(age);
+
+        movieSummaryRepository.save(summary);
+
+        // --- Detail ---
+        MovieDetail detail = movieDetailRepository.findByTmdbId(movie.getId())
+                .orElse(new MovieDetail());
+
+        detail.setTmdbId(movie.getId());
+        detail.setTitle(movie.getTitle());
+        detail.setOverview(movie.getOverview());
+        detail.setTime(movie.getRuntime());
+        detail.setSpokenLanguages(
+            movie.getSpokenLanguages().stream()
+                .map(TMDbMovieResponse.SpokenLanguage::getEnglishName)
+                .toList()
+        );
+        detail.setCountry(
+                movie.getProductionCountries().isEmpty() ? null :
+                        movie.getProductionCountries().get(0).getName()
+        );
+        detail.setReleaseDate(movie.getReleaseDate());
+        detail.setGenres(movie.getGenres().stream().map(TMDbMovieResponse.Genre::getName).toList());
+        detail.setCast(
+                credits.getCast().stream().map(TMDbCreditsResponse.Cast::getName).limit(10).toList()
+        );
+        detail.setCrew(
+                credits.getCrew().stream()
+                        .filter(c -> "Director".equalsIgnoreCase(c.getJob()))
+                        .map(TMDbCreditsResponse.Crew::getName)
+                        .toList()
+        );
+        detail.setAge(age);
+        detail.setTrailer(trailer);
+
+        movieDetailRepository.save(detail);
+
+        log.info("Synced movie: {} ({})", movie.getTitle(), movie.getId());
+    }
+    //HelperL extract age
+    private String extractAgeRating(TMDbReleaseDatesResponse releaseDates) {
+        return releaseDates.getResults().stream()
+                .filter(r -> "US".equals(r.getIso31661())) // ưu tiên US
+                .flatMap(r -> r.getReleaseDates().stream())
+                .map(TMDbReleaseDatesResponse.ReleaseDate::getCertification)
+                .filter(c -> c != null && !c.isEmpty())
+                .findFirst()
+                .orElse(null);
     }
 
-    public List<Movie> getByStatus(String status) {
-        return movieRepository.findByStatus(status);
+    // ================== PUBLIC API METHODS ==================
+    
+    public Page<MovieSummary> getNowPlayingMovies(Pageable pageable) {
+        return movieSummaryRepository.findByStatus("NOW_PLAYING", pageable);
     }
 
-    public Movie createMovie(Movie movie) {
-        return movieRepository.save(movie);
+    public Page<MovieSummary> getUpcomingMovies(Pageable pageable) {
+        return movieSummaryRepository.findByStatus("UPCOMING", pageable);
     }
 
-    public Optional<Movie> updateMovie(String id, Movie movieDetails) {
-        return movieRepository.findById(id).map(movie -> {
-            movie.setTitle(movieDetails.getTitle());
-            movie.setDescription(movieDetails.getDescription());
-            movie.setDuration(movieDetails.getDuration());
-            movie.setReleaseDate(movieDetails.getReleaseDate());
-            movie.setStatus(movieDetails.getStatus());
-            movie.setLanguage(movieDetails.getLanguage());
-            movie.setGenres(movieDetails.getGenres());
-            movie.setDirector(movieDetails.getDirector());
-            movie.setCast(movieDetails.getCast());
-            movie.setReleaseDate(movieDetails.getReleaseDate());
-            movie.setRating(movieDetails.getRating());
-            movie.setPosterUrl(movieDetails.getPosterUrl());
-            movie.setTrailerUrl(movieDetails.getTrailerUrl());
-            return movieRepository.save(movie);
-        });
+    public Page<MovieSummary> searchMovies(String title, Pageable pageable) {
+        if (title == null || title.trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Title parameter is required");
+        }
+        return movieSummaryRepository.findByTitleContainingIgnoreCase(title.trim(), pageable);
     }
 
-    public boolean deleteMovie(String id) {
-        return movieRepository.findById(id).map(movie -> {
-            movieRepository.delete(movie);
-            return true;
-        }).orElse(false);
-    }
-
-    // Search methods
-    public List<Movie> findByGenres(String genre) {
-        return movieRepository.findByGenresContaining(genre);
-    }
-
-    public List<Movie> findByReleaseDate(LocalDate releaseDate) {
-        return movieRepository.findByReleaseDate(releaseDate);
-    }
-
-    public List<Movie> findByDirector(String director) {
-        return movieRepository.findByDirector(director);
-    }   
-
-    public List<Movie> findByTitle(String title) {
-        return movieRepository.findByTitle(title);
-    }
-
-    public List<Movie> findByRatingGreaterThanEqual(Double minRating) {
-        return movieRepository.findByRatingGreaterThanEqual(minRating);
-    }
-
-    // Add Review & update rating
-    public Optional<Movie> addReview(String movieId, Review review) {
-        return movieRepository.findById(movieId).map(movie -> {
-            review.setCreatedAt(LocalDateTime.now());
-            movie.getReviews().add(review);
-
-            // update rating avg + count
-            int count = movie.getReviews().size();
-            double avg = movie.getReviews().stream()
-                    .mapToInt(Review::getRating)
-                    .average()
-                    .orElse(0);
-            movie.setRating(new Rating(avg, count));
-            return movieRepository.save(movie);
-        });
+    public MovieDetail getMovieDetail(Integer tmdbId) {
+        if (tmdbId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "TMDb ID is required");
+        }
+        
+        // Tìm trong database trước
+        Optional<MovieDetail> movieDetail = movieDetailRepository.findByTmdbId(tmdbId);
+        if (movieDetail.isPresent()) {
+            return movieDetail.get();
+        }
+        
+        // Nếu không tìm thấy trong DB, gọi TMDb API
+        try {
+            log.info("Movie detail not found in DB for tmdbId={}. Fetching from TMDb API...", tmdbId);
+            
+            TMDbMovieResponse movieResponse = tmdbClient.fetchMovieDetail(tmdbId);
+            if (movieResponse == null) {
+                throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, 
+                    "Movie not found with TMDb ID: " + tmdbId
+                );
+            }
+            
+            // Fetch additional data for complete movie detail
+            TMDbCreditsResponse credits = tmdbClient.fetchCredits(tmdbId);
+            TMDbReleaseDatesResponse releaseDates = tmdbClient.fetchReleaseDates(tmdbId);
+            String trailer = tmdbClient.fetchTrailerKey(tmdbId);
+            String age = extractAgeRating(releaseDates);
+            
+            // Tạo MovieDetail từ TMDb data
+            MovieDetail detail = new MovieDetail();
+            detail.setTmdbId(movieResponse.getId());
+            detail.setTitle(movieResponse.getTitle());
+            detail.setOverview(movieResponse.getOverview());
+            detail.setTime(movieResponse.getRuntime());
+            detail.setSpokenLanguages(
+                movieResponse.getSpokenLanguages().stream()
+                    .map(TMDbMovieResponse.SpokenLanguage::getEnglishName)
+                    .toList()
+            );
+            detail.setCountry(
+                movieResponse.getProductionCountries().isEmpty() ? null :
+                    movieResponse.getProductionCountries().get(0).getName()
+            );
+            detail.setReleaseDate(movieResponse.getReleaseDate());
+            detail.setGenres(movieResponse.getGenres().stream().map(TMDbMovieResponse.Genre::getName).toList());
+            detail.setCast(
+                credits.getCast().stream().map(TMDbCreditsResponse.Cast::getName).limit(10).toList()
+            );
+            detail.setCrew(
+                credits.getCrew().stream()
+                    .filter(c -> "Director".equalsIgnoreCase(c.getJob()))
+                    .map(TMDbCreditsResponse.Crew::getName)
+                    .toList()
+            );
+            detail.setAge(age);
+            detail.setTrailer(trailer);
+            
+            // Lưu vào database để lần sau không phải gọi API
+            movieDetailRepository.save(detail);
+            log.info("Saved movie detail from TMDb API: {} ({})", movieResponse.getTitle(), tmdbId);
+            
+            return detail;
+            
+        } catch (Exception e) {
+            log.error("Error fetching movie detail from TMDb API for tmdbId={}: {}", tmdbId, e.getMessage());
+            throw new ResponseStatusException(
+                HttpStatus.NOT_FOUND, 
+                "Movie not found with TMDb ID: " + tmdbId
+            );
+        }
     }
 }
