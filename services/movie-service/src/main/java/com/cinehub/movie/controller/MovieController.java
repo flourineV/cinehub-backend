@@ -1,7 +1,7 @@
 package com.cinehub.movie.controller;
 
-import com.cinehub.movie.entity.MovieDetail;
-import com.cinehub.movie.entity.MovieSummary;
+import com.cinehub.movie.dto.MovieDetailResponse;
+import com.cinehub.movie.dto.MovieSummaryResponse;
 import com.cinehub.movie.service.MovieService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -25,32 +25,32 @@ public class MovieController {
 
     // ================== LIST NOW PLAYING ==================
     @GetMapping("/now-playing")
-    public ResponseEntity<Page<MovieSummary>> getNowPlaying(Pageable pageable) {
-        Page<MovieSummary> movies = movieService.getNowPlayingMovies(pageable);
+    public ResponseEntity<Page<MovieSummaryResponse>> getNowPlaying(Pageable pageable) {
+        Page<MovieSummaryResponse> movies = movieService.getNowPlayingMovies(pageable);
         return ResponseEntity.ok(movies);
     }
 
     // ================== LIST UPCOMING ==================
     @GetMapping("/upcoming")
-    public ResponseEntity<Page<MovieSummary>> getUpcoming(Pageable pageable) {
-        Page<MovieSummary> movies = movieService.getUpcomingMovies(pageable);
+    public ResponseEntity<Page<MovieSummaryResponse>> getUpcoming(Pageable pageable) {
+        Page<MovieSummaryResponse> movies = movieService.getUpcomingMovies(pageable);
         return ResponseEntity.ok(movies);
     }
 
     // ================== SEARCH ==================
     @GetMapping("/search")
-    public ResponseEntity<Page<MovieSummary>> searchMovies(
+    public ResponseEntity<Page<MovieSummaryResponse>> searchMovies(
             @RequestParam String title,
             Pageable pageable
     ) {
-        Page<MovieSummary> movies = movieService.searchMovies(title, pageable);
+        Page<MovieSummaryResponse> movies = movieService.searchMovies(title, pageable);
         return ResponseEntity.ok(movies);
     }
 
     // ================== DETAIL ==================
     @GetMapping("/{tmdbId}")
-    public ResponseEntity<MovieDetail> getMovieDetail(@PathVariable Integer tmdbId) {
-        MovieDetail movie = movieService.getMovieDetail(tmdbId);
+    public ResponseEntity<MovieDetailResponse> getMovieDetail(@PathVariable Integer tmdbId) {
+        MovieDetailResponse movie = movieService.getMovieDetail(tmdbId);
         return ResponseEntity.ok(movie);
     }
 }

@@ -18,7 +18,7 @@ public class MovieDetailResponse {
     private List<String> genres;
     private Integer time;           // runtime (minutes)
     private String country;
-    private String language;
+    private List<String> spokenLanguages;
     private List<String> crew;      // [Director, Writer...]
     private List<String> cast;      // [Actor1, Actor2...]
     private String releaseDate;     // 2025-09-03

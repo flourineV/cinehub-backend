@@ -1,10 +1,13 @@
 package com.cinehub.movie.service;
 
+import com.cinehub.movie.dto.MovieDetailResponse;
+import com.cinehub.movie.dto.MovieSummaryResponse;
 import com.cinehub.movie.dto.TMDb.TMDbCreditsResponse;
 import com.cinehub.movie.dto.TMDb.TMDbMovieResponse;
 import com.cinehub.movie.dto.TMDb.TMDbReleaseDatesResponse;
 import com.cinehub.movie.entity.MovieDetail;
 import com.cinehub.movie.entity.MovieSummary;
+import com.cinehub.movie.mapper.MovieMapper;
 import com.cinehub.movie.repository.MovieDetailRepository;
 import com.cinehub.movie.repository.MovieSummaryRepository;
 import com.cinehub.movie.service.client.TMDbClient;
@@ -31,6 +34,7 @@ public class MovieService {
     private final MovieSummaryRepository movieSummaryRepository;
     private final MovieDetailRepository movieDetailRepository;
     private final TMDbClient tmdbClient; //client gọi TMDb API
+    private final MovieMapper movieMapper;
 
     public void syncMovies(){
         log.info("[{}] Starting movie sync from TMDb...", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
@@ -147,22 +151,25 @@ public class MovieService {
 
     // ================== PUBLIC API METHODS ==================
     
-    public Page<MovieSummary> getNowPlayingMovies(Pageable pageable) {
-        return movieSummaryRepository.findByStatus("NOW_PLAYING", pageable);
+    public Page<MovieSummaryResponse> getNowPlayingMovies(Pageable pageable) {
+        Page<MovieSummary> entities = movieSummaryRepository.findByStatus("NOW_PLAYING", pageable);
+        return movieMapper.toSummaryResponsePage(entities);
     }
 
-    public Page<MovieSummary> getUpcomingMovies(Pageable pageable) {
-        return movieSummaryRepository.findByStatus("UPCOMING", pageable);
+    public Page<MovieSummaryResponse> getUpcomingMovies(Pageable pageable) {
+        Page<MovieSummary> entities = movieSummaryRepository.findByStatus("UPCOMING", pageable);
+        return movieMapper.toSummaryResponsePage(entities);
     }
 
-    public Page<MovieSummary> searchMovies(String title, Pageable pageable) {
+    public Page<MovieSummaryResponse> searchMovies(String title, Pageable pageable) {
         if (title == null || title.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Title parameter is required");
         }
-        return movieSummaryRepository.findByTitleContainingIgnoreCase(title.trim(), pageable);
+        Page<MovieSummary> entities = movieSummaryRepository.findByTitleContainingIgnoreCase(title.trim(), pageable);
+        return movieMapper.toSummaryResponsePage(entities);
     }
 
-    public MovieDetail getMovieDetail(Integer tmdbId) {
+    public MovieDetailResponse getMovieDetail(Integer tmdbId) {
         if (tmdbId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "TMDb ID is required");
         }
@@ -170,7 +177,7 @@ public class MovieService {
         // Tìm trong database trước
         Optional<MovieDetail> movieDetail = movieDetailRepository.findByTmdbId(tmdbId);
         if (movieDetail.isPresent()) {
-            return movieDetail.get();
+            return movieMapper.toDetailResponse(movieDetail.get());
         }
         
         // Nếu không tìm thấy trong DB, gọi TMDb API
@@ -224,7 +231,7 @@ public class MovieService {
             movieDetailRepository.save(detail);
             log.info("Saved movie detail from TMDb API: {} ({})", movieResponse.getTitle(), tmdbId);
             
-            return detail;
+            return movieMapper.toDetailResponse(detail);
             
         } catch (Exception e) {
             log.error("Error fetching movie detail from TMDb API for tmdbId={}: {}", tmdbId, e.getMessage());
