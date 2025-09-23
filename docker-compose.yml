@@ -1,0 +1,34 @@
+services:
+  auth-service:
+    build: ./services/auth-service
+    env_file:
+      - ./services/auth-service/.env
+    container_name: auth-service
+    ports:
+      - "8081:8081"
+
+  user-profile-service:
+    build: ./services/user-profile-service
+    env_file:
+      - ./services/user-profile-service/.env
+    container_name: user-profile-service
+    ports:
+      - "8082:8082"
+
+  movie-service:
+    build: ./services/movie-service
+    env_file:
+      - ./services/movie-service/.env
+    container_name: movie-service
+    ports:
+      - "8083:8083"
+
+  gateway-service:
+    build: ./services/gateway-service
+    container_name: gateway-service
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-service
+      - user-profile-service
+      - movie-service

@@ -18,6 +18,6 @@ public class MovieSummaryResponse {
     private String age;       
     private String status;
     private Integer time;
-    private String language;
+    private List<String> spokenLanguages;
     private List<String> genres;
 }
