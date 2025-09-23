@@ -13,10 +13,10 @@ public class GatewayConfig {
         return builder.routes()
                 .route("auth-service", r -> r.path("/auth/**")
                         .uri("http://auth-service:8081"))
-                .route("movie-service", r -> r.path("/movies/**")
+                .route("user-profile-service", r -> r.path("/user-profile/**")
+                        .uri("http://user-profile-service:8082"))
+                .route("movie-service", r -> r.path("/movie/**")
                         .uri("http://movie-service:8083"))
-                .route("booking-service", r -> r.path("/booking/**")
-                        .uri("http://booking-service:8084"))
                 .build();
     }
 }

@@ -31,7 +31,7 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
-    @Size(max = 15)
+    @Size(max = 50)
     @Column(unique = true)
     private String username;
     
