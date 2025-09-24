@@ -11,11 +11,11 @@ public class GatewayConfig {
     @Bean
     public RouteLocator routes(RouteLocatorBuilder builder) {
         return builder.routes()
-                .route("auth-service", r -> r.path("/auth/**")
+                .route("auth-service", r -> r.path("/api/auth/**")
                         .uri("http://auth-service:8081"))
-                .route("user-profile-service", r -> r.path("/user-profile/**")
+                .route("user-profile-service", r -> r.path("/api/profile/**")
                         .uri("http://user-profile-service:8082"))
-                .route("movie-service", r -> r.path("/movie/**")
+                .route("movie-service", r -> r.path("/api/movies/**")
                         .uri("http://movie-service:8083"))
                 .build();
     }
