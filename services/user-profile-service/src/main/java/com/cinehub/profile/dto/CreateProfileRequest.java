@@ -26,7 +26,8 @@ public class CreateProfileRequest {
     @Size(max = 100, message = "Email must be less than 100 characters")
     private String email;
     
-    @Size(max = 50, message = "Username must be less than 50 characters")
+    @NotBlank(message = "Username is required")
+    @Size(min = 3, max = 30, message = "Username must be between 3 and 30 characters")
     private String username;
     
     @NotBlank(message = "Full name is required")

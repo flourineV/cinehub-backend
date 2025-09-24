@@ -11,6 +11,7 @@ import com.cinehub.movie.mapper.MovieMapper;
 import com.cinehub.movie.repository.MovieDetailRepository;
 import com.cinehub.movie.repository.MovieSummaryRepository;
 import com.cinehub.movie.service.client.TMDbClient;
+import com.cinehub.movie.util.AgeRatingNormalizer;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -78,7 +79,7 @@ public class MovieService {
         String trailer = tmdbClient.fetchTrailerKey(movie.getId());
 
         // Lấy age rating từ release_dates
-        String age = extractAgeRating(releaseDates);
+        String age = AgeRatingNormalizer.normalize(extractAgeRating(releaseDates));
 
         // --- Summary ---
         MovieSummary summary = movieSummaryRepository.findByTmdbId(movie.getId())
@@ -196,7 +197,7 @@ public class MovieService {
             TMDbCreditsResponse credits = tmdbClient.fetchCredits(tmdbId);
             TMDbReleaseDatesResponse releaseDates = tmdbClient.fetchReleaseDates(tmdbId);
             String trailer = tmdbClient.fetchTrailerKey(tmdbId);
-            String age = extractAgeRating(releaseDates);
+            String age = AgeRatingNormalizer.normalize(extractAgeRating(releaseDates));
             
             // Tạo MovieDetail từ TMDb data
             MovieDetail detail = new MovieDetail();
