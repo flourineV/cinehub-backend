@@ -15,6 +15,7 @@ public class MovieDetailResponse {
     private Integer tmdbId;
     private String title;
     private String age;
+    private String posterUrl;
     private List<String> genres;
     private Integer time;           // runtime (minutes)
     private String country;

@@ -50,6 +50,7 @@ public class MovieMapper {
             entity.getTmdbId(),
             entity.getTitle(),
             entity.getAge(),
+            entity.getPosterUrl(),
             entity.getGenres(),
             entity.getTime(),
             entity.getCountry(),

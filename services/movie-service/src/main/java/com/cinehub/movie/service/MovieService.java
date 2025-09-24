@@ -134,6 +134,7 @@ public class MovieService {
         );
         detail.setAge(age);
         detail.setTrailer(trailer);
+        detail.setPosterUrl(movie.getPosterPath());
 
         movieDetailRepository.save(detail);
 

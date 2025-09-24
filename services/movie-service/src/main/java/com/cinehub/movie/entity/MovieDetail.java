@@ -21,7 +21,8 @@ public class MovieDetail {
     private String id;            
     private Integer tmdbId;         
     private String title;           
-    private String age;             
+    private String age;
+    private String posterUrl;             
     private List<String> genres;    
     private Integer time;           
     private String country;         
