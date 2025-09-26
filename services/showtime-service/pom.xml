@@ -13,7 +13,7 @@
     </parent>
 
     <groupId>com.cinehub</groupId>
-    <artifactId>user-profile-service</artifactId>
+    <artifactId>showtime-service</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>showtime-service</name>
     <description>Showtime Service for CineHub</description>

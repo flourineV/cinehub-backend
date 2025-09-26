@@ -36,7 +36,7 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, UUID> 
     @Query("SELECT p FROM UserProfile p WHERE p.gender = :gender")
     List<UserProfile> findByGender(@Param("gender") String gender);
     
-    @Query(value = "SELECT * FROM user_profiles p WHERE p.favorite_genres::text LIKE %:genre%", nativeQuery = true)
+    @Query(value = "SELECT * FROM user_profiles p WHERE p.favorite_genres::text ILIKE CONCAT('%', :genre, '%')", nativeQuery = true)
     List<UserProfile> findByFavoriteGenresContaining(@Param("genre") String genre);
     
     @Query("SELECT p FROM UserProfile p WHERE p.loyaltyPoint >= :minPoints")
