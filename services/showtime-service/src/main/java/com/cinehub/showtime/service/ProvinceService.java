@@ -5,8 +5,9 @@ import com.cinehub.showtime.dto.response.ProvinceResponse;
 import com.cinehub.showtime.entity.Province;
 import com.cinehub.showtime.repository.ProvinceRepository;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-
+import java.util.UUID; 
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -18,15 +19,23 @@ import org.springframework.stereotype.Service;
 public class ProvinceService {
     private final ProvinceRepository provinceRepository;
 
+    
     public ProvinceResponse createProvince(ProvinceRequest request){
-        Province province = new Province();
-        province.setName(request.getName());
-        provinceRepository.save(province);
-        return new ProvinceResponse(province.getId(), province.getName());
+        
+
+        Province province = Province.builder() 
+                .id(UUID.randomUUID().toString()) 
+                .name(request.getName())
+                .build();
+        
+        Province savedProvince = provinceRepository.save(province);
+        return new ProvinceResponse(savedProvince.getId(), savedProvince.getName());
     }
 
+    
     public ProvinceResponse getProvinceById(String id){
-        Province province = provinceRepository.findById(id).orElseThrow(() -> new RuntimeException("Province not found"));
+        Province province = provinceRepository.findById(id)
+            .orElseThrow(() -> new EntityNotFoundException("Province with ID " + id + " not found"));
         return new ProvinceResponse(province.getId(), province.getName());
     }
 

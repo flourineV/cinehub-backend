@@ -22,24 +22,22 @@ public class TMDbClient {
     @Value("${tmdb.api.url:https://api.themoviedb.org/3}")
     private String baseUrl;
 
-    public List<TMDbMovieResponse> fetchNowPlaying(){
+    public List<TMDbMovieResponse> fetchNowPlaying() {
         String url = String.format("%s/movie/now_playing?api_key=%s&language=vi-VN&page=1", baseUrl, apiKey);
-        Map<?,?> response = restTemplate.getForObject(url, Map.class);
+        Map<?, ?> response = restTemplate.getForObject(url, Map.class);
         List<Map<String, Object>> results = (List<Map<String, Object>>) response.get("results");
         return results.stream().map(r -> restTemplate.getForObject(
                 baseUrl + "/movie/" + r.get("id") + "?api_key=" + apiKey + "&language=vi-VN",
-                TMDbMovieResponse.class
-        )).toList();
+                TMDbMovieResponse.class)).toList();
     }
 
     public List<TMDbMovieResponse> fetchUpcoming() {
         String url = String.format("%s/movie/upcoming?api_key=%s&language=vi-VN&page=1", baseUrl, apiKey);
-        Map<?,?> response = restTemplate.getForObject(url, Map.class);
+        Map<?, ?> response = restTemplate.getForObject(url, Map.class);
         List<Map<String, Object>> results = (List<Map<String, Object>>) response.get("results");
         return results.stream().map(r -> restTemplate.getForObject(
                 baseUrl + "/movie/" + r.get("id") + "?api_key=" + apiKey + "&language=vi-VN",
-                TMDbMovieResponse.class
-        )).toList();
+                TMDbMovieResponse.class)).toList();
     }
 
     public TMDbMovieResponse fetchMovieDetail(Integer tmdbId) {
@@ -58,18 +56,28 @@ public class TMDbClient {
     }
 
     public String fetchTrailerKey(Integer tmdbId) {
-    String url = String.format("%s/movie/%d/videos?api_key=%s&language=vi-VN", baseUrl, tmdbId, apiKey);
-    TMDbVideoResponse response = restTemplate.getForObject(url, TMDbVideoResponse.class);
+        String url = String.format("%s/movie/%d/videos?api_key=%s", baseUrl, tmdbId, apiKey);
+        TMDbVideoResponse response = restTemplate.getForObject(url, TMDbVideoResponse.class);
 
-    if (response == null || response.getResults() == null || response.getResults().isEmpty()) {
-        return null;
-    }
+        System.out.println("TMDb video response: " + response);
 
-    return response.getResults().stream()
-            .filter(v -> "Trailer".equalsIgnoreCase(v.getType()))
-            .filter(v -> "YouTube".equalsIgnoreCase(v.getSite()))
-            .map(v -> "https://www.youtube.com/watch?v=" + v.getKey())
-            .findFirst()
-            .orElse(null);
+        if (response == null || response.getResults() == null || response.getResults().isEmpty()) {
+            return null;
+        }
+
+        // Ưu tiên official trailer, nếu không có thì lấy trailer bất kỳ
+        return response.getResults().stream()
+                .filter(v -> "Trailer".equalsIgnoreCase(v.getType()))
+                .filter(v -> "YouTube".equalsIgnoreCase(v.getSite()))
+                .filter(v -> v.getOfficial() != null ? v.getOfficial() : true)
+                .map(v -> "https://www.youtube.com/watch?v=" + v.getKey())
+                .findFirst()
+                .orElse(
+                        response.getResults().stream()
+                                .filter(v -> "Trailer".equalsIgnoreCase(v.getType()))
+                                .filter(v -> "YouTube".equalsIgnoreCase(v.getSite()))
+                                .map(v -> "https://www.youtube.com/watch?v=" + v.getKey())
+                                .findFirst()
+                                .orElse(null));
     }
 }

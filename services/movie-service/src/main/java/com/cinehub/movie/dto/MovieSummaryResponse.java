@@ -11,13 +11,14 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 
 public class MovieSummaryResponse {
-    private String id; 
-    private Integer tmdbId;               
+    private String id;
+    private Integer tmdbId;
     private String title;
     private String posterUrl;
-    private String age;       
+    private String age;
     private String status;
     private Integer time;
     private List<String> spokenLanguages;
     private List<String> genres;
+    private String trailer;
 }

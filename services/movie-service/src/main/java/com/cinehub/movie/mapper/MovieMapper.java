@@ -18,25 +18,25 @@ public class MovieMapper {
         if (entity == null) {
             return null;
         }
-        
+
         return new MovieSummaryResponse(
-            entity.getId(),
-            entity.getTmdbId(),
-            entity.getTitle(),
-            entity.getPosterUrl(),
-            entity.getAge(),
-            entity.getStatus(),
-            entity.getTime(),
-            entity.getSpokenLanguages(), // Trả về full list
-            entity.getGenres()
-        );
+                entity.getId(),
+                entity.getTmdbId(),
+                entity.getTitle(),
+                entity.getPosterUrl(),
+                entity.getAge(),
+                entity.getStatus(),
+                entity.getTime(),
+                entity.getSpokenLanguages(), // Trả về full list
+                entity.getGenres(),
+                entity.getTrailer());
     }
 
     public Page<MovieSummaryResponse> toSummaryResponsePage(Page<MovieSummary> entityPage) {
         List<MovieSummaryResponse> dtos = entityPage.getContent().stream()
                 .map(this::toSummaryResponse)
                 .collect(Collectors.toList());
-        
+
         return new PageImpl<>(dtos, entityPage.getPageable(), entityPage.getTotalElements());
     }
 
@@ -44,22 +44,21 @@ public class MovieMapper {
         if (entity == null) {
             return null;
         }
-        
+
         return new MovieDetailResponse(
-            entity.getId(),
-            entity.getTmdbId(),
-            entity.getTitle(),
-            entity.getAge(),
-            entity.getPosterUrl(),
-            entity.getGenres(),
-            entity.getTime(),
-            entity.getCountry(),
-            entity.getSpokenLanguages(), // Trả về full list
-            entity.getCrew(),
-            entity.getCast(),
-            entity.getReleaseDate(),
-            entity.getOverview(),
-            entity.getTrailer()
-        );
+                entity.getId(),
+                entity.getTmdbId(),
+                entity.getTitle(),
+                entity.getAge(),
+                entity.getPosterUrl(),
+                entity.getGenres(),
+                entity.getTime(),
+                entity.getCountry(),
+                entity.getSpokenLanguages(), // Trả về full list
+                entity.getCrew(),
+                entity.getCast(),
+                entity.getReleaseDate(),
+                entity.getOverview(),
+                entity.getTrailer());
     }
 }

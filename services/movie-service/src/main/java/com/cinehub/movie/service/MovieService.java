@@ -31,18 +31,19 @@ import java.util.stream.Collectors;
 @Slf4j
 
 public class MovieService {
-    
+
     private final MovieSummaryRepository movieSummaryRepository;
     private final MovieDetailRepository movieDetailRepository;
-    private final TMDbClient tmdbClient; //client gọi TMDb API
+    private final TMDbClient tmdbClient; // client gọi TMDb API
     private final MovieMapper movieMapper;
 
-    public void syncMovies(){
-        log.info("[{}] Starting movie sync from TMDb...", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+    public void syncMovies() {
+        log.info("[{}] Starting movie sync from TMDb...",
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
-        //Lấy dữ liệu từ TMDb
+        // Lấy dữ liệu từ TMDb
         List<TMDbMovieResponse> nowPlaying = tmdbClient.fetchNowPlaying();
-        List<TMDbMovieResponse> upcoming   = tmdbClient.fetchUpcoming();
+        List<TMDbMovieResponse> upcoming = tmdbClient.fetchUpcoming();
 
         // Merge lại 2 list
         List<TMDbMovieResponse> allMovies = new ArrayList<>();
@@ -51,17 +52,17 @@ public class MovieService {
 
         Set<Integer> activeTmdbIds = allMovies.stream().map(TMDbMovieResponse::getId).collect(Collectors.toSet());
 
-        for (TMDbMovieResponse movie : nowPlaying){
+        for (TMDbMovieResponse movie : nowPlaying) {
             syncMovie(movie, "NOW_PLAYING");
         }
-        for (TMDbMovieResponse movie : upcoming){
+        for (TMDbMovieResponse movie : upcoming) {
             syncMovie(movie, "UPCOMING");
         }
 
-        //Xóa phim k còn active
+        // Xóa phim k còn active
         List<MovieSummary> dbMovies = movieSummaryRepository.findAll();
-        for (MovieSummary summary : dbMovies){
-            if (!activeTmdbIds.contains(summary.getTmdbId())){
+        for (MovieSummary summary : dbMovies) {
+            if (!activeTmdbIds.contains(summary.getTmdbId())) {
                 movieSummaryRepository.deleteByTmdbId(summary.getTmdbId());
                 movieDetailRepository.deleteByTmdbId(summary.getTmdbId());
                 log.info("Deleted movie with tmdb={}", summary.getTmdbId());
@@ -90,17 +91,15 @@ public class MovieService {
         summary.setPosterUrl(movie.getPosterPath());
         summary.setStatus(status);
         summary.setSpokenLanguages(
-            movie.getSpokenLanguages().stream()
-                .map(TMDbMovieResponse.SpokenLanguage::getIso6391)
-                .toList()
-        );
+                movie.getSpokenLanguages().stream()
+                        .map(TMDbMovieResponse.SpokenLanguage::getIso6391)
+                        .toList());
         summary.setCountry(
-                movie.getProductionCountries().isEmpty() ? null :
-                        movie.getProductionCountries().get(0).getName()
-        );
+                movie.getProductionCountries().isEmpty() ? null : movie.getProductionCountries().get(0).getName());
         summary.setTime(movie.getRuntime());
         summary.setGenres(movie.getGenres().stream().map(TMDbMovieResponse.Genre::getName).toList());
         summary.setAge(age);
+        summary.setTrailer(trailer);
 
         movieSummaryRepository.save(summary);
 
@@ -113,25 +112,20 @@ public class MovieService {
         detail.setOverview(movie.getOverview());
         detail.setTime(movie.getRuntime());
         detail.setSpokenLanguages(
-            movie.getSpokenLanguages().stream()
-                .map(TMDbMovieResponse.SpokenLanguage::getEnglishName)
-                .toList()
-        );
+                movie.getSpokenLanguages().stream()
+                        .map(TMDbMovieResponse.SpokenLanguage::getEnglishName)
+                        .toList());
         detail.setCountry(
-                movie.getProductionCountries().isEmpty() ? null :
-                        movie.getProductionCountries().get(0).getName()
-        );
+                movie.getProductionCountries().isEmpty() ? null : movie.getProductionCountries().get(0).getName());
         detail.setReleaseDate(movie.getReleaseDate());
         detail.setGenres(movie.getGenres().stream().map(TMDbMovieResponse.Genre::getName).toList());
         detail.setCast(
-                credits.getCast().stream().map(TMDbCreditsResponse.Cast::getName).limit(10).toList()
-        );
+                credits.getCast().stream().map(TMDbCreditsResponse.Cast::getName).limit(10).toList());
         detail.setCrew(
                 credits.getCrew().stream()
                         .filter(c -> "Director".equalsIgnoreCase(c.getJob()))
                         .map(TMDbCreditsResponse.Crew::getName)
-                        .toList()
-        );
+                        .toList());
         detail.setAge(age);
         detail.setTrailer(trailer);
         detail.setPosterUrl(movie.getPosterPath());
@@ -140,7 +134,8 @@ public class MovieService {
 
         log.info("Synced movie: {} ({})", movie.getTitle(), movie.getId());
     }
-    //HelperL extract age
+
+    // HelperL extract age
     private String extractAgeRating(TMDbReleaseDatesResponse releaseDates) {
         return releaseDates.getResults().stream()
                 .filter(r -> "US".equals(r.getIso31661())) // ưu tiên US
@@ -152,7 +147,7 @@ public class MovieService {
     }
 
     // ================== PUBLIC API METHODS ==================
-    
+
     public Page<MovieSummaryResponse> getNowPlayingMovies(Pageable pageable) {
         Page<MovieSummary> entities = movieSummaryRepository.findByStatus("NOW_PLAYING", pageable);
         return movieMapper.toSummaryResponsePage(entities);
@@ -175,31 +170,30 @@ public class MovieService {
         if (tmdbId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "TMDb ID is required");
         }
-        
+
         // Tìm trong database trước
         Optional<MovieDetail> movieDetail = movieDetailRepository.findByTmdbId(tmdbId);
         if (movieDetail.isPresent()) {
             return movieMapper.toDetailResponse(movieDetail.get());
         }
-        
+
         // Nếu không tìm thấy trong DB, gọi TMDb API
         try {
             log.info("Movie detail not found in DB for tmdbId={}. Fetching from TMDb API...", tmdbId);
-            
+
             TMDbMovieResponse movieResponse = tmdbClient.fetchMovieDetail(tmdbId);
             if (movieResponse == null) {
                 throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND, 
-                    "Movie not found with TMDb ID: " + tmdbId
-                );
+                        HttpStatus.NOT_FOUND,
+                        "Movie not found with TMDb ID: " + tmdbId);
             }
-            
+
             // Fetch additional data for complete movie detail
             TMDbCreditsResponse credits = tmdbClient.fetchCredits(tmdbId);
             TMDbReleaseDatesResponse releaseDates = tmdbClient.fetchReleaseDates(tmdbId);
             String trailer = tmdbClient.fetchTrailerKey(tmdbId);
             String age = AgeRatingNormalizer.normalize(extractAgeRating(releaseDates));
-            
+
             // Tạo MovieDetail từ TMDb data
             MovieDetail detail = new MovieDetail();
             detail.setTmdbId(movieResponse.getId());
@@ -207,40 +201,35 @@ public class MovieService {
             detail.setOverview(movieResponse.getOverview());
             detail.setTime(movieResponse.getRuntime());
             detail.setSpokenLanguages(
-                movieResponse.getSpokenLanguages().stream()
-                    .map(TMDbMovieResponse.SpokenLanguage::getEnglishName)
-                    .toList()
-            );
+                    movieResponse.getSpokenLanguages().stream()
+                            .map(TMDbMovieResponse.SpokenLanguage::getEnglishName)
+                            .toList());
             detail.setCountry(
-                movieResponse.getProductionCountries().isEmpty() ? null :
-                    movieResponse.getProductionCountries().get(0).getName()
-            );
+                    movieResponse.getProductionCountries().isEmpty() ? null
+                            : movieResponse.getProductionCountries().get(0).getName());
             detail.setReleaseDate(movieResponse.getReleaseDate());
             detail.setGenres(movieResponse.getGenres().stream().map(TMDbMovieResponse.Genre::getName).toList());
             detail.setCast(
-                credits.getCast().stream().map(TMDbCreditsResponse.Cast::getName).limit(10).toList()
-            );
+                    credits.getCast().stream().map(TMDbCreditsResponse.Cast::getName).limit(10).toList());
             detail.setCrew(
-                credits.getCrew().stream()
-                    .filter(c -> "Director".equalsIgnoreCase(c.getJob()))
-                    .map(TMDbCreditsResponse.Crew::getName)
-                    .toList()
-            );
+                    credits.getCrew().stream()
+                            .filter(c -> "Director".equalsIgnoreCase(c.getJob()))
+                            .map(TMDbCreditsResponse.Crew::getName)
+                            .toList());
             detail.setAge(age);
             detail.setTrailer(trailer);
-            
+
             // Lưu vào database để lần sau không phải gọi API
             movieDetailRepository.save(detail);
             log.info("Saved movie detail from TMDb API: {} ({})", movieResponse.getTitle(), tmdbId);
-            
+
             return movieMapper.toDetailResponse(detail);
-            
+
         } catch (Exception e) {
             log.error("Error fetching movie detail from TMDb API for tmdbId={}: {}", tmdbId, e.getMessage());
             throw new ResponseStatusException(
-                HttpStatus.NOT_FOUND, 
-                "Movie not found with TMDb ID: " + tmdbId
-            );
+                    HttpStatus.NOT_FOUND,
+                    "Movie not found with TMDb ID: " + tmdbId);
         }
     }
 }

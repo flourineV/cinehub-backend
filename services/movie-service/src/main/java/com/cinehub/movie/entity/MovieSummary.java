@@ -16,7 +16,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 public class MovieSummary {
     @Id
     private String id;
-    private Integer tmdbId; 
+    private Integer tmdbId;
     private String title;
     private String posterUrl;
     private String age;
@@ -25,4 +25,5 @@ public class MovieSummary {
     private String country;
     private Integer time;
     private List<String> genres;
+    private String trailer;
 }

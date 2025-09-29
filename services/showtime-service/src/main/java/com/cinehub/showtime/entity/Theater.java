@@ -1,5 +1,6 @@
 package com.cinehub.showtime.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -27,5 +28,7 @@ public class Theater {
 
     private String name;
     private String address;
+
+    @Column(columnDefinition = "TEXT")
     private String description;
 }

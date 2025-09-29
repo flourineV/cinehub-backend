@@ -11,16 +11,16 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/seats") 
+@RequestMapping("/api/seats")
 @RequiredArgsConstructor
 public class SeatController {
 
     private final SeatService seatService;
 
     @PostMapping
-    public ResponseEntity<SeatResponse> createSeat(@RequestBody SeatRequest request) {
-        SeatResponse response = seatService.createSeat(request);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
+    public ResponseEntity<List<SeatResponse>> createSeats(@RequestBody List<SeatRequest> requests) {
+        List<SeatResponse> responses = seatService.createSeats(requests);
+        return new ResponseEntity<>(responses, HttpStatus.CREATED);
     }
 
     @GetMapping("/{id}")
@@ -34,7 +34,7 @@ public class SeatController {
         List<SeatResponse> responseList = seatService.getAllSeats();
         return ResponseEntity.ok(responseList);
     }
-    
+
     @GetMapping("/room/{roomId}")
     public ResponseEntity<List<SeatResponse>> getSeatsByRoomId(@PathVariable String roomId) {
         List<SeatResponse> responseList = seatService.getSeatsByRoomId(roomId);
@@ -45,7 +45,7 @@ public class SeatController {
     public ResponseEntity<SeatResponse> updateSeat(
             @PathVariable String id,
             @RequestBody SeatRequest request) {
-        
+
         SeatResponse response = seatService.updateSeat(id, request);
         return ResponseEntity.ok(response);
     }
