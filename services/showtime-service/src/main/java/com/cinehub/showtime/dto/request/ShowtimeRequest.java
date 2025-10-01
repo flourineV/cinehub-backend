@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.util.UUID;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -14,9 +15,9 @@ import lombok.NoArgsConstructor;
 @Builder
 
 public class ShowtimeRequest {
-    private String movieId;    
-    private String theaterId;
-    private String roomId;
+    private UUID movieId;
+    private UUID theaterId;
+    private UUID roomId;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private BigDecimal price;

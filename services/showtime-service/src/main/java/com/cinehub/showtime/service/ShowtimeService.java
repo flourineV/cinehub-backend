@@ -25,18 +25,19 @@ public class ShowtimeService {
     private final ShowtimeRepository showtimeRepository;
     private final TheaterRepository theaterRepository;
     private final RoomRepository roomRepository;
-    
+
     public ShowtimeResponse createShowtime(ShowtimeRequest request) {
         Theater theater = theaterRepository.findById(request.getTheaterId())
-                .orElseThrow(() -> new EntityNotFoundException("Theater with ID " + request.getTheaterId() + " not found"));
+                .orElseThrow(
+                        () -> new EntityNotFoundException("Theater with ID " + request.getTheaterId() + " not found"));
         Room room = roomRepository.findById(request.getRoomId())
                 .orElseThrow(() -> new EntityNotFoundException("Room with ID " + request.getRoomId() + " not found"));
 
         // 2. KIỂM TRA TRÙNG LỊCH (Gọi hàm helper)
-        checkOverlap(request.getRoomId(), request.getStartTime(), request.getEndTime(), null); 
+        checkOverlap(request.getRoomId(), request.getStartTime(), request.getEndTime(), null);
 
         Showtime showtime = Showtime.builder()
-                .id(UUID.randomUUID().toString())
+                .id(UUID.randomUUID())
                 .movieId(request.getMovieId())
                 .theater(theater)
                 .room(room)
@@ -49,10 +50,10 @@ public class ShowtimeService {
         return mapToShowtimeResponse(savedShowtime);
     }
 
-    public ShowtimeResponse getShowtimeById(String id) {
+    public ShowtimeResponse getShowtimeById(UUID id) {
         Showtime showtime = showtimeRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Showtime with ID " + id + " not found"));
-        
+
         return mapToShowtimeResponse(showtime);
     }
 
@@ -62,30 +63,32 @@ public class ShowtimeService {
                 .collect(Collectors.toList());
     }
 
-    public List<ShowtimeResponse> getShowtimesByTheaterAndDate(String theaterId, LocalDateTime start, LocalDateTime end) {
+    public List<ShowtimeResponse> getShowtimesByTheaterAndDate(UUID theaterId, LocalDateTime start,
+            LocalDateTime end) {
         return showtimeRepository.findByTheaterIdAndStartTimeBetween(theaterId, start, end).stream()
                 .map(this::mapToShowtimeResponse)
                 .collect(Collectors.toList());
     }
-    
-    public List<ShowtimeResponse> getShowtimesByMovie(String movieId) {
+
+    public List<ShowtimeResponse> getShowtimesByMovie(UUID movieId) {
         return showtimeRepository.findByMovieId(movieId).stream()
                 .map(this::mapToShowtimeResponse)
                 .collect(Collectors.toList());
     }
 
-    public ShowtimeResponse updateShowtime(String id, ShowtimeRequest request) {
+    public ShowtimeResponse updateShowtime(UUID id, ShowtimeRequest request) {
         Showtime showtime = showtimeRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Showtime with ID " + id + " not found"));
 
         Theater theater = theaterRepository.findById(request.getTheaterId())
-                .orElseThrow(() -> new EntityNotFoundException("Theater with ID " + request.getTheaterId() + " not found"));
-        
+                .orElseThrow(
+                        () -> new EntityNotFoundException("Theater with ID " + request.getTheaterId() + " not found"));
+
         Room room = roomRepository.findById(request.getRoomId())
                 .orElseThrow(() -> new EntityNotFoundException("Room with ID " + request.getRoomId() + " not found"));
 
-        
-        // KIỂM TRA TRÙNG LỊCH (Gọi hàm helper, truyền id suất chiếu hiện tại để loại trừ)
+        // KIỂM TRA TRÙNG LỊCH (Gọi hàm helper, truyền id suất chiếu hiện tại để loại
+        // trừ)
         checkOverlap(request.getRoomId(), request.getStartTime(), request.getEndTime(), id);
 
         showtime.setMovieId(request.getMovieId());
@@ -99,9 +102,9 @@ public class ShowtimeService {
         return mapToShowtimeResponse(updatedShowtime);
     }
 
-    public void deleteShowtime(String id) {
+    public void deleteShowtime(UUID id) {
         if (!showtimeRepository.existsById(id)) {
-             throw new EntityNotFoundException("Showtime with ID " + id + " not found for deletion");
+            throw new EntityNotFoundException("Showtime with ID " + id + " not found for deletion");
         }
         showtimeRepository.deleteById(id);
     }
@@ -112,7 +115,7 @@ public class ShowtimeService {
                 .id(showtime.getId())
                 .movieId(showtime.getMovieId())
                 .theaterName(showtime.getTheater().getName()) // Lấy tên Theater
-                .roomName(showtime.getRoom().getName())       // Lấy tên Room
+                .roomName(showtime.getRoom().getName()) // Lấy tên Room
                 .startTime(showtime.getStartTime())
                 .endTime(showtime.getEndTime())
                 .price(showtime.getPrice())
@@ -120,12 +123,12 @@ public class ShowtimeService {
     }
 
     // --- Helper function: Kiểm tra trùng lịch ---
-    private void checkOverlap(String roomId, LocalDateTime newStartTime, LocalDateTime newEndTime, String excludedShowtimeId) {
+    private void checkOverlap(UUID roomId, LocalDateTime newStartTime, LocalDateTime newEndTime,
+            UUID excludedShowtimeId) {
         List<Showtime> overlappingShowtimes = showtimeRepository.findByRoomIdAndEndTimeAfterAndStartTimeBefore(
-            roomId, 
-            newStartTime, 
-            newEndTime    
-        );
+                roomId,
+                newStartTime,
+                newEndTime);
 
         if (!overlappingShowtimes.isEmpty()) {
             // Trong trường hợp Update, ta loại trừ chính suất chiếu đang được update

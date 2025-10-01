@@ -9,10 +9,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
-@RestController 
-@RequestMapping("/api/theaters") 
-@RequiredArgsConstructor 
+@RestController
+@RequestMapping("/api/theaters")
+@RequiredArgsConstructor
 
 public class TheaterController {
 
@@ -24,11 +25,11 @@ public class TheaterController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    public ResponseEntity<TheaterResponse> getTheaterById(@PathVariable String id) {
+    public ResponseEntity<TheaterResponse> getTheaterById(@PathVariable UUID id) {
         TheaterResponse response = theaterService.getTheaterById(id);
         return ResponseEntity.ok(response);
     }
-    
+
     @GetMapping
     public ResponseEntity<List<TheaterResponse>> getAllTheaters() {
         List<TheaterResponse> responseList = theaterService.getAllTheaters();
@@ -36,14 +37,14 @@ public class TheaterController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<TheaterResponse>> getTheatersByProvince(@RequestParam String provinceId) {
+    public ResponseEntity<List<TheaterResponse>> getTheatersByProvince(@RequestParam UUID provinceId) {
         List<TheaterResponse> responseList = theaterService.getTheatersByProvince(provinceId);
         return ResponseEntity.ok(responseList);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<TheaterResponse> updateTheater(
-            @PathVariable String id,
+            @PathVariable UUID id,
             @RequestBody TheaterRequest request) {
 
         TheaterResponse response = theaterService.updateTheater(id, request);
@@ -51,7 +52,7 @@ public class TheaterController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTheater(@PathVariable String id) {
+    public ResponseEntity<Void> deleteTheater(@PathVariable UUID id) {
         theaterService.deleteTheater(id);
         return ResponseEntity.noContent().build();
     }

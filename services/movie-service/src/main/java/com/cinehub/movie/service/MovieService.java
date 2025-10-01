@@ -86,6 +86,10 @@ public class MovieService {
         MovieSummary summary = movieSummaryRepository.findByTmdbId(movie.getId())
                 .orElse(new MovieSummary());
 
+        if (summary.getId() == null) {
+            summary.setId(UUID.randomUUID()); // <--- Thêm đoạn này
+        }
+
         summary.setTmdbId(movie.getId());
         summary.setTitle(movie.getTitle());
         summary.setPosterUrl(movie.getPosterPath());
@@ -106,6 +110,10 @@ public class MovieService {
         // --- Detail ---
         MovieDetail detail = movieDetailRepository.findByTmdbId(movie.getId())
                 .orElse(new MovieDetail());
+
+        if (detail.getId() == null) {
+            detail.setId(UUID.randomUUID()); // <--- Thêm đoạn này
+        }
 
         detail.setTmdbId(movie.getId());
         detail.setTitle(movie.getTitle());
@@ -196,6 +204,9 @@ public class MovieService {
 
             // Tạo MovieDetail từ TMDb data
             MovieDetail detail = new MovieDetail();
+
+            detail.setId(UUID.randomUUID()); // <--- Thêm đoạn này
+
             detail.setTmdbId(movieResponse.getId());
             detail.setTitle(movieResponse.getTitle());
             detail.setOverview(movieResponse.getOverview());

@@ -2,6 +2,8 @@ package com.cinehub.showtime.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -10,6 +12,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.util.UUID;
 
 @Entity
 @Table(name = "theater")
@@ -19,8 +22,10 @@ import lombok.NoArgsConstructor;
 @Builder
 
 public class Theater {
+
     @Id
-    private String id; //UUID
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private UUID id; // UUID
 
     @ManyToOne
     @JoinColumn(name = "province_id", nullable = false)

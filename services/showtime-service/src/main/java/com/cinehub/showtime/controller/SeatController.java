@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/seats")
@@ -24,7 +25,7 @@ public class SeatController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<SeatResponse> getSeatById(@PathVariable String id) {
+    public ResponseEntity<SeatResponse> getSeatById(@PathVariable UUID id) {
         SeatResponse response = seatService.getSeatById(id);
         return ResponseEntity.ok(response);
     }
@@ -36,14 +37,14 @@ public class SeatController {
     }
 
     @GetMapping("/room/{roomId}")
-    public ResponseEntity<List<SeatResponse>> getSeatsByRoomId(@PathVariable String roomId) {
+    public ResponseEntity<List<SeatResponse>> getSeatsByRoomId(@PathVariable UUID roomId) {
         List<SeatResponse> responseList = seatService.getSeatsByRoomId(roomId);
         return ResponseEntity.ok(responseList);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<SeatResponse> updateSeat(
-            @PathVariable String id,
+            @PathVariable UUID id,
             @RequestBody SeatRequest request) {
 
         SeatResponse response = seatService.updateSeat(id, request);
@@ -51,7 +52,7 @@ public class SeatController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteSeat(@PathVariable String id) {
+    public ResponseEntity<Void> deleteSeat(@PathVariable UUID id) {
         seatService.deleteSeat(id);
         return ResponseEntity.noContent().build();
     }

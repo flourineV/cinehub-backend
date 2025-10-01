@@ -22,10 +22,11 @@ public class TheaterService {
 
     public TheaterResponse createTheater(TheaterRequest request) {
         Province province = provinceRepository.findById(request.getProvinceId())
-                .orElseThrow(() -> new EntityNotFoundException("Province with ID " + request.getProvinceId() + " not found"));
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Province with ID " + request.getProvinceId() + " not found"));
 
         Theater theater = Theater.builder()
-                .id(UUID.randomUUID().toString())
+                .id(UUID.randomUUID())
                 .name(request.getName())
                 .address(request.getAddress())
                 .province(province)
@@ -36,8 +37,9 @@ public class TheaterService {
         return mapToTheaterResponse(savedTheater);
     }
 
-    public TheaterResponse getTheaterById(String id) {
-        Theater theater = theaterRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Theater not found"));
+    public TheaterResponse getTheaterById(UUID id) {
+        Theater theater = theaterRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Theater not found"));
         return mapToTheaterResponse(theater);
     }
 
@@ -46,33 +48,34 @@ public class TheaterService {
                 .map(t -> mapToTheaterResponse(t)).collect(Collectors.toList());
     }
 
-    public List<TheaterResponse> getTheatersByProvince(String provinceId) {
+    public List<TheaterResponse> getTheatersByProvince(UUID provinceId) {
         return theaterRepository.findByProvinceId(provinceId).stream()
                 .map(t -> mapToTheaterResponse(t)).collect(Collectors.toList());
     }
 
-    public TheaterResponse updateTheater(String id, TheaterRequest request) {
+    public TheaterResponse updateTheater(UUID id, TheaterRequest request) {
         Theater theater = theaterRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Theater not found"));
 
         Province province = provinceRepository.findById(request.getProvinceId())
-                .orElseThrow(() -> new EntityNotFoundException("Province with ID " + request.getProvinceId() + " not found"));
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Province with ID " + request.getProvinceId() + " not found"));
 
         theater.setName(request.getName());
         theater.setAddress(request.getAddress());
-        theater.setProvince(province); 
-        theater.setDescription(request.getDescription()); 
+        theater.setProvince(province);
+        theater.setDescription(request.getDescription());
 
         Theater updatedTheater = theaterRepository.save(theater);
         return mapToTheaterResponse(updatedTheater);
     }
 
-    public void deleteTheater(String id) {
-        theaterRepository.deleteById(id); 
+    public void deleteTheater(UUID id) {
+        theaterRepository.deleteById(id);
     }
 
     // --- Helper function: Mapping từ Entity sang Response DTO ---
-    private TheaterResponse mapToTheaterResponse(Theater theater){
+    private TheaterResponse mapToTheaterResponse(Theater theater) {
         return TheaterResponse.builder()
                 .id(theater.getId())
                 .name(theater.getName())

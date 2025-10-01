@@ -6,17 +6,16 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Repository
-public interface ShowtimeRepository extends JpaRepository<Showtime, String> {
+public interface ShowtimeRepository extends JpaRepository<Showtime, UUID> {
     List<Showtime> findByTheaterIdAndStartTimeBetween(
-        String theaterId, LocalDateTime start, LocalDateTime end
-    );
+            UUID theaterId, LocalDateTime start, LocalDateTime end);
 
-    List<Showtime> findByMovieId(String movieId);
+    List<Showtime> findByMovieId(UUID movieId);
 
     // PHƯƠNG THỨC MỚI: Tìm suất chiếu trùng lịch trong cùng một Room
     List<Showtime> findByRoomIdAndEndTimeAfterAndStartTimeBefore(
-        String roomId, LocalDateTime startTime, LocalDateTime endTime
-    );
+            UUID roomId, LocalDateTime startTime, LocalDateTime endTime);
 }

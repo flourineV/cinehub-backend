@@ -6,11 +6,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.UUID;
 import java.util.Optional;
 
 @Repository
-public interface MovieSummaryRepository extends MongoRepository<MovieSummary, String> {
-    
+public interface MovieSummaryRepository extends MongoRepository<MovieSummary, UUID> {
+
     Page<MovieSummary> findByStatus(String status, Pageable pageable);
 
     Page<MovieSummary> findByTitleContainingIgnoreCase(String title, Pageable pageable);

@@ -8,14 +8,16 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
 @Builder
 
 public class ShowtimeResponse {
-    private String id;
-    private String movieId;    
+    private UUID id;
+    private UUID movieId;
     private String theaterName;
     private String roomName;
     private LocalDateTime startTime;

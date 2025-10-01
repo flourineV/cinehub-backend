@@ -24,49 +24,51 @@ public class RoomService {
 
     public RoomResponse createRoom(RoomRequest request) {
         Theater theater = theaterRepository.findById(request.getTheaterId())
-                .orElseThrow(() -> new EntityNotFoundException("Theater with ID " + request.getTheaterId() + " not found"));
+                .orElseThrow(
+                        () -> new EntityNotFoundException("Theater with ID " + request.getTheaterId() + " not found"));
 
         Room room = Room.builder()
-                .id(UUID.randomUUID().toString()) 
+                .id(UUID.randomUUID())
                 .name(request.getName())
                 .seatCount(request.getSeatCount())
-                .theater(theater) 
+                .theater(theater)
                 .build();
 
         Room savedRoom = roomRepository.save(room);
         return mapToRoomResponse(savedRoom);
     }
 
-    public RoomResponse getRoomById(String id) {
+    public RoomResponse getRoomById(UUID id) {
         Room room = roomRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Room with ID " + id + " not found"));
-        
+
         return mapToRoomResponse(room);
     }
-    
+
     public List<RoomResponse> getAllRooms() {
         return roomRepository.findAll().stream()
                 .map(this::mapToRoomResponse)
                 .collect(Collectors.toList());
     }
 
-    public RoomResponse updateRoom(String id, RoomRequest request) {
+    public RoomResponse updateRoom(UUID id, RoomRequest request) {
         Room room = roomRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Room with ID " + id + " not found"));
 
         Theater theater = theaterRepository.findById(request.getTheaterId())
-                .orElseThrow(() -> new EntityNotFoundException("Theater with ID " + request.getTheaterId() + " not found"));
+                .orElseThrow(
+                        () -> new EntityNotFoundException("Theater with ID " + request.getTheaterId() + " not found"));
 
         room.setName(request.getName());
         room.setSeatCount(request.getSeatCount());
-        room.setTheater(theater); 
+        room.setTheater(theater);
         Room updatedRoom = roomRepository.save(room);
         return mapToRoomResponse(updatedRoom);
     }
 
-    public void deleteRoom(String id) {
+    public void deleteRoom(UUID id) {
         if (!roomRepository.existsById(id)) {
-             throw new EntityNotFoundException("Room with ID " + id + " not found for deletion");
+            throw new EntityNotFoundException("Room with ID " + id + " not found for deletion");
         }
         roomRepository.deleteById(id);
     }
@@ -77,7 +79,7 @@ public class RoomService {
                 .id(room.getId())
                 .name(room.getName())
                 .seatCount(room.getSeatCount())
-                .theaterName(room.getTheater().getName()) 
+                .theaterName(room.getTheater().getName())
                 .build();
     }
 }

@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/provinces")
@@ -19,28 +20,28 @@ public class ProvinceController {
     private final ProvinceService provinceService;
 
     @PostMapping
-    public ResponseEntity<ProvinceResponse> createProvince(@RequestBody ProvinceRequest request){
+    public ResponseEntity<ProvinceResponse> createProvince(@RequestBody ProvinceRequest request) {
         ProvinceResponse response = provinceService.createProvince(request);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ProvinceResponse> getProvinceById(@PathVariable String id){
+    public ResponseEntity<ProvinceResponse> getProvinceById(@PathVariable UUID id) {
         return ResponseEntity.ok(provinceService.getProvinceById(id));
     }
 
     @GetMapping
-    public ResponseEntity<List<ProvinceResponse>> getAllProvinces(){
+    public ResponseEntity<List<ProvinceResponse>> getAllProvinces() {
         return ResponseEntity.ok(provinceService.getAllProvinces());
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ProvinceResponse> updateProvince(@RequestBody String id, @RequestBody ProvinceRequest request){
+    public ResponseEntity<ProvinceResponse> updateProvince(@RequestBody UUID id, @RequestBody ProvinceRequest request) {
         return ResponseEntity.ok(provinceService.updateProvince(id, request));
     }
 
     @DeleteMapping("{id}")
-    public ResponseEntity<Void> deleteProvince(@PathVariable String id){
+    public ResponseEntity<Void> deleteProvince(@PathVariable UUID id) {
         provinceService.deleteProvince(id);
         return ResponseEntity.noContent().build();
     }

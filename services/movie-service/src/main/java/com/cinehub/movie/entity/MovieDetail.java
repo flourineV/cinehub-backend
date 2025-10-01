@@ -7,6 +7,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.List;
+import java.util.UUID;
 
 @Document(collection = "movie_details")
 @Data
@@ -14,18 +15,18 @@ import java.util.List;
 @AllArgsConstructor
 public class MovieDetail {
     @Id
-    private String id;            
-    private Integer tmdbId;         
-    private String title;           
+    private UUID id;
+    private Integer tmdbId;
+    private String title;
     private String age;
-    private String posterUrl;             
-    private List<String> genres;    
-    private Integer time;           
-    private String country;         
-    private List<String> spokenLanguages;       
-    private List<String> crew;    
-    private List<String> cast;     
-    private String releaseDate;     
-    private String overview;        
-    private String trailer;        
+    private String posterUrl;
+    private List<String> genres;
+    private Integer time;
+    private String country;
+    private List<String> spokenLanguages;
+    private List<String> crew;
+    private List<String> cast;
+    private String releaseDate;
+    private String overview;
+    private String trailer;
 }
