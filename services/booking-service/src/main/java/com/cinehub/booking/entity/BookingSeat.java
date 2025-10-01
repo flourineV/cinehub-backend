@@ -15,10 +15,11 @@ import java.util.UUID;
 public class BookingSeat {
 
     @Id
-    private String id; // String, sẽ tự gán UUID
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private UUID id; // String, sẽ tự gán UUID
 
     @Column(nullable = false)
-    private String seatId; // tham chiếu seat-service
+    private UUID seatId; // tham chiếu seat-service
 
     @Column(nullable = false)
     private BigDecimal price;
@@ -38,7 +39,7 @@ public class BookingSeat {
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         if (this.id == null) {
-            this.id = UUID.randomUUID().toString();
+            this.id = UUID.randomUUID();
         }
         if (this.status == null) {
             this.status = SeatStatus.RESERVED;

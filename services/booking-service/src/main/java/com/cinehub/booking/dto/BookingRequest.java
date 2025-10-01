@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.UUID;
 
 @Data
 @NoArgsConstructor
@@ -13,7 +14,7 @@ import java.util.List;
 @Builder
 
 public class BookingRequest {
-    private String userId;
-    private String showtimeId;
-    private List<String> seatIds;
+    private UUID userId;
+    private UUID showtimeId;
+    private List<UUID> seatIds;
 }

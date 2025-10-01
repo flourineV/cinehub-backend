@@ -1,14 +1,43 @@
 package com.cinehub.booking.controller;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import com.cinehub.booking.dto.BookingRequest;
+import com.cinehub.booking.dto.BookingResponse;
+import com.cinehub.booking.service.BookingService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/bookings")
+@RequiredArgsConstructor
 public class BookingController {
-    @GetMapping("/ping")
-    public String ping() {
-        return "Booking service is running!";
+
+    private final BookingService bookingService;
+
+    @PostMapping
+    public BookingResponse createBooking(@RequestBody BookingRequest request) {
+        return bookingService.createBooking(request);
+    }
+
+    @GetMapping("/{id}")
+    public BookingResponse getBookingById(@PathVariable UUID id) {
+        return bookingService.getBookingById(id);
+    }
+
+    @GetMapping("/user/{userId}")
+    public List<BookingResponse> getBookingsByUser(@PathVariable UUID userId) {
+        return bookingService.getBookingsByUser(userId);
+    }
+
+    @PatchMapping("/{id}/status")
+    public BookingResponse updateStatus(@PathVariable UUID id, @RequestParam String status) {
+        return bookingService.updateBookingStatus(id, status);
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteBooking(@PathVariable UUID id) {
+        bookingService.deleteBooking(id);
     }
 }

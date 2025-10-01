@@ -4,15 +4,16 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class BookingResponse {
-    private String bookingId;
-    private String userId;
-    private String showtimeId;
+    private UUID bookingId;
+    private UUID userId;
+    private UUID showtimeId;
     private BigDecimal totalPrice;
     private String status;
     private List<BookingSeatResponse> seats;

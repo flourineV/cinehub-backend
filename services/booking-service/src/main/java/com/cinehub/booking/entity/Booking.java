@@ -15,13 +15,14 @@ import java.util.*;
 public class Booking {
 
     @Id
-    private String id;
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private UUID id;
 
     @Column(nullable = false)
-    private String userId;
+    private UUID userId;
 
     @Column(nullable = false)
-    private String showtimeId;
+    private UUID showtimeId;
 
     @Column(nullable = false)
     private BigDecimal totalPrice;
@@ -45,7 +46,7 @@ public class Booking {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
         if (this.id == null) {
-            this.id = UUID.randomUUID().toString();
+            this.id = UUID.randomUUID();
         }
         if (this.status == null) {
             this.status = BookingStatus.PENDING;
