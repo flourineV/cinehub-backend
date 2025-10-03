@@ -15,7 +15,6 @@ import java.util.*;
 public class Booking {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
     @Column(nullable = false)
@@ -57,4 +56,7 @@ public class Booking {
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
+
+    @Version
+    private Long version;
 }

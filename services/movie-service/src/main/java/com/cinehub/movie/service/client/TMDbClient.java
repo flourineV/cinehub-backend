@@ -1,16 +1,13 @@
 package com.cinehub.movie.service.client;
 
-import com.cinehub.movie.dto.TMDb.TMDbCreditsResponse;
-import com.cinehub.movie.dto.TMDb.TMDbMovieResponse;
-import com.cinehub.movie.dto.TMDb.TMDbReleaseDatesResponse;
-import com.cinehub.movie.dto.TMDb.TMDbVideoResponse;
+import com.cinehub.movie.dto.TMDb.*;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 @Component
 public class TMDbClient {
@@ -24,20 +21,24 @@ public class TMDbClient {
 
     public List<TMDbMovieResponse> fetchNowPlaying() {
         String url = String.format("%s/movie/now_playing?api_key=%s&language=vi-VN&page=1", baseUrl, apiKey);
-        Map<?, ?> response = restTemplate.getForObject(url, Map.class);
-        List<Map<String, Object>> results = (List<Map<String, Object>>) response.get("results");
-        return results.stream().map(r -> restTemplate.getForObject(
-                baseUrl + "/movie/" + r.get("id") + "?api_key=" + apiKey + "&language=vi-VN",
-                TMDbMovieResponse.class)).toList();
+        TMDbMovieListResponse response = restTemplate.getForObject(url, TMDbMovieListResponse.class);
+
+        if (response == null || response.getResults() == null) {
+            return Collections.emptyList();
+        }
+
+        return response.getResults();
     }
 
     public List<TMDbMovieResponse> fetchUpcoming() {
         String url = String.format("%s/movie/upcoming?api_key=%s&language=vi-VN&page=1", baseUrl, apiKey);
-        Map<?, ?> response = restTemplate.getForObject(url, Map.class);
-        List<Map<String, Object>> results = (List<Map<String, Object>>) response.get("results");
-        return results.stream().map(r -> restTemplate.getForObject(
-                baseUrl + "/movie/" + r.get("id") + "?api_key=" + apiKey + "&language=vi-VN",
-                TMDbMovieResponse.class)).toList();
+        TMDbMovieListResponse response = restTemplate.getForObject(url, TMDbMovieListResponse.class);
+
+        if (response == null || response.getResults() == null) {
+            return Collections.emptyList();
+        }
+
+        return response.getResults();
     }
 
     public TMDbMovieResponse fetchMovieDetail(Integer tmdbId) {

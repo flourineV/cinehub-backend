@@ -3,13 +3,7 @@ package com.cinehub.booking.service;
 import com.cinehub.booking.entity.*;
 import com.cinehub.booking.dto.*;
 import com.cinehub.booking.repository.BookingRepository;
-import com.cinehub.booking.repository.BookingSeatRepository;
-
-import com.cinehub.booking.dto.BookingRequest;
-import com.cinehub.booking.dto.BookingUpdateRequest;
-import com.cinehub.booking.dto.BookingResponse;
-import com.cinehub.booking.dto.BookingSeatResponse;
-
+import com.cinehub.booking.config.SeatAlreadyLockedException;
 import com.cinehub.booking.client.*;
 
 import jakarta.transaction.Transactional;
@@ -27,6 +21,7 @@ public class BookingService {
 
         private final BookingRepository bookingRepository;
         private final ShowtimeClient showtimeClient;
+        private final SeatLockClient seatLockClient;
 
         @Transactional
         public BookingResponse createBooking(BookingRequest request) {
@@ -40,11 +35,23 @@ public class BookingService {
 
                 // Tạo booking
                 Booking booking = Booking.builder()
+                                .id(UUID.randomUUID())
                                 .userId(request.getUserId())
                                 .showtimeId(request.getShowtimeId())
                                 .totalPrice(total)
                                 .status(BookingStatus.PENDING)
                                 .build();
+
+                for (UUID seatId : request.getSeatIds()) {
+                        SeatLockResponse lockResponse = seatLockClient.lockSeat(
+                                        request.getShowtimeId(),
+                                        seatId,
+                                        booking.getId());
+
+                        if (!"LOCKED".equals(lockResponse.getStatus())) {
+                                throw new SeatAlreadyLockedException(seatId.toString());
+                        }
+                }
 
                 // Mapping seats
                 List<BookingSeat> seats = request.getSeatIds().stream()
