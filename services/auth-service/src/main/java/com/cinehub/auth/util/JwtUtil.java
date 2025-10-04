@@ -13,22 +13,22 @@ import java.util.UUID;
 
 @Component
 public class JwtUtil {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(JwtUtil.class);
-    
+
     @Value("${app.jwtSecret}")
     private String jwtSecret;
-    
+
     @Value("${app.jwtExpirationMs}")
     private int jwtExpirationMs;
-    
+
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
-    
-    public String generateAccessToken(UUID userId, String email, String role) {
+
+    public String generateAccessToken(UUID userId, String role) {
         Date expiryDate = new Date(System.currentTimeMillis() + jwtExpirationMs);
-        
+
         return Jwts.builder()
                 .setSubject(userId.toString())
                 .claim("role", role)
@@ -38,46 +38,46 @@ public class JwtUtil {
                 .signWith(getSigningKey(), SignatureAlgorithm.HS512)
                 .compact();
     }
-    
+
     public String generateRefreshToken() {
         return UUID.randomUUID().toString();
     }
-    
+
     public UUID getUserIdFromToken(String token) {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
-        
+
         return UUID.fromString(claims.getSubject());
     }
-    
+
     public String getRoleFromToken(String token) {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
-        
+
         return claims.get("role", String.class);
     }
-    
+
     public Date getExpirationDateFromToken(String token) {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
-        
+
         return claims.getExpiration();
     }
-    
+
     public Boolean isTokenExpired(String token) {
         Date expiration = getExpirationDateFromToken(token);
         return expiration.before(new Date());
     }
-    
+
     public Boolean validateToken(String token) {
         try {
             Jwts.parserBuilder()

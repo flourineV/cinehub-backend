@@ -1,4 +1,4 @@
-package com.cinehub.auth.dto;
+package com.cinehub.auth.dto.response;
 
 import com.cinehub.auth.entity.User;
 import lombok.AllArgsConstructor;
@@ -15,7 +15,9 @@ import java.util.UUID;
 public class UserResponse {
 
     private UUID id;
+
     private String username;
+
     private User.Role role;
 
     public UserResponse(User user) {

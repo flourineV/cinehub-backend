@@ -1,12 +1,14 @@
 package com.cinehub.auth.service;
 
-import com.cinehub.auth.dto.*;
+import com.cinehub.auth.dto.request.SignInRequest;
+import com.cinehub.auth.dto.request.SignUpRequest;
+import com.cinehub.auth.dto.response.JwtResponse;
+import com.cinehub.auth.dto.response.UserResponse;
 import com.cinehub.auth.entity.RefreshToken;
 import com.cinehub.auth.entity.User;
 import com.cinehub.auth.repository.UserRepository;
 import com.cinehub.auth.util.JwtUtil;
-import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -15,113 +17,74 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.Optional;
-
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class AuthService {
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
+    private final RefreshTokenService refreshTokenService;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
+    private final AuthenticationManager authenticationManager;
 
-    @Autowired
-    private RefreshTokenService refreshTokenService;
+    public JwtResponse signUp(SignUpRequest request) {
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    @Autowired
-    private AuthenticationManager authenticationManager;
-
-    public JwtResponse signUp(SignUpRequest signUpRequest, HttpServletRequest request) {
-        // Validate password confirmation
-        if (!signUpRequest.getPassword().equals(signUpRequest.getConfirmPassword())) {
+        // Validate confirm password
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password and confirm password do not match!");
         }
 
-        // Check if user already exists
-        if (userRepository.existsByEmail(signUpRequest.getEmail())) {
+        // Validate unique fields
+        if (userRepository.existsByEmail(request.getEmail())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already taken!");
         }
-
-        // Check if username already exists
-        if (userRepository.existsByUsername(signUpRequest.getUsername())) {
+        if (userRepository.existsByUsername(request.getUsername())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username is already taken!");
         }
-
-        // Check if phone number already exists
-        if (userRepository.existsByPhoneNumber(signUpRequest.getPhoneNumber())) {
+        if (userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Phone number is already taken!");
         }
-
-        // Check if national ID already exists
-        if (userRepository.existsByNationalId(signUpRequest.getNationalId())) {
+        if (userRepository.existsByNationalId(request.getNationalId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "National ID is already taken!");
         }
 
         // Create new user
         User user = User.builder()
-                .email(signUpRequest.getEmail())
-                .username(signUpRequest.getUsername())
-                .phoneNumber(signUpRequest.getPhoneNumber())
-                .nationalId(signUpRequest.getNationalId())
-                .passwordHash(passwordEncoder.encode(signUpRequest.getPassword()))
+                .email(request.getEmail())
+                .username(request.getUsername())
+                .phoneNumber(request.getPhoneNumber())
+                .nationalId(request.getNationalId())
+                .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .role(User.Role.USER)
                 .build();
 
         User savedUser = userRepository.save(user);
 
         // Generate tokens
-        String accessToken = jwtUtil.generateAccessToken(savedUser.getId(), savedUser.getEmail(),
-                savedUser.getRole().name());
+        String accessToken = jwtUtil.generateAccessToken(savedUser.getId(), savedUser.getRole().name());
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(savedUser);
 
         return new JwtResponse(accessToken, refreshToken.getToken(), "Bearer", new UserResponse(savedUser));
     }
 
-    public JwtResponse signIn(LoginRequest loginRequest, HttpServletRequest request) {
-
+    public JwtResponse signIn(SignInRequest request) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        loginRequest.getUsernameOrEmailOrPhone(),
-                        loginRequest.getPassword()));
+                        request.getUsernameOrEmailOrPhone(),
+                        request.getPassword()));
 
-        User user = userRepository.findByEmailOrUsernameOrPhoneNumber(loginRequest.getUsernameOrEmailOrPhone())
+        User user = userRepository.findByEmailOrUsernameOrPhoneNumber(request.getUsernameOrEmailOrPhone())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         // Generate tokens
-        String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
+        String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getRole().name());
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
 
         return new JwtResponse(accessToken, refreshToken.getToken(), "Bearer", new UserResponse(user));
     }
 
-    public JwtResponse refreshToken(String refreshTokenString, HttpServletRequest request) {
-        return refreshTokenService.findByToken(refreshTokenString)
-                .map(refreshTokenService::verifyExpiration)
-                .map(RefreshToken::getUser)
-                .map(user -> {
-                    String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail(),
-                            user.getRole().name());
-                    RefreshToken newRefreshToken = refreshTokenService.createRefreshToken(user);
-
-                    // Delete old refresh token
-                    refreshTokenService.deleteByToken(refreshTokenString);
-
-                    return new JwtResponse(accessToken, newRefreshToken.getToken(), "Bearer", new UserResponse(user));
-                })
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                        "Refresh token is not in database!"));
-    }
-
     public void signOut(String refreshTokenString) {
         refreshTokenService.deleteByToken(refreshTokenString);
-    }
-
-    public Optional<User> findByEmail(String email) {
-        return userRepository.findByEmail(email);
     }
 }

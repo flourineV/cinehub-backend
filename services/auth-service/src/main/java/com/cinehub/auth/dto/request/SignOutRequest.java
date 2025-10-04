@@ -1,4 +1,4 @@
-package com.cinehub.auth.dto;
+package com.cinehub.auth.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -8,8 +8,8 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class TokenRefreshRequest {
-    
-    @NotBlank
+public class SignOutRequest {
+
+    @NotBlank(message = "Refresh token is required")
     private String refreshToken;
 }

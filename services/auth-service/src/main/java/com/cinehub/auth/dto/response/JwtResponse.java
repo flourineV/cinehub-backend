@@ -1,4 +1,4 @@
-package com.cinehub.auth.dto;
+package com.cinehub.auth.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
@@ -14,9 +14,12 @@ import lombok.NoArgsConstructor;
 public class JwtResponse {
 
     private String accessToken;
+
     private String refreshToken;
+
     @Builder.Default
     private String tokenType = "Bearer";
+
     private UserResponse user;
 
     public JwtResponse(String accessToken, UserResponse user) {
