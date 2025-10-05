@@ -88,6 +88,13 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- AWS SDK v1 - tương thích tốt với Spring Boot 3 -->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-s3</artifactId>
+            <version>1.12.781</version>
+        </dependency>
+
     </dependencies>
 
     <build>

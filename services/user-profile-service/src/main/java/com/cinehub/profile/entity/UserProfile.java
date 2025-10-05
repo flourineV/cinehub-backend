@@ -7,12 +7,9 @@ import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -22,68 +19,75 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class UserProfile {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-    
-    @Column(name = "user_id", nullable = false)
-    private UUID userId; // Reference to User ID from auth service
-    
+
+    @Column(name = "user_id", unique = true, nullable = false)
+    private UUID userId;
+
     @Email
     @NotBlank
     @Size(max = 100)
-    @Column(unique = true, nullable = false)
+    @Column(name = "email", unique = true, nullable = false)
     private String email;
-    
+
     @Size(max = 30)
     @Column(name = "username", unique = true)
     private String username;
-    
-    @Size(max = 20)
-    @Column(name = "phone_number")
-    private String phoneNumber;
-    
-    @Size(max = 20)
-    @Column(name = "national_id")
-    private String nationalId;
-    
+
     @Size(max = 100)
     @Column(name = "full_name")
     private String fullName;
 
-    @Column(name = "date_of_birth")
-    private LocalDate dateOfBirth;
-    
-    @Size(max = 10)
-    @Column(name = "gender")
-    private String gender;
-
     @Column(name = "avatar_url", columnDefinition = "TEXT")
     private String avatarUrl;
-    
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "favorite_genres", columnDefinition = "TEXT")
-    private List<String> favoriteGenres;
-          
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "gender", length = 10)
+    private Gender gender;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Size(max = 20)
+    @Column(name = "phone_number")
+    private String phoneNumber;
+
+    @Size(max = 20)
+    @Column(name = "national_id")
+    private String nationalId;
+
+    @Column(name = "address", columnDefinition = "TEXT")
+    private String address;
+
     @Column(name = "loyalty_point")
     @Builder.Default
     private Integer loyaltyPoint = 0;
-    
-    @Size(max = 20)
-    @Column(name = "rank")
-    private String rank;
-    
-    @Size(max = 20)
-    @Column(name = "status")
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "rank_id", foreignKey = @ForeignKey(name = "fk_user_rank"))
+    private UserRank rank;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 20)
     @Builder.Default
-    private String status = "ACTIVE";
-    
+    private UserStatus status = UserStatus.ACTIVE;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-    
+
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    public enum UserStatus {
+        ACTIVE, BANNED
+    }
+
+    public enum Gender {
+        MALE, FEMALE, OTHER
+    }
 }

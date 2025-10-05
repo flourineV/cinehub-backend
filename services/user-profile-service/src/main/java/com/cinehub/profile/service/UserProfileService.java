@@ -1,167 +1,141 @@
 package com.cinehub.profile.service;
 
-import com.cinehub.profile.dto.CreateProfileRequest;
-import com.cinehub.profile.dto.UpdateProfileRequest;
-import com.cinehub.profile.dto.UserProfileResponse;
+import com.cinehub.profile.dto.request.UserProfileRequest;
+// GIẢ ĐỊNH: Import DTO mới của bạn cho cập nhật PATCH
+import com.cinehub.profile.dto.request.UserProfileUpdateRequest;
+import com.cinehub.profile.dto.response.UserProfileResponse;
 import com.cinehub.profile.entity.UserProfile;
+import com.cinehub.profile.entity.UserRank;
+import com.cinehub.profile.exception.ResourceNotFoundException;
 import com.cinehub.profile.repository.UserProfileRepository;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 @Transactional
-@Slf4j
 public class UserProfileService {
-    
-    @Autowired
-    private UserProfileRepository userProfileRepository;
-    
-    public UserProfileResponse createProfile(CreateProfileRequest request) {
-        log.info("Creating profile for user: {}", request.getUserId());
-        
-        // Check if profile already exists
-        if (userProfileRepository.existsByUserId(request.getUserId())) {
-            log.warn("Profile already exists for user: {}", request.getUserId());
-            throw new RuntimeException("Profile already exists for this user");
+
+    private final UserProfileRepository profileRepository;
+    private final UserRankService rankService;
+
+    // --- Phương thức tạo Profile (Giữ nguyên) ---
+    public UserProfileResponse createProfile(UserProfileRequest request) {
+        if (profileRepository.existsByUserId(request.getUserId())) {
+            throw new RuntimeException("Profile already exists for this user: " + request.getUserId());
         }
-        
-        // Create new profile
+
+        UserRank defaultRank = rankService.findDefaultRank()
+                .orElseThrow(
+                        () -> new IllegalStateException("Hệ thống lỗi: Không tìm thấy Rank mặc định (min_points=0)."));
+
         UserProfile profile = UserProfile.builder()
                 .userId(request.getUserId())
                 .email(request.getEmail())
                 .username(request.getUsername())
+                .fullName(request.getFullName())
+                .avatarUrl(request.getAvatarUrl())
+                .gender(request.getGender())
+                .dateOfBirth(request.getDateOfBirth())
                 .phoneNumber(request.getPhoneNumber())
                 .nationalId(request.getNationalId())
-                .loyaltyPoint(0)
-                .rank("BRONZE")
-                .status("ACTIVE")
+                .address(request.getAddress())
+                .rank(defaultRank)
                 .build();
-        
-        UserProfile savedProfile = userProfileRepository.save(profile);
-        log.info("Profile created successfully for user: {}", request.getUserId());
-        
-        return UserProfileResponse.from(savedProfile);
+
+        return mapToResponse(profileRepository.save(profile));
     }
-    
-    public Optional<UserProfileResponse> getProfile(UUID userId) {
-        return userProfileRepository.findByUserId(userId)
-                .map(UserProfileResponse::from);
+
+    // --- Phương thức GET Profile (Giữ nguyên) ---
+    public Optional<UserProfileResponse> getProfileByUserId(UUID userId) {
+        return profileRepository.findByUserId(userId)
+                .map(this::mapToResponse);
     }
-    
-    public Optional<UserProfileResponse> getProfileByIdentifier(String identifier) {
-        return userProfileRepository.findByEmailOrUsernameOrPhoneNumber(identifier)
-                .map(UserProfileResponse::from);
+
+    // --- Phương thức UPDATE/REPLACE Profile (Dùng cho PUT/PATCH cũ) ---
+    // Giữ nguyên để phục vụ Controller @PutMapping (replaceProfile)
+    public UserProfileResponse updateProfile(UUID userId, UserProfileRequest request) {
+        // ... (Logic cũ của bạn) ...
+        UserProfile existing = profileRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Profile not found for userId: " + userId));
+
+        // Cập nhật các trường chỉ khi Request cung cấp giá trị (PATCH semantics)
+        if (request.getFullName() != null)
+            existing.setFullName(request.getFullName());
+        if (request.getPhoneNumber() != null)
+            existing.setPhoneNumber(request.getPhoneNumber());
+        if (request.getAddress() != null)
+            existing.setAddress(request.getAddress());
+        if (request.getAvatarUrl() != null)
+            existing.setAvatarUrl(request.getAvatarUrl());
+        if (request.getGender() != null)
+            existing.setGender(request.getGender());
+        // KHÔNG CẬP NHẬT email, username, nationalId, dateOfBirth (thường là bất biến)
+
+        return mapToResponse(profileRepository.save(existing));
     }
-    
-    public List<UserProfileResponse> getAllProfiles() {
-        return userProfileRepository.findAll()
-                .stream()
-                .map(UserProfileResponse::from)
-                .collect(Collectors.toList());
+
+    // --------------------------------------------------------------------------------
+    // BỔ SUNG: Phương thức cập nhật Loyalty Point và Rank (Dùng cho Controller
+    // @PatchMapping)
+    // --------------------------------------------------------------------------------
+    public UserProfileResponse updateLoyaltyAndProfile(UUID userId, UserProfileUpdateRequest request) {
+        UserProfile existing = profileRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Profile not found for userId: " + userId));
+
+        // 1. CẬP NHẬT LOYALTY POINT VÀ RANK
+        if (request.getLoyaltyPoint() != null) {
+            Integer newLoyaltyPoint = request.getLoyaltyPoint();
+            existing.setLoyaltyPoint(newLoyaltyPoint);
+
+            // Tìm Rank mới dựa trên điểm
+            rankService.findRankByLoyaltyPoint(newLoyaltyPoint)
+                    .ifPresent(newRank -> {
+                        // Chỉ cập nhật Rank nếu Rank mới khác Rank hiện tại
+                        if (!newRank.getId().equals(existing.getRank().getId())) {
+                            existing.setRank(newRank);
+                        }
+                    });
+        }
+
+        // 2. CẬP NHẬT CÁC TRƯỜNG KHÁC (nếu UpdateRequest có)
+        // Đây là ví dụ, bạn cần thêm các trường khác trong UpdateRequest vào đây
+        if (request.getFullName() != null)
+            existing.setFullName(request.getFullName());
+        if (request.getAvatarUrl() != null)
+            existing.setAvatarUrl(request.getAvatarUrl());
+
+        return mapToResponse(profileRepository.save(existing));
     }
-    
-    public List<UserProfileResponse> getActiveProfiles() {
-        return userProfileRepository.findByStatus("ACTIVE")
-                .stream()
-                .map(UserProfileResponse::from)
-                .collect(Collectors.toList());
-    }
-    
-    public Optional<UserProfileResponse> updateProfile(UUID userId, UpdateProfileRequest request) {
-        Optional<UserProfile> profileOpt = userProfileRepository.findByUserId(userId);
-        
-        if (profileOpt.isEmpty()) {
-            return Optional.empty();
-        }
-        
-        UserProfile profile = profileOpt.get();
-        
-        // Update fields if provided
-        if (request.getFullName() != null) {
-            profile.setFullName(request.getFullName());
-        }
-        if (request.getDateOfBirth() != null) {
-            profile.setDateOfBirth(request.getDateOfBirth());
-        }
-        if (request.getPhoneNumber() != null) {
-            profile.setPhoneNumber(request.getPhoneNumber());
-        }
-        if (request.getGender() != null) {
-            profile.setGender(request.getGender());
-        }
-        if (request.getAvatarUrl() != null) {
-            profile.setAvatarUrl(request.getAvatarUrl());
-        }
-        if (request.getFavoriteGenres() != null) {
-            profile.setFavoriteGenres(request.getFavoriteGenres());
-        }
-        if (request.getRank() != null) {
-            profile.setRank(request.getRank());
-        }
-        if (request.getStatus() != null) {
-            profile.setStatus(request.getStatus());
-        }
-        
-        UserProfile updatedProfile = userProfileRepository.save(profile);
-        return Optional.of(UserProfileResponse.from(updatedProfile));
-    }
-    
-    public boolean deleteProfile(UUID userId) {
-        Optional<UserProfile> profileOpt = userProfileRepository.findByUserId(userId);
-        if (profileOpt.isPresent()) {
-            // Soft delete by setting status to DELETED
-            UserProfile profile = profileOpt.get();
-            profile.setStatus("DELETED");
-            userProfileRepository.save(profile);
-            return true;
-        }
-        return false;
-    }
-    
-    public List<UserProfileResponse> searchProfilesByName(String name) {
-        return userProfileRepository.findByFullNameContaining(name)
-                .stream()
-                .filter(profile -> "ACTIVE".equals(profile.getStatus()))
-                .map(UserProfileResponse::from)
-                .collect(Collectors.toList());
-    }
-    
-    public void updateLoyaltyPoints(UUID userId, Integer points) {
-        userProfileRepository.findByUserId(userId).ifPresent(profile -> {
-            profile.setLoyaltyPoint(points);
-            // Update rank based on loyalty points
-            updateRankBasedOnPoints(profile, points);
-            userProfileRepository.save(profile);
-        });
-    }
-    
-    public void addLoyaltyPoints(UUID userId, Integer pointsToAdd) {
-        userProfileRepository.findByUserId(userId).ifPresent(profile -> {
-            Integer currentPoints = profile.getLoyaltyPoint() != null ? profile.getLoyaltyPoint() : 0;
-            Integer newPoints = currentPoints + pointsToAdd;
-            profile.setLoyaltyPoint(newPoints);
-            // Update rank based on loyalty points
-            updateRankBasedOnPoints(profile, newPoints);
-            userProfileRepository.save(profile);
-        });
-    }
-    
-    private void updateRankBasedOnPoints(UserProfile profile, Integer points) {
-        if (points >= 10000) {
-            profile.setRank("DIAMOND");
-        } else if (points >= 5000) {
-            profile.setRank("GOLD");
-        } else if (points >= 1000) {
-            profile.setRank("SILVER");
-        } else {
-            profile.setRank("BRONZE");
-        }
+
+    // --- Phương thức Mapping (Giữ nguyên) ---
+    private UserProfileResponse mapToResponse(UserProfile entity) {
+        if (entity == null)
+            return null;
+
+        UserRank rank = entity.getRank();
+
+        return UserProfileResponse.builder()
+                .id(entity.getId())
+                .userId(entity.getUserId())
+                .email(entity.getEmail())
+                .username(entity.getUsername())
+                .fullName(entity.getFullName())
+                .avatarUrl(entity.getAvatarUrl())
+                .gender(entity.getGender())
+                .dateOfBirth(entity.getDateOfBirth())
+                .phoneNumber(entity.getPhoneNumber())
+                .nationalId(entity.getNationalId())
+                .address(entity.getAddress())
+                .loyaltyPoint(entity.getLoyaltyPoint())
+                .rankName(rank != null ? rank.getName() : null)
+                .status(entity.getStatus())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .build();
     }
 }
