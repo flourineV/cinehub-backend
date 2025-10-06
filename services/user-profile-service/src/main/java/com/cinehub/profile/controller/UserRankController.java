@@ -13,7 +13,7 @@ import java.util.UUID;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
-@RequestMapping("/api/ranks")
+@RequestMapping("/api/profiles/ranks")
 @RequiredArgsConstructor
 public class UserRankController {
 

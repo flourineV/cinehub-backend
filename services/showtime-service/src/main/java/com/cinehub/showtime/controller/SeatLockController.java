@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/seat-lock")
+@RequestMapping("/api/showtimes/seat-lock")
 @RequiredArgsConstructor
 public class SeatLockController {
 

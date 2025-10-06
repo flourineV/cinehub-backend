@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/showtimes")
+@RequestMapping("/api/showtimes/showtimes")
 @RequiredArgsConstructor
 public class ShowtimeController {
 

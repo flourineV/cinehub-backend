@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 8099 # Sử dụng cổng đã đổi
 
 spring:
   application:
@@ -7,35 +7,53 @@ spring:
   cloud:
     gateway:
       routes:
-        # Auth Service Routes
+        # Auth Service Routes (ĐÃ SỬA URI VÀ THÊM REWRITEPATH)
         - id: auth-service
-          uri: http://localhost:8081
+          uri: http://auth-service:8081 # SỬA URI: Dùng tên service trong Docker
           predicates:
             - Path=/api/auth/**
           filters:
+            # Thêm RewritePath để đảm bảo đường dẫn được forward nguyên vẹn (vd: /api/auth/signin)
+            - RewritePath=/api/auth(?<segment>.*), /api/auth${segment}
             - name: JwtAuthenticationFilter
               args:
                 exclude-paths: /api/auth/signin,/api/auth/signup,/api/auth/refreshtoken
 
-        # User Profile Service Routes  
+        # User Profile Service Routes (ĐÃ SỬA URI VÀ THÊM REWRITEPATH)
         - id: user-profile-service
-          uri: http://localhost:8082
+          uri: http://user-profile-service:8082 # SỬA URI: Dùng tên service
           predicates:
             - Path=/api/profiles/**
           filters:
+            # THÊM RewritePath
+            - RewritePath=/api/profiles(?<segment>.*), /api/profiles${segment}
             - name: JwtAuthenticationFilter
 
-        # Movie Service Routes (for future)
+        # Movie Service Routes (ĐÃ SỬA URI VÀ THÊM REWRITEPATH)
         - id: movie-service
-          uri: http://localhost:8083
+          uri: http://movie-service:8083 # SỬA URI: Dùng tên service
           predicates:
             - Path=/api/movies/**
           filters:
+            # THÊM RewritePath
+            - RewritePath=/api/movies(?<segment>.*), /api/movies${segment}
             - name: JwtAuthenticationFilter
+
+        # Showtime Service Routes (ĐÃ SỬA URI VÀ THÊM REWRITEPATH)
+        - id: showtime-service
+          uri: http://showtime-service:8084 # SỬA URI: Dùng tên service
+          predicates:
+            - Path=/api/showtimes/**
+          filters:
+            # THÊM RewritePath
+            - RewritePath=/api/showtimes(?<segment>.*), /api/showtimes${segment}
+            - name: JwtAuthenticationFilter
+
+        # ... (Global CORS và JWT config giữ nguyên)
 
       globalcors:
         cors-configurations:
-          '[/**]':
+          "[/**]":
             allowedOrigins: "http://localhost:5173"
             allowedMethods:
               - GET

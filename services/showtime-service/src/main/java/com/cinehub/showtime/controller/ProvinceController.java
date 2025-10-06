@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/provinces")
+@RequestMapping("/api/showtimes/provinces")
 @RequiredArgsConstructor
 
 public class ProvinceController {

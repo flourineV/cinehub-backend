@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/theaters")
+@RequestMapping("/api/showtimes/theaters")
 @RequiredArgsConstructor
 
 public class TheaterController {

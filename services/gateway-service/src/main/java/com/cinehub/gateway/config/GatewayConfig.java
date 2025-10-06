@@ -8,15 +8,17 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class GatewayConfig {
 
-    @Bean
-    public RouteLocator routes(RouteLocatorBuilder builder) {
-        return builder.routes()
-                .route("auth-service", r -> r.path("/api/auth/**")
-                        .uri("http://auth-service:8081"))
-                .route("user-profile-service", r -> r.path("/api/profile/**")
-                        .uri("http://user-profile-service:8082"))
-                .route("movie-service", r -> r.path("/api/movies/**")
-                        .uri("http://movie-service:8083"))
-                .build();
-    }
+        @Bean
+        public RouteLocator routes(RouteLocatorBuilder builder) {
+                return builder.routes()
+                                .route("auth-service", r -> r.path("/api/auth/**")
+                                                .uri("http://auth-service:8081"))
+                                .route("user-profile-service", r -> r.path("/api/profiles/**")
+                                                .uri("http://user-profile-service:8082"))
+                                .route("movie-service", r -> r.path("/api/movies/**")
+                                                .uri("http://movie-service:8083"))
+                                .route("showtime-service", r -> r.path("/api/showtimes/**")
+                                                .uri("http://showtime-service:8084"))
+                                .build();
+        }
 }

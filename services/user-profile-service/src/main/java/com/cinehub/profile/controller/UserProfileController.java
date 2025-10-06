@@ -13,7 +13,7 @@ import java.util.UUID;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
-@RequestMapping("/api/profiles")
+@RequestMapping("/api/profiles/profiles")
 @RequiredArgsConstructor
 public class UserProfileController {
 
