@@ -34,18 +34,16 @@ public class UserProfileController {
     @PutMapping("/{userId}")
     public ResponseEntity<UserProfileResponse> replaceProfile(
             @PathVariable UUID userId,
-            @Valid @RequestBody UserProfileRequest request) {
+            @Valid @RequestBody UserProfileUpdateRequest request) {
         // Dùng DTO đầy đủ và gọi hàm updateProfile cũ (cho PUT)
         return ResponseEntity.ok(profileService.updateProfile(userId, request));
     }
 
-    @PatchMapping("/{userId}")
-    public ResponseEntity<UserProfileResponse> updateProfile(
+    @PatchMapping("/{userId}/loyalty")
+    public ResponseEntity<UserProfileResponse> updateLoyalty(
             @PathVariable UUID userId,
-            // Dùng DTO cập nhật từng phần (UserProfileUpdateRequest)
-            @RequestBody UserProfileUpdateRequest request) {
+            @RequestBody Integer loyaltyPoint) {
 
-        // SỬA ĐỔI: Gọi hàm mới đã tích hợp logic Loyalty Point và Rank
-        return ResponseEntity.ok(profileService.updateLoyaltyAndProfile(userId, request));
+        return ResponseEntity.ok(profileService.updateLoyaltyAndRank(userId, loyaltyPoint));
     }
 }

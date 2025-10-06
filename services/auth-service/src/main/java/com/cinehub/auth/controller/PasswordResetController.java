@@ -11,9 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 
@@ -26,8 +23,6 @@ public class PasswordResetController {
     private final PasswordResetService passwordResetService;
     private final EmailService emailService;
     private final UserRepository userRepository;
-
-    private static final Logger log = LoggerFactory.getLogger(PasswordResetController.class);
 
     @PostMapping("/forgot-password")
     public ResponseEntity<String> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {

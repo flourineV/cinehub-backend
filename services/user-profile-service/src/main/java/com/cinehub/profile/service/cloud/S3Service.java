@@ -1,36 +1,42 @@
 package com.cinehub.profile.service.cloud;
 
-import com.amazonaws.HttpMethod;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+// Loại bỏ: com.amazonaws...
+// Thêm: software.amazon.awssdk...
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.net.URL;
-import java.util.Date;
+import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
 public class S3Service {
 
-    private final AmazonS3 amazonS3;
+    private final S3Presigner s3Presigner;
 
     @Value("${cloud.aws.s3.bucket}")
     private String bucketName;
 
     public String generatePresignedUrl(String fileName, String contentType) {
-        // Thời hạn URL (5 phút)
-        Date expiration = new Date(System.currentTimeMillis() + 5 * 60 * 1000);
 
-        GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(bucketName, fileName)
-                .withMethod(HttpMethod.PUT)
-                .withExpiration(expiration);
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(fileName)
+                .contentType(contentType)
+                .build();
 
-        // Quan trọng: set content-type để khi FE upload file ảnh đúng MIME
-        request.addRequestParameter("Content-Type", contentType);
+        PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(5)) // Thời hạn URL (5 phút)
+                .putObjectRequest(putObjectRequest)
+                .build();
 
-        URL url = amazonS3.generatePresignedUrl(request);
-        return url.toString();
+        // Tạo Presigned URL
+        PresignedPutObjectRequest presignedPutObjectRequest = s3Presigner.presignPutObject(presignRequest);
+
+        return presignedPutObjectRequest.url().toString();
     }
 }

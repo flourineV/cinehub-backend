@@ -90,11 +90,10 @@
 
         <!-- AWS SDK v1 - tương thích tốt với Spring Boot 3 -->
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-s3</artifactId>
-            <version>1.12.781</version>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>2.20.100</version> 
         </dependency>
-
     </dependencies>
 
     <build>

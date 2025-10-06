@@ -21,12 +21,6 @@ public class UserRankService {
 
     private final UserRankRepository rankRepository;
 
-    // Giả định UserRankRepository có phương thức findByMinPoints(0)
-
-    // --------------------------------------------------------------------------------
-    // CRUD Operations
-    // --------------------------------------------------------------------------------
-
     public RankResponse createRank(RankRequest request) {
         // Bổ sung: Logic nghiệp vụ để đảm bảo minPoints < maxPoints
         if (request.getMaxPoints() != null && request.getMinPoints() >= request.getMaxPoints()) {
@@ -48,7 +42,6 @@ public class UserRankService {
         UserRank existingRank = rankRepository.findById(rankId)
                 .orElseThrow(() -> new ResourceNotFoundException("Rank not found with id: " + rankId));
 
-        // Cập nhật từng phần (PATCH semantics)
         if (request.getName() != null)
             existingRank.setName(request.getName());
 
@@ -82,47 +75,27 @@ public class UserRankService {
 
     @Transactional(readOnly = true)
     public RankResponse getRankById(UUID rankId) {
-        UserRank rank = rankRepository.findById(rankId)
+        return rankRepository.findById(rankId)
+                .map(this::mapToResponse)
                 .orElseThrow(() -> new ResourceNotFoundException("Rank not found with id: " + rankId));
-        return mapToResponse(rank);
     }
 
     public void deleteRank(UUID rankId) {
-        // Kiểm tra sự tồn tại (để ném 404 tùy chỉnh)
-        if (!rankRepository.existsById(rankId)) {
-            throw new ResourceNotFoundException("Rank not found with id: " + rankId);
-        }
-        // Lưu ý: Nếu có User đang tham chiếu Rank này, database sẽ ném lỗi Foreign Key.
-        // Logic nghiệp vụ cần đảm bảo Rank không còn được sử dụng trước khi xóa.
-        rankRepository.deleteById(rankId);
+        UserRank existingRank = rankRepository.findById(rankId)
+                .orElseThrow(() -> new ResourceNotFoundException("Rank not found with id: " + rankId));
+        rankRepository.delete(existingRank);
     }
-
-    // --------------------------------------------------------------------------------
-    // Business Logic Helpers (Phục vụ UserProfileService)
-    // --------------------------------------------------------------------------------
 
     @Transactional(readOnly = true)
     public Optional<UserRank> findDefaultRank() {
-        // Giả định Rank mặc định là Rank thấp nhất, thường có minPoints = 0
-        // Phương thức này cần được định nghĩa trong UserRankRepository
         return rankRepository.findByMinPoints(0);
     }
 
-    // BỔ SUNG: Hàm tìm Rank phù hợp với điểm số (Dùng cho logic Nâng Rank)
+    // Hàm tìm Rank phù hợp với điểm số
     @Transactional(readOnly = true)
     public Optional<UserRank> findRankByLoyaltyPoint(Integer points) {
-        // Phương thức này tìm Rank có min_points <= điểm, sắp xếp giảm dần và lấy Rank
-        // đầu tiên
-        // Bạn sẽ cần định nghĩa một truy vấn tùy chỉnh trong Repository:
-        // @Query("SELECT r FROM UserRank r WHERE r.minPoints <= :points ORDER BY
-        // r.minPoints DESC")
-        // Optional<UserRank> findBestRankByPoints(Integer points);
         return rankRepository.findBestRankByPoints(points);
     }
-
-    // --------------------------------------------------------------------------------
-    // Mapping
-    // --------------------------------------------------------------------------------
 
     private RankResponse mapToResponse(UserRank entity) {
         if (entity == null)
