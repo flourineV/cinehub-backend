@@ -1,4 +1,4 @@
-package com.cinehub.showtime.config;
+package com.cinehub.showtime.exception;
 
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
