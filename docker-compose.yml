@@ -27,8 +27,17 @@ services:
     build: ./services/gateway-service
     container_name: gateway-service
     ports:
-      - "8080:8080"
+      - "8099:8099"
     depends_on:
       - auth-service
       - user-profile-service
       - movie-service
+      - showtime-service
+
+  showtime-service:
+    build: ./services/showtime-service
+    env_file:
+      - ./services/showtime-service/.env
+    container_name: showtime-service
+    ports:
+      - "8084:8084"

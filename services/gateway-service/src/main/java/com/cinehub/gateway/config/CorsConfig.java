@@ -14,9 +14,14 @@ public class CorsConfig {
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfig = new CorsConfiguration();
-        corsConfig.setAllowedOrigins(List.of("*"));
-        corsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+
+        // ❌ THAY THẾ DÒNG NÀY: corsConfig.setAllowedOrigins(List.of("*"));
+        // ✅ BẰNG DÒNG NÀY (hoặc danh sách các tên miền frontend của bạn):
+        corsConfig.setAllowedOrigins(List.of("http://localhost:5173", "https://your-production-domain.com"));
+
+        corsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         corsConfig.setAllowedHeaders(List.of("*"));
+        // GIỮ NGUYÊN: AllowCredentials phải là true nếu bạn cần truyền token/cookie
         corsConfig.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

@@ -14,7 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 
-@CrossOrigin(origins = "*", maxAge = 3600)
+//@CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
