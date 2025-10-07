@@ -9,10 +9,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/movies")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
+// @CrossOrigin(origins = "*", maxAge = 3600)
 public class MovieController {
 
     private final MovieService movieService;
@@ -42,16 +44,21 @@ public class MovieController {
     @GetMapping("/search")
     public ResponseEntity<Page<MovieSummaryResponse>> searchMovies(
             @RequestParam String title,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         Page<MovieSummaryResponse> movies = movieService.searchMovies(title, pageable);
         return ResponseEntity.ok(movies);
     }
 
     // ================== DETAIL ==================
-    @GetMapping("/{tmdbId}")
+    @GetMapping("/tmdb/{tmdbId}")
     public ResponseEntity<MovieDetailResponse> getMovieDetail(@PathVariable Integer tmdbId) {
         MovieDetailResponse movie = movieService.getMovieDetail(tmdbId);
         return ResponseEntity.ok(movie);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<MovieDetailResponse> getMovieByUuid(@PathVariable UUID id) {
+        MovieDetailResponse response = movieService.getMovieByUuid(id);
+        return ResponseEntity.ok(response);
     }
 }

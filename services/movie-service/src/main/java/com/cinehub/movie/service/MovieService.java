@@ -37,6 +37,14 @@ public class MovieService {
     private final TMDbClient tmdbClient; // client gọi TMDb API
     private final MovieMapper movieMapper;
 
+    public MovieDetailResponse getMovieByUuid(UUID id) {
+        MovieDetail entity = movieDetailRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Movie not found with UUID: " + id));
+
+        return movieMapper.toDetailResponse(entity);
+    }
+
     public void syncMovies() {
         log.info("[{}] Starting movie sync from TMDb...",
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
@@ -53,10 +61,12 @@ public class MovieService {
         Set<Integer> activeTmdbIds = allMovies.stream().map(TMDbMovieResponse::getId).collect(Collectors.toSet());
 
         for (TMDbMovieResponse movie : nowPlaying) {
-            syncMovie(movie, "NOW_PLAYING");
+            TMDbMovieResponse fullMovie = tmdbClient.fetchMovieDetail(movie.getId());
+            syncMovie(fullMovie, "NOW_PLAYING");
         }
         for (TMDbMovieResponse movie : upcoming) {
-            syncMovie(movie, "UPCOMING");
+            TMDbMovieResponse fullMovie = tmdbClient.fetchMovieDetail(movie.getId());
+            syncMovie(fullMovie, "UPCOMING");
         }
 
         // Xóa phim k còn active
