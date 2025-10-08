@@ -16,7 +16,7 @@ import lombok.RequiredArgsConstructor;
 public class SeatLockClient {
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${showtime.service.url:http://localhost:8085/api/seat-lock}")
+    @Value("${showtime.service.url:http://localhost:8085/api/showtimes/seat-lock}")
     private String baseUrl;
 
     public SeatLockResponse lockSeat(UUID showtimeId, UUID seatId, UUID bookingId) {

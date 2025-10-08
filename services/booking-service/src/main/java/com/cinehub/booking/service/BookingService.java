@@ -14,6 +14,7 @@ import java.util.List;
 import java.math.BigDecimal;
 import java.util.stream.Collectors;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 @RequiredArgsConstructor
@@ -22,48 +23,85 @@ public class BookingService {
         private final BookingRepository bookingRepository;
         private final ShowtimeClient showtimeClient;
         private final SeatLockClient seatLockClient;
+        private final PricingClient pricingClient;
 
         @Transactional
         public BookingResponse createBooking(BookingRequest request) {
+                // Lấy thông tin suất chiếu
                 ShowtimeResponse showtime = showtimeClient.getShowtimeById(request.getShowtimeId());
                 if (showtime == null) {
                         throw new RuntimeException("Showtime not found: " + request.getShowtimeId());
                 }
 
-                BigDecimal pricePerSeat = showtime.getPrice();
-                BigDecimal total = pricePerSeat.multiply(BigDecimal.valueOf(request.getSeatIds().size()));
+                AtomicReference<BigDecimal> totalSeatPrice = new AtomicReference<>(BigDecimal.ZERO);
 
-                // Tạo booking
+                // Tạo tạm bookingId để lock seat
+                UUID tempBookingId = UUID.randomUUID();
+
+                // Danh sách seat đã booking
+                List<BookingSeat> bookedSeats = request.getSeatIds().stream().map(seatId -> {
+                        // Lock ghế
+                        SeatLockResponse lockResponse = seatLockClient.lockSeat(
+                                request.getShowtimeId(),
+                                seatId,
+                                tempBookingId
+                        );
+
+                        if (!"LOCKED".equals(lockResponse.getStatus())) {
+                        throw new SeatAlreadyLockedException(seatId.toString());
+                        }
+
+                        // Lấy seatType từ lockResponse
+                        String seatType = lockResponse.getSeatType();
+
+                        // Lấy giá ghế theo seatType từ pricing-service
+                        SeatPriceResponse seatPriceResponse = pricingClient.getSeatPrice(seatType);
+                        BigDecimal seatPrice = seatPriceResponse != null ? seatPriceResponse.getPrice() : BigDecimal.ZERO;
+
+                        // Cộng dồn tổng
+                        totalSeatPrice.set(totalSeatPrice.get().add(seatPrice));
+
+                        // Tạo đối tượng BookingSeat
+                        return BookingSeat.builder()
+                                .seatId(seatId)
+                                .price(seatPrice)
+                                .status(SeatStatus.RESERVED)
+                                .build();
+                }).collect(Collectors.toList());
+                
+                // Lấy giá combo (nếu có)
+                BigDecimal comboTotal = BigDecimal.ZERO;
+                if (request.getComboIds() != null && !request.getComboIds().isEmpty()) {
+                        comboTotal = pricingClient.getCombos(request.getComboIds()).stream()
+                                .map(ComboResponse::getPrice)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                }
+
+                BigDecimal subtotal = totalSeatPrice.get().add(comboTotal);
+
+                // Áp dụng khuyến mãi
+                BigDecimal discount = BigDecimal.ZERO;
+                if (request.getPromotionIds() != null && !request.getPromotionIds().isEmpty()) {
+                discount = pricingClient.getPromotions(request.getPromotionIds()).stream()
+                        .map(promo -> subtotal.multiply(BigDecimal.valueOf(promo.getDiscountPercent()).divide(BigDecimal.valueOf(100))))
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                }
+
+                BigDecimal finalTotal = subtotal.subtract(discount);
+
+                // Tạo booking chính thức
                 Booking booking = Booking.builder()
                                 .id(UUID.randomUUID())
                                 .userId(request.getUserId())
                                 .showtimeId(request.getShowtimeId())
-                                .totalPrice(total)
+                                .totalPrice(finalTotal)
                                 .status(BookingStatus.PENDING)
                                 .build();
 
-                for (UUID seatId : request.getSeatIds()) {
-                        SeatLockResponse lockResponse = seatLockClient.lockSeat(
-                                        request.getShowtimeId(),
-                                        seatId,
-                                        booking.getId());
+                // Gán lại quan hệ
+                bookedSeats.forEach(seat -> seat.setBooking(booking));
+                booking.setSeats(bookedSeats);
 
-                        if (!"LOCKED".equals(lockResponse.getStatus())) {
-                                throw new SeatAlreadyLockedException(seatId.toString());
-                        }
-                }
-
-                // Mapping seats
-                List<BookingSeat> seats = request.getSeatIds().stream()
-                                .map(seatId -> BookingSeat.builder()
-                                                .seatId(seatId)
-                                                .price(pricePerSeat)
-                                                .status(SeatStatus.RESERVED)
-                                                .booking(booking)
-                                                .build())
-                                .collect(Collectors.toList());
-
-                booking.setSeats(seats);
                 bookingRepository.save(booking);
                 return mapToResponse(booking);
         }

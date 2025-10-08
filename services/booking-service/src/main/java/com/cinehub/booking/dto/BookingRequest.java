@@ -17,4 +17,6 @@ public class BookingRequest {
     private UUID userId;
     private UUID showtimeId;
     private List<UUID> seatIds;
+    private List<UUID> comboIds;
+    private List<UUID> promotionIds;
 }

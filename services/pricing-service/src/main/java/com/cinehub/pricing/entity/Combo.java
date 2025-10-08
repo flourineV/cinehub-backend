@@ -1,5 +1,6 @@
 package com.cinehub.pricing.entity;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 import jakarta.persistence.*;
@@ -19,7 +20,7 @@ public class Combo {
     @Column(name = "combo_name")
     private String comboName; 
 
-    private double price;    
+    private BigDecimal price;    
 
     private String description;   
     
