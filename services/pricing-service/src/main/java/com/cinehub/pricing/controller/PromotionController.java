@@ -27,6 +27,11 @@ public class PromotionController {
         return promotionService.findById(id);
     }
 
+    @GetMapping("/active")
+    public List<Promotion> getActivePromotions() {
+        return promotionService.findActivePromotions();
+    }
+
     @PostMapping
     public Promotion create(@RequestBody Promotion promo) {
         return promotionService.save(promo);

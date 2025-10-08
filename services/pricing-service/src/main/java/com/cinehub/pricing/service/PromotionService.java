@@ -1,5 +1,6 @@
 package com.cinehub.pricing.service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,6 +23,11 @@ public class PromotionService {
 
     public Promotion findById(UUID id) {
         return promotionRepository.findById(id).orElse(null);
+    }
+
+    // Lấy các mã khuyến mãi còn hạn
+    public List<Promotion> findActivePromotions() {
+        return promotionRepository.findActivePromotions(LocalDate.now());
     }
 
     public Promotion save(Promotion promo) {
