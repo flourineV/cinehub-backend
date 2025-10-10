@@ -14,7 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 
-//@CrossOrigin(origins = "*", maxAge = 3600)
+@CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -34,7 +34,7 @@ public class PasswordResetController {
         emailService.sendEmail(
                 user.getEmail(),
                 "Password Reset Request",
-                "Click the link to reset your password: http://localhost:8081/reset-password?token="
+                "Click the link to reset your password: http://localhost:5173/redirect-reset?token="
                         + token.getToken());
 
         return ResponseEntity.ok("Password reset link sent to your email!");

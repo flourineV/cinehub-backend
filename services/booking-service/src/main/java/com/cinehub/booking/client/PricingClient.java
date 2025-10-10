@@ -1,35 +1,50 @@
 package com.cinehub.booking.client;
 
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
+import com.cinehub.booking.dto.external.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import lombok.RequiredArgsConstructor;
+import java.util.*;
 
 @Component
-@RequiredArgsConstructor
 public class PricingClient {
 
-    private final RestTemplate restTemplate = new RestTemplate();
-    private static final String BASE_URL = "http://localhost:8087/api"; // URL của pricing-service
+    private final RestTemplate restTemplate;
+    private final String baseUrl;
 
+    public PricingClient(RestTemplate restTemplate,
+            @Value("${pricing.service.url}") String baseUrl) {
+        this.restTemplate = restTemplate;
+        this.baseUrl = baseUrl;
+    }
+
+    // 🪑 Lấy giá ghế theo seatType
     public SeatPriceResponse getSeatPrice(String seatType) {
-        String url = BASE_URL + "/prices/seats/" + seatType;
+        String url = baseUrl + "/api/prices/seats/" + seatType;
         return restTemplate.getForObject(url, SeatPriceResponse.class);
     }
 
+    // 🍿 Lấy combo theo danh sách id
     public List<ComboResponse> getCombos(List<UUID> comboIds) {
-        return comboIds.stream()
-                .map(id -> restTemplate.getForObject(BASE_URL + "/combos/" + id, ComboResponse.class))
-                .collect(Collectors.toList());
+        List<ComboResponse> result = new ArrayList<>();
+        for (UUID id : comboIds) {
+            String url = baseUrl + "/api/pricing/combos/" + id;
+            result.add(restTemplate.getForObject(url, ComboResponse.class));
+        }
+        return result;
     }
 
-    public List<PromotionResponse> getPromotions(List<UUID> promoIds) {
-        return promoIds.stream()
-                .map(id -> restTemplate.getForObject(BASE_URL + "/promotions/" + id, PromotionResponse.class))
-                .collect(Collectors.toList());
+    // 🎁 Lấy danh sách khuyến mãi đang hoạt động
+    public List<PromotionResponse> getActivePromotions() {
+        String url = baseUrl + "/api/pricing/promotions/active";
+        PromotionResponse[] promos = restTemplate.getForObject(url, PromotionResponse[].class);
+        return Arrays.asList(Objects.requireNonNull(promos));
+    }
+
+    // 🎟️ Lấy khuyến mãi cụ thể theo id
+    public PromotionResponse getPromotion(UUID id) {
+        String url = baseUrl + "/api/pricing/promotions/" + id;
+        return restTemplate.getForObject(url, PromotionResponse.class);
     }
 }

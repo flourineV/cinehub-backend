@@ -22,69 +22,62 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ShowtimeSeatService {
 
-    private final ShowtimeSeatRepository showtimeSeatRepository;
-    private final ShowtimeRepository showtimeRepository;
-    private final SeatRepository seatRepository;
+        private final ShowtimeSeatRepository showtimeSeatRepository;
+        private final ShowtimeRepository showtimeRepository;
+        private final SeatRepository seatRepository;
 
-    /**
-     * Lấy tất cả ghế theo suất chiếu
-     */
-    public List<ShowtimeSeatResponse> getSeatsByShowtime(UUID showtimeId) {
-        List<ShowtimeSeat> seats = showtimeSeatRepository.findByShowtime_Id(showtimeId);
+        /**
+         * Lấy tất cả ghế theo suất chiếu
+         */
+        public List<ShowtimeSeatResponse> getSeatsByShowtime(UUID showtimeId) {
+                return showtimeSeatRepository.findSeatResponsesByShowtimeId(showtimeId);
+        }
 
-        return seats.stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
-    }
+        /**
+         * Cập nhật trạng thái ghế (AVAILABLE, LOCKED, BOOKED)
+         */
+        @Transactional
+        public ShowtimeSeatResponse updateSeatStatus(UpdateSeatStatusRequest request) {
+                ShowtimeSeat seat = showtimeSeatRepository
+                                .findByShowtime_IdAndSeat_Id(request.getShowtimeId(), request.getSeatId())
+                                .orElseThrow(() -> new RuntimeException("Seat not found for this showtime"));
 
-    /**
-     * Cập nhật trạng thái ghế (AVAILABLE, LOCKED, BOOKED)
-     */
-    @Transactional
-    public ShowtimeSeatResponse updateSeatStatus(UpdateSeatStatusRequest request) {
-        ShowtimeSeat seat = showtimeSeatRepository
-                .findByShowtime_IdAndSeat_Id(request.getShowtimeId(), request.getSeatId())
-                .orElseThrow(() -> new RuntimeException("Seat not found for this showtime"));
+                seat.setStatus(request.getStatus());
+                seat.setUpdatedAt(LocalDateTime.now());
 
-        seat.setStatus(request.getStatus());
-        seat.setUpdatedAt(LocalDateTime.now());
+                ShowtimeSeat saved = showtimeSeatRepository.save(seat);
+                return toResponse(saved);
+        }
 
-        ShowtimeSeat saved = showtimeSeatRepository.save(seat);
-        return toResponse(saved);
-    }
+        /**
+         * Hàm khởi tạo trạng thái ghế khi tạo showtime mới
+         * (tất cả ghế AVAILABLE)
+         */
+        @Transactional
+        public void initializeSeatsForShowtime(UUID showtimeId) {
+                Showtime showtime = showtimeRepository.findById(showtimeId)
+                                .orElseThrow(() -> new RuntimeException("Showtime not found"));
 
-    /**
-     * Hàm khởi tạo trạng thái ghế khi tạo showtime mới
-     * (tất cả ghế AVAILABLE)
-     */
-    @Transactional
-    public void initializeSeatsForShowtime(UUID showtimeId) {
-        Showtime showtime = showtimeRepository.findById(showtimeId)
-                .orElseThrow(() -> new RuntimeException("Showtime not found"));
+                UUID roomId = showtime.getRoom().getId();
+                List<Seat> seats = seatRepository.findByRoomId(roomId);
 
-        UUID roomId = showtime.getRoom().getId();
-        List<Seat> seats = seatRepository.findByRoomId(roomId);
+                List<ShowtimeSeat> showtimeSeats = seats.stream()
+                                .map(s -> ShowtimeSeat.builder()
+                                                .showtime(showtime)
+                                                .seat(s)
+                                                .status(SeatStatus.AVAILABLE)
+                                                .updatedAt(LocalDateTime.now())
+                                                .build())
+                                .toList();
 
-        List<ShowtimeSeat> showtimeSeats = seats.stream()
-                .map(s -> ShowtimeSeat.builder()
-                        .showtime(showtime)
-                        .seat(s)
-                        .status(SeatStatus.AVAILABLE)
-                        .updatedAt(LocalDateTime.now())
-                        .build())
-                .toList();
+                showtimeSeatRepository.saveAll(showtimeSeats);
+        }
 
-        showtimeSeatRepository.saveAll(showtimeSeats);
-    }
-
-    private ShowtimeSeatResponse toResponse(ShowtimeSeat seat) {
-        return ShowtimeSeatResponse.builder()
-                .id(seat.getId())
-                .showtimeId(seat.getShowtime().getId())
-                .seatId(seat.getSeat().getId())
-                .seatNumber(seat.getSeat().getSeatNumber())
-                .status(seat.getStatus())
-                .updatedAt(seat.getUpdatedAt())
-                .build();
-    }
+        private ShowtimeSeatResponse toResponse(ShowtimeSeat seat) {
+                return ShowtimeSeatResponse.builder()
+                                .seatId(seat.getSeat().getId())
+                                .seatNumber(seat.getSeat().getSeatNumber())
+                                .status(seat.getStatus())
+                                .build();
+        }
 }

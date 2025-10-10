@@ -20,5 +20,4 @@ public class ShowtimeRequest {
     private UUID roomId;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
-    private BigDecimal price;
 }

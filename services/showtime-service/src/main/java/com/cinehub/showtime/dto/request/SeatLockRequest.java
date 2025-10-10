@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.UUID;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -13,7 +14,7 @@ import java.util.UUID;
 @Builder
 
 public class SeatLockRequest {
+    private UUID userId;
     private UUID showtimeId;
-    private UUID seatId;
-    private UUID bookingId;
+    private List<UUID> seatIds;
 }

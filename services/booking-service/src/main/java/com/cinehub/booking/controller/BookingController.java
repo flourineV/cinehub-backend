@@ -1,6 +1,5 @@
 package com.cinehub.booking.controller;
 
-import com.cinehub.booking.dto.BookingRequest;
 import com.cinehub.booking.dto.BookingResponse;
 import com.cinehub.booking.service.BookingService;
 import lombok.RequiredArgsConstructor;
@@ -15,11 +14,6 @@ import java.util.UUID;
 public class BookingController {
 
     private final BookingService bookingService;
-
-    @PostMapping
-    public BookingResponse createBooking(@RequestBody BookingRequest request) {
-        return bookingService.createBooking(request);
-    }
 
     @GetMapping("/{id}")
     public BookingResponse getBookingById(@PathVariable UUID id) {

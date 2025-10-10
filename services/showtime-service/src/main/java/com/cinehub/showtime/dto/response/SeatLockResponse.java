@@ -14,7 +14,6 @@ import java.util.UUID;
 public class SeatLockResponse {
     private UUID showtimeId;
     private UUID seatId;
-    private String type; // NORMAL, VIP, COUPlE
     private String status; // LOCKED / AVAILABLE / ALREADY_LOCKED
     private long ttl; // còn bao nhiêu giây thì hết hạn
 }

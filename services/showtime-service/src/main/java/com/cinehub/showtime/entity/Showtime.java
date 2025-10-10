@@ -1,6 +1,7 @@
 package com.cinehub.showtime.entity;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -35,11 +36,10 @@ public class Showtime {
     @JoinColumn(name = "theater_id", nullable = false)
     private Theater theater;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "room_id", nullable = false)
     private Room room;
 
     private LocalDateTime startTime;
     private LocalDateTime endTime;
-    private BigDecimal price;
 }

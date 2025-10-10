@@ -43,7 +43,6 @@ public class ShowtimeService {
                 .room(room)
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
-                .price(request.getPrice())
                 .build();
 
         Showtime savedShowtime = showtimeRepository.save(showtime);
@@ -96,7 +95,6 @@ public class ShowtimeService {
         showtime.setRoom(room);
         showtime.setStartTime(request.getStartTime());
         showtime.setEndTime(request.getEndTime());
-        showtime.setPrice(request.getPrice());
 
         Showtime updatedShowtime = showtimeRepository.save(showtime);
         return mapToShowtimeResponse(updatedShowtime);
@@ -118,7 +116,6 @@ public class ShowtimeService {
                 .roomName(showtime.getRoom().getName()) // Lấy tên Room
                 .startTime(showtime.getStartTime())
                 .endTime(showtime.getEndTime())
-                .price(showtime.getPrice())
                 .build();
     }
 

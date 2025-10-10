@@ -9,7 +9,7 @@ import com.cinehub.pricing.entity.Combo;
 import com.cinehub.pricing.service.ComboService;
 
 @RestController
-@RequestMapping("/api/combos")
+@RequestMapping("/api/pricing/combos")
 public class ComboController {
     private final ComboService comboService;
 

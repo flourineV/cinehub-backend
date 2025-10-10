@@ -38,8 +38,7 @@ public class ShowtimeSeatController {
         ShowtimeSeatResponse response = showtimeSeatService.updateSeatStatus(request);
 
         // Broadcast đến tất cả client đang subscribe cùng showtime
-        messagingTemplate.convertAndSend(
-                "/topic/showtime/" + showtimeId + "/seats", response);
+        messagingTemplate.convertAndSend("/topic/showtime/" + showtimeId + "/seats", response);
 
         return ResponseEntity.ok(response);
     }

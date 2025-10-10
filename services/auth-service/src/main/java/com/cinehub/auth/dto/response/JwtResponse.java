@@ -21,9 +21,4 @@ public class JwtResponse {
     private String tokenType = "Bearer";
 
     private UserResponse user;
-
-    public JwtResponse(String accessToken, UserResponse user) {
-        this.accessToken = accessToken;
-        this.user = user;
-    }
 }

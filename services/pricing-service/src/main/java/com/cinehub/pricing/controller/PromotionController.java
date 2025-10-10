@@ -9,7 +9,7 @@ import com.cinehub.pricing.entity.Promotion;
 import com.cinehub.pricing.service.PromotionService;
 
 @RestController
-@RequestMapping("/api/promotions")
+@RequestMapping("/api/pricing/promotions")
 public class PromotionController {
     private final PromotionService promotionService;
 

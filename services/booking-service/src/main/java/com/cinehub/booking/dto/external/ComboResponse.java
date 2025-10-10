@@ -1,9 +1,8 @@
-package com.cinehub.booking.client;
-
-import java.math.BigDecimal;
-import java.util.UUID;
+package com.cinehub.booking.dto.external;
 
 import lombok.Data;
+import java.math.BigDecimal;
+import java.util.UUID;
 
 @Data
 public class ComboResponse {

@@ -11,10 +11,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class ShowtimeSeatResponse {
-    private UUID id;
-    private UUID showtimeId;
     private UUID seatId;
     private String seatNumber;
     private SeatStatus status;
-    private LocalDateTime updatedAt;
 }
