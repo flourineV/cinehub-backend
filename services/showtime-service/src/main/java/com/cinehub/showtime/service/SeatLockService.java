@@ -1,6 +1,7 @@
 package com.cinehub.showtime.service;
 
 import com.cinehub.showtime.repository.SeatRepository;
+import com.cinehub.showtime.dto.request.SeatSelectionDetail;
 import com.cinehub.showtime.dto.response.SeatLockResponse;
 import com.cinehub.showtime.events.SeatLockedEvent;
 import com.cinehub.showtime.events.SeatUnlockedEvent;
@@ -24,23 +25,31 @@ public class SeatLockService {
 
     private final StringRedisTemplate redisTemplate;
     private final ShowtimeProducer showtimeProducer;
-    private final SeatRepository seatRepository;
+    // private final SeatRepository seatRepository; // 💡 Bỏ nếu không cần, hoặc giữ
+    // lại cho các nghiệp vụ khác
 
     @Value("${lock.timeout:10000}")
     private int lockTimeout;
 
-    public List<SeatLockResponse> lockSeats(UUID showtimeId, List<UUID> seatIds, UUID userId) {
+    // SỬA: Thay đổi tham số từ List<UUID> sang List<SeatSelectionDetail>
+    public List<SeatLockResponse> lockSeats(UUID showtimeId, List<SeatSelectionDetail> selectedSeats, UUID userId) {
 
         List<SeatLockResponse> responses = new java.util.ArrayList<>();
         List<UUID> successfullyLockedSeats = new java.util.ArrayList<>();
 
-        for (UUID seatId : seatIds) {
+        // Trích xuất list ID ghế để dễ dàng sử dụng cho rollback/log
+        List<UUID> seatIds = selectedSeats.stream().map(SeatSelectionDetail::getSeatId).toList();
+
+        // 1. Khóa từng ghế với cơ chế All or Nothing
+        for (SeatSelectionDetail seatDetail : selectedSeats) {
+            UUID seatId = seatDetail.getSeatId();
             String key = key(showtimeId, seatId);
             long expireAt = System.currentTimeMillis() + lockTimeout * 1000L;
             String value = userId + "|" + expireAt;
 
-            // sử dụng SETNX
+            // Sử dụng SETNX
             Boolean success = redisTemplate.opsForValue().setIfAbsent(key, value, lockTimeout, TimeUnit.SECONDS);
+
             if (Boolean.TRUE.equals(success)) {
                 successfullyLockedSeats.add(seatId);
                 responses.add(buildLockResponse(showtimeId, seatId, "LOCKED", lockTimeout));
@@ -59,12 +68,14 @@ public class SeatLockService {
         }
 
         // 3. Nếu khóa thành công TẤT CẢ -> Gửi event
-        // Lấy thông tin loại ghế (SeatType) từ DB
-        List<Seat> seats = seatRepository.findAllById(seatIds);
-        List<String> seatTypes = seats.stream().map(Seat::getType).toList();
+        // KHÔNG CẦN truy vấn DB vì thông tin đã có trong selectedSeats
 
-        // Gửi Event
-        SeatLockedEvent event = new SeatLockedEvent(userId, showtimeId, seatIds, seatTypes, lockTimeout);
+        // SỬA: Gửi Event với List<SeatSelectionDetail>
+        SeatLockedEvent event = new SeatLockedEvent(
+                userId,
+                showtimeId,
+                selectedSeats, // Truyền toàn bộ chi tiết ghế
+                lockTimeout);
         showtimeProducer.sendSeatLockedEvent(event);
 
         log.info("🎟️ All {} seats locked for showtime {} by user {}",
@@ -86,16 +97,9 @@ public class SeatLockService {
     }
 
     /**
-     * Giải phóng ghế (khi user huỷ hoặc timeout scheduler)
-     */
-
-    /**
      * Giải phóng nhiều ghế (khi user huỷ, timeout, hoặc rollback)
      */
-    // Trong SeatLockService.java
-    /**
-     * Giải phóng nhiều ghế (khi user huỷ, timeout, hoặc rollback)
-     */
+    // Giữ nguyên logic, chỉ cần List<UUID>
     public List<SeatLockResponse> releaseSeats(UUID showtimeId, List<UUID> seatIds) {
         List<String> keys = seatIds.stream()
                 .map(seatId -> key(showtimeId, seatId))
@@ -112,12 +116,11 @@ public class SeatLockService {
 
         log.info("🔓 Released {} seats for showtime {}", seatIds.size(), showtimeId);
 
-        // 👈 Bổ sung logic trả về List các phản hồi thành công
+        // Bổ sung logic trả về List các phản hồi thành công
         return seatIds.stream()
                 .map(seatId -> buildLockResponse(showtimeId, seatId, "AVAILABLE", 0))
                 .toList();
     }
-    // Bạn cần đảm bảo đã thêm hàm helper buildLockResponse() vào service.
 
     /**
      * Kiểm tra trạng thái ghế (LOCKED / AVAILABLE)
@@ -145,7 +148,6 @@ public class SeatLockService {
     private String key(UUID showtimeId, UUID seatId) {
         return "seat:" + showtimeId + ":" + seatId;
     }
-    // Thêm vào class SeatLockService
 
     /**
      * Hàm trợ giúp để xây dựng phản hồi khóa thành công/thất bại cho một ghế.
@@ -161,19 +163,16 @@ public class SeatLockService {
 
     /**
      * Hàm trợ giúp để xây dựng danh sách phản hồi thất bại cho toàn bộ request.
-     * Trong trường hợp xung đột (conflict), chúng ta trả về danh sách phản hồi
-     * cho biết TOÀN BỘ các ghế đều KHÔNG KHẢ DỤ.
      */
     private List<SeatLockResponse> buildFailureResponse(UUID showtimeId, List<UUID> seatIds, String status, long ttl) {
         List<SeatLockResponse> responses = new java.util.ArrayList<>();
 
-        // Đối với một lỗi xung đột (CONFLICT) duy nhất, chúng ta coi toàn bộ danh sách
-        // ghế đã bị từ chối và phản hồi trạng thái đó cho từng ghế trong list.
+        // Trả về phản hồi lỗi cho TOÀN BỘ các ghế trong list.
         for (UUID seatId : seatIds) {
             responses.add(SeatLockResponse.builder()
                     .showtimeId(showtimeId)
                     .seatId(seatId)
-                    .status(status) // Ví dụ: "CONFLICT" hoặc "ALREADY_LOCKED"
+                    .status(status) // Ví dụ: "CONFLICT"
                     .ttl(ttl) // Thời gian TTL còn lại của ghế đã bị khóa (nếu có)
                     .build());
         }

@@ -16,17 +16,21 @@ public class BookingSeat {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    private UUID id; // String, sẽ tự gán UUID
+    private UUID id;
 
     @Column(nullable = false)
-    private UUID seatId; // tham chiếu seat-service
+    private UUID seatId;
+
+    // THÊM: Loại ghế (NORMAL/VIP)
+    @Column(name = "seat_type", nullable = false, length = 50)
+    private String seatType;
+
+    // THÊM: Loại vé (ADULT/CHILD)
+    @Column(name = "ticket_type", nullable = false, length = 50)
+    private String ticketType;
 
     @Column(nullable = false)
     private BigDecimal price;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private SeatStatus status;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -34,15 +38,4 @@ public class BookingSeat {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "booking_id", nullable = false)
     private Booking booking;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        if (this.id == null) {
-            this.id = UUID.randomUUID();
-        }
-        if (this.status == null) {
-            this.status = SeatStatus.RESERVED;
-        }
-    }
 }

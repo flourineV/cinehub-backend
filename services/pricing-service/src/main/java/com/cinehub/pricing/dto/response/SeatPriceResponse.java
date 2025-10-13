@@ -1,14 +1,14 @@
 package com.cinehub.pricing.dto.response;
 
-import lombok.*;
+import lombok.Builder;
+import lombok.Data;
 import java.math.BigDecimal;
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
 public class SeatPriceResponse {
+
     private String seatType;
+    private String ticketType;
     private BigDecimal basePrice;
-    private String currency;
 }

@@ -2,25 +2,32 @@ package com.cinehub.booking.service;
 
 import com.cinehub.booking.client.PricingClient;
 import com.cinehub.booking.dto.external.SeatPriceResponse;
-import com.cinehub.booking.dto.BookingResponse;
+import com.cinehub.booking.dto.request.FinalizeBookingRequest;
+import com.cinehub.booking.dto.response.BookingResponse;
+import com.cinehub.booking.dto.response.BookingStatusResponse;
+import com.cinehub.booking.dto.response.PollingStatus;
 import com.cinehub.booking.entity.*;
-import com.cinehub.booking.events.BookingCreatedEvent;
-import com.cinehub.booking.events.BookingStatusUpdatedEvent;
-import com.cinehub.booking.events.PaymentCompletedEvent;
-import com.cinehub.booking.events.PaymentFailedEvent;
-import com.cinehub.booking.events.SeatLockedEvent;
+import com.cinehub.booking.events.booking.BookingCreatedEvent;
+import com.cinehub.booking.events.showtime.SeatLockedEvent;
+import com.cinehub.booking.events.booking.BookingStatusUpdatedEvent;
+import com.cinehub.booking.events.payment.PaymentCompletedEvent;
+import com.cinehub.booking.events.payment.PaymentFailedEvent;
 import com.cinehub.booking.repository.BookingRepository;
 import com.cinehub.booking.producer.BookingProducer;
+import com.cinehub.booking.dto.external.SeatSelectionDetail;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service

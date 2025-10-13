@@ -12,9 +12,10 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-
 public class SeatLockRequest {
     private UUID userId;
     private UUID showtimeId;
-    private List<UUID> seatIds;
+
+    // Đã thay đổi: Truyền list chi tiết các ghế đã chọn
+    private List<SeatSelectionDetail> selectedSeats;
 }

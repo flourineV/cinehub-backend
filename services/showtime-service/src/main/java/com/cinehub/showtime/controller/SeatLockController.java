@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List; // 👈 Cần import List
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -18,36 +18,47 @@ public class SeatLockController {
     private final SeatLockService seatLockService;
 
     /**
-     * Khóa nhiều ghế cùng lúc. Trả về List<SeatLockResponse>.
-     * Nếu xảy ra lỗi xung đột (CONFLICT), trả về HTTP 409.
+     * Khóa nhiều ghế cùng lúc. SỬA ĐỔI để truyền List<SeatSelectionDetail>.
      */
     @PostMapping("/lock")
-    // Sửa kiểu trả về thành List<SeatLockResponse>
     public ResponseEntity<List<SeatLockResponse>> lockSeats(@RequestBody SeatLockRequest req) {
-        // Giả sử service trả về List các phản hồi thành công hoặc List các phản hồi lỗi
-        List<SeatLockResponse> responses = seatLockService.lockSeats(req.getShowtimeId(), req.getSeatIds(),
+
+        // ❌ CÁCH GỌI CŨ: req.getSeatIds() không còn đủ thông tin
+        /*
+         * List<SeatLockResponse> responses =
+         * seatLockService.lockSeats(req.getShowtimeId(), req.getSeatIds(),
+         * req.getUserId());
+         */
+
+        // ✅ CÁCH GỌI MỚI: Truyền toàn bộ List<SeatSelectionDetail>
+        List<SeatLockResponse> responses = seatLockService.lockSeats(
+                req.getShowtimeId(),
+                req.getSelectedSeats(), // Lấy List<SeatSelectionDetail>
                 req.getUserId());
 
-        // Logic kiểm tra lỗi đơn giản: Nếu phần tử đầu tiên là CONFLICT, trả về 409
+        // Logic kiểm tra lỗi đơn giản:
         if (!responses.isEmpty() && responses.get(0).getStatus().equals("CONFLICT")) {
-            // Trả về HTTP 409 Conflict nếu có lỗi xảy ra
             return new ResponseEntity<>(responses, HttpStatus.CONFLICT);
         }
 
-        // Trả về HTTP 200 OK nếu tất cả các ghế được khóa thành công
         return ResponseEntity.ok(responses);
     }
 
     /**
-     * Giải phóng nhiều ghế cùng lúc. Trả về List<SeatLockResponse>.
+     * Giải phóng nhiều ghế cùng lúc. (Có thể giữ lại cách gọi cũ nếu service không
+     * cần ticketType)
      */
     @PostMapping("/release")
-    // Sửa kiểu trả về thành List<SeatLockResponse>
     public ResponseEntity<List<SeatLockResponse>> releaseSeats(@RequestBody SeatLockRequest req) {
-        // Hàm releaseSeats cần được chỉnh sửa trong service để trả về
-        // List<SeatLockResponse>
+
+        // 💡 LƯU Ý: Đối với release, bạn chỉ cần seatId.
+        // Ta có thể trích xuất List<UUID> seatIds từ List<SeatSelectionDetail>
+        List<UUID> seatIdsToRelease = req.getSelectedSeats().stream()
+                .map(detail -> detail.getSeatId())
+                .toList();
+
         return ResponseEntity.ok(
-                seatLockService.releaseSeats(req.getShowtimeId(), req.getSeatIds()));
+                seatLockService.releaseSeats(req.getShowtimeId(), seatIdsToRelease));
     }
 
     /**

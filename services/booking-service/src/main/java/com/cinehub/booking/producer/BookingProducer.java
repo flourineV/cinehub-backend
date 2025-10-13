@@ -1,8 +1,9 @@
 package com.cinehub.booking.producer;
 
 import com.cinehub.booking.config.RabbitConfig;
-import com.cinehub.booking.events.BookingCreatedEvent;
-import com.cinehub.booking.events.BookingStatusUpdatedEvent;
+import com.cinehub.booking.events.booking.BookingCreatedEvent;
+import com.cinehub.booking.events.booking.BookingStatusUpdatedEvent;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;

@@ -1,8 +1,12 @@
 package com.cinehub.booking.controller;
 
-import com.cinehub.booking.dto.BookingResponse;
+import com.cinehub.booking.dto.request.BookingStatusRequest;
+import com.cinehub.booking.dto.response.BookingResponse;
+import com.cinehub.booking.dto.response.BookingStatusResponse;
 import com.cinehub.booking.service.BookingService;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -33,5 +37,17 @@ public class BookingController {
     @DeleteMapping("/{id}")
     public void deleteBooking(@PathVariable UUID id) {
         bookingService.deleteBooking(id);
+    }
+
+    // Endpoint cho API Polling
+    @GetMapping("/status")
+    public ResponseEntity<BookingStatusResponse> getBookingStatus(
+            @RequestBody BookingStatusRequest request) { // Hoặc dùng @RequestParam
+
+        BookingStatusResponse response = bookingService.checkBookingStatus(
+                request.getUserId(),
+                request.getShowtimeId());
+
+        return ResponseEntity.ok(response);
     }
 }

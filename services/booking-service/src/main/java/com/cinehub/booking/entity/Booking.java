@@ -15,6 +15,7 @@ import java.util.*;
 public class Booking {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
     @Column(nullable = false)
@@ -23,12 +24,18 @@ public class Booking {
     @Column(nullable = false)
     private UUID showtimeId;
 
-    @Column(nullable = false)
-    private BigDecimal totalPrice;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private BookingStatus status;
+
+    @Column(nullable = false)
+    private BigDecimal totalPrice;
+
+    @Column(nullable = false)
+    private BigDecimal discountAmount;
+
+    @Column(nullable = false)
+    private BigDecimal finalPrice;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -38,15 +45,16 @@ public class Booking {
 
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
+    private List<BookingFnb> fnbItems = new ArrayList<>();
+
+    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
     private List<BookingSeat> seats = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
-        if (this.id == null) {
-            this.id = UUID.randomUUID();
-        }
         if (this.status == null) {
             this.status = BookingStatus.PENDING;
         }
