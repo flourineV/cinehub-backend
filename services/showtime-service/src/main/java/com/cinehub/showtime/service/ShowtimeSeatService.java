@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,16 +25,10 @@ public class ShowtimeSeatService {
         private final ShowtimeRepository showtimeRepository;
         private final SeatRepository seatRepository;
 
-        /**
-         * Lấy tất cả ghế theo suất chiếu
-         */
         public List<ShowtimeSeatResponse> getSeatsByShowtime(UUID showtimeId) {
                 return showtimeSeatRepository.findSeatResponsesByShowtimeId(showtimeId);
         }
 
-        /**
-         * Cập nhật trạng thái ghế (AVAILABLE, LOCKED, BOOKED)
-         */
         @Transactional
         public ShowtimeSeatResponse updateSeatStatus(UpdateSeatStatusRequest request) {
                 ShowtimeSeat seat = showtimeSeatRepository

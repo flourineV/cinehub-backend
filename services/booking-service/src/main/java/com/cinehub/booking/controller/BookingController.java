@@ -1,12 +1,9 @@
 package com.cinehub.booking.controller;
 
-import com.cinehub.booking.dto.request.BookingStatusRequest;
-import com.cinehub.booking.dto.response.BookingResponse;
-import com.cinehub.booking.dto.response.BookingStatusResponse;
+import com.cinehub.booking.dto.request.FinalizeBookingRequest;
+import com.cinehub.booking.dto.response.*;
 import com.cinehub.booking.service.BookingService;
 import lombok.RequiredArgsConstructor;
-
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,35 +16,30 @@ public class BookingController {
 
     private final BookingService bookingService;
 
+    // 1. Lấy Booking theo ID
     @GetMapping("/{id}")
     public BookingResponse getBookingById(@PathVariable UUID id) {
         return bookingService.getBookingById(id);
     }
 
+    // 2. Lấy danh sách Booking của người dùng
     @GetMapping("/user/{userId}")
     public List<BookingResponse> getBookingsByUser(@PathVariable UUID userId) {
         return bookingService.getBookingsByUser(userId);
     }
 
-    @PatchMapping("/{id}/status")
-    public BookingResponse updateStatus(@PathVariable UUID id, @RequestParam String status) {
-        return bookingService.updateBookingStatus(id, status);
+    @PatchMapping("/{id}/finalize")
+    public BookingResponse finalizeBooking(
+            @PathVariable("id") UUID bookingId, // Lấy bookingId từ URL
+            @RequestBody FinalizeBookingRequest request) {
+
+        // Gọi hàm service với bookingId và request
+        return bookingService.finalizeBooking(bookingId, request);
     }
 
+    // 4. Xóa Booking (Chỉ nên dùng cho Testing/Admin)
     @DeleteMapping("/{id}")
     public void deleteBooking(@PathVariable UUID id) {
         bookingService.deleteBooking(id);
-    }
-
-    // Endpoint cho API Polling
-    @GetMapping("/status")
-    public ResponseEntity<BookingStatusResponse> getBookingStatus(
-            @RequestBody BookingStatusRequest request) { // Hoặc dùng @RequestParam
-
-        BookingStatusResponse response = bookingService.checkBookingStatus(
-                request.getUserId(),
-                request.getShowtimeId());
-
-        return ResponseEntity.ok(response);
     }
 }

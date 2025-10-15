@@ -11,8 +11,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<String> handleEntityNotFoundException(EntityNotFoundException ex) {
-        // Trả về HTTP 404 và nội dung thông báo lỗi (ví dụ: "Room with ID... not
-        // found")
+        // HTTP 404: Dùng cho các trường hợp không tìm thấy tài nguyên (ví dụ: Showtime
+        // ID không tồn tại)
         return new ResponseEntity<>(ex.getMessage(), HttpStatus.NOT_FOUND);
+    }
+
+    // ✅ Bổ sung handler cho IllegalSeatLockException
+    @ExceptionHandler(IllegalSeatLockException.class)
+    public ResponseEntity<String> handleIllegalSeatLockException(IllegalSeatLockException ex) {
+        // HTTP 409: Dùng cho các trường hợp xung đột (Conflict) như tranh chấp tài
+        // nguyên (ghế đã bị khóa)
+        return new ResponseEntity<>(ex.getMessage(), HttpStatus.CONFLICT);
     }
 }

@@ -20,6 +20,8 @@ public class ShowtimeProducer {
                                 "v1",
                                 Instant.now(),
                                 data);
+
+                // Gửi SeatLockedEvent
                 rabbitTemplate.convertAndSend(
                                 RabbitConfig.SHOWTIME_EXCHANGE,
                                 RabbitConfig.SEAT_LOCK_ROUTING_KEY,
@@ -27,20 +29,18 @@ public class ShowtimeProducer {
         }
 
         public <T> void sendSeatUnlockedEvent(T data) {
-                // Cần có một Routing Key mới cho sự kiện này trong RabbitConfig
-                // Giả sử bạn đã thêm: public static final String SEAT_UNLOCKED_ROUTING_KEY =
-                // "key.seat.unlocked";
-
+                // Event này được gửi khi Showtime tự động mở khóa (ví dụ: timeout)
                 var msg = new EventMessage<>(
                                 UUID.randomUUID().toString(),
-                                "SeatUnlocked", // Loại sự kiện khác
+                                "SeatUnlocked",
                                 "v1",
                                 Instant.now(),
                                 data);
 
+                // Gửi SeatUnlockedEvent
                 rabbitTemplate.convertAndSend(
                                 RabbitConfig.SHOWTIME_EXCHANGE,
-                                RabbitConfig.SEAT_UNLOCK_ROUTING_KEY, // Sử dụng Routing Key riêng cho Unlocked
+                                RabbitConfig.SEAT_UNLOCK_ROUTING_KEY,
                                 msg);
         }
 }

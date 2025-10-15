@@ -10,36 +10,32 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitConfig {
 
-    // === Queue (nơi NotificationService lắng nghe) ===
+    // notification queue
     public static final String NOTIFICATION_QUEUE = "notification.queue";
 
-    // === Exchange mà PaymentService gửi tới ===
+    // payment exchange
     public static final String PAYMENT_EXCHANGE = "payment.exchange";
 
-    // === Routing key tương ứng ===
-    public static final String PAYMENT_ROUTING_KEY = "key.notification.ready";
+    // routing key from notification queue to connect payment exchange
+    public static final String PAYMENT_SUCCESS_KEY = "payment.success";
 
-    // 1️⃣ Queue chính
     @Bean
     public Queue notificationQueue() {
         return new Queue(NOTIFICATION_QUEUE, true);
     }
 
-    // 2️⃣ Exchange từ PaymentService
     @Bean
     public DirectExchange paymentExchange() {
         return new DirectExchange(PAYMENT_EXCHANGE, true, false);
     }
 
-    // 3️⃣ Binding: nối Notification queue với Payment exchange
     @Bean
     public Binding notificationBinding(Queue notificationQueue, DirectExchange paymentExchange) {
         return BindingBuilder.bind(notificationQueue)
                 .to(paymentExchange)
-                .with(PAYMENT_ROUTING_KEY);
+                .with(PAYMENT_SUCCESS_KEY);
     }
 
-    // 4️⃣ Converter và Template
     @Bean
     public Jackson2JsonMessageConverter jsonMessageConverter() {
         return new Jackson2JsonMessageConverter();

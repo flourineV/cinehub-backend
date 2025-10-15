@@ -4,12 +4,12 @@ import com.cinehub.showtime.dto.response.ShowtimeSeatResponse;
 import com.cinehub.showtime.entity.ShowtimeSeat;
 import com.cinehub.showtime.entity.ShowtimeSeat.SeatStatus;
 
-import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,7 +22,7 @@ public interface ShowtimeSeatRepository extends JpaRepository<ShowtimeSeat, UUID
     // Lấy tất cả ghế của 1 suất chiếu
     List<ShowtimeSeat> findByShowtime_Id(UUID showtimeId);
 
-    // Lấy theo showtime + seat cụ thể (để update nhanh)
+    // Lấy theo showtime + seat cụ thể
     Optional<ShowtimeSeat> findByShowtime_IdAndSeat_Id(UUID showtimeId, UUID seatId);
 
     @Query("""
@@ -38,15 +38,12 @@ public interface ShowtimeSeatRepository extends JpaRepository<ShowtimeSeat, UUID
             """)
     List<ShowtimeSeatResponse> findSeatResponsesByShowtimeId(@Param("showtimeId") UUID showtimeId);
 
-    @Query("SELECT s FROM ShowtimeSeat s WHERE s.showtime.id = :showtimeId AND s.id IN :seatIds")
-    List<ShowtimeSeat> findSeatsForLock(@Param("showtimeId") UUID showtimeId, @Param("seatIds") List<UUID> seatIds);
-
-    @Modifying
-    @Transactional
-    @Query("UPDATE ShowtimeSeat s SET s.status = :status WHERE s.id IN :seatIds")
-    void updateSeatStatus(@Param("seatIds") List<UUID> seatIds, @Param("status") SeatStatus status);
-
+    /**
+     * Cập nhật trạng thái hàng loạt cho các ghế cụ thể trong một suất chiếu.
+     * Sử dụng s.seat.id (ID ghế rạp) làm điều kiện.
+     */
     @Modifying(clearAutomatically = true)
+    @Transactional
     @Query("""
                 UPDATE ShowtimeSeat s
                 SET s.status = :status, s.updatedAt = :now

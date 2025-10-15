@@ -12,9 +12,17 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-
 public class BookingSeatResponse {
     private UUID seatId;
-    private BigDecimal price;
-    private String status; // RESERVED,CONFIRMED,CANCELLED
+
+    // ✅ THÊM: Loại ghế (NORMAL/VIP)
+    private String seatType;
+
+    // ✅ THÊM: Loại vé (ADULT/CHILD)
+    private String ticketType;
+
+    private BigDecimal price; // Giá của từng loại ghế/vé (Đã có trong entity)
+
+    // ❌ XÓA: Trường 'status' (Thường được quản lý ở Booking cha)
+    // private String status;
 }

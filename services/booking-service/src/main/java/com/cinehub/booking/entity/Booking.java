@@ -37,6 +37,13 @@ public class Booking {
     @Column(nullable = false)
     private BigDecimal finalPrice;
 
+    @Column(name = "payment_method", length = 50)
+    private String paymentMethod;
+
+    // ✅ THÊM: Mã giao dịch (Tham chiếu đến giao dịch Payment Service)
+    @Column(name = "transaction_id", length = 100)
+    private String transactionId;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -50,6 +57,9 @@ public class Booking {
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<BookingSeat> seats = new ArrayList<>();
+
+    @OneToOne(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private BookingPromotion promotion;
 
     @PrePersist
     protected void onCreate() {

@@ -1,7 +1,7 @@
 package com.cinehub.booking.consumer;
 
-import com.cinehub.booking.events.SeatLockedEvent;
-import com.cinehub.booking.events.SeatUnlockedEvent;
+import com.cinehub.booking.events.showtime.SeatLockedEvent;
+import com.cinehub.booking.events.showtime.SeatUnlockedEvent;
 import com.cinehub.booking.service.BookingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,6 @@ public class ShowtimeEventConsumer {
 
     @RabbitListener(queues = "booking.seat.events.queue")
     public void consume(@Payload Map<String, Object> rawMessage) {
-        log.info("🔓 Seatlocked received hello world: {}");
         try {
             String type = (String) rawMessage.get("type");
             Object dataObj = rawMessage.get("data");
