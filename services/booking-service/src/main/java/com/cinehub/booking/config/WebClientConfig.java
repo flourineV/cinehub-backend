@@ -10,13 +10,13 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Configuration
 public class WebClientConfig {
 
-    @Value("${service.pricing.url:http://localhost:8087}")
+    @Value("${pricing.service.url}")
     private String pricingServiceUrl;
 
-    @Value("${service.fnb.url:http://localhost:8088}")
+    @Value("${fnb.service.url}")
     private String fnbServiceUrl;
 
-    @Value("${service.promotion.url:http://localhost:8089}")
+    @Value("${promotion.service.url}")
     private String promotionServiceUrl;
 
     @Bean

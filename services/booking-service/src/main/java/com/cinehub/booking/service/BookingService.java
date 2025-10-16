@@ -2,17 +2,19 @@ package com.cinehub.booking.service;
 
 import com.cinehub.booking.dto.external.SeatPriceResponse;
 import com.cinehub.booking.dto.external.PromotionValidationResponse;
-import com.cinehub.booking.dto.external.FnbItemResponse;
+import com.cinehub.booking.dto.external.FnbCalculationResponse;
 import com.cinehub.booking.dto.request.FinalizeBookingRequest;
 import com.cinehub.booking.dto.response.BookingResponse;
 import com.cinehub.booking.dto.response.BookingSeatResponse;
+import com.cinehub.booking.dto.external.FnbCalculationRequest;
 import com.cinehub.booking.entity.*;
 import com.cinehub.booking.events.booking.BookingCreatedEvent;
+import com.cinehub.booking.events.booking.BookingFinalizedEvent;
 import com.cinehub.booking.events.booking.BookingStatusUpdatedEvent;
 import com.cinehub.booking.events.booking.BookingSeatMappedEvent; // ✅ Dùng DTO đúng tên
 import com.cinehub.booking.events.showtime.SeatLockedEvent;
 import com.cinehub.booking.events.showtime.SeatUnlockedEvent;
-import com.cinehub.booking.events.payment.PaymentCompletedEvent; // Giữ lại cho tương thích
+import com.cinehub.booking.events.payment.PaymentSuccessEvent; // Giữ lại cho tương thích
 import com.cinehub.booking.events.payment.PaymentFailedEvent; // Giữ lại cho tương thích
 import com.cinehub.booking.exception.BookingException;
 import com.cinehub.booking.exception.BookingNotFoundException;
@@ -163,6 +165,7 @@ public class BookingService {
 
         @Transactional
         public void handleSeatUnlocked(SeatUnlockedEvent data) {
+
                 log.warn("Received SeatUnlocked event: bookingId={}, seats={}, reason={}",
                                 data.bookingId(), data.seatIds().size(), data.reason());
 
@@ -189,7 +192,7 @@ public class BookingService {
 
         // Trong BookingService.java
         @Transactional
-        public void handlePaymentCompleted(PaymentCompletedEvent data) {
+        public void handlePaymentSuccess(PaymentSuccessEvent data) {
                 log.info("Received PaymentCompleted event for booking: {}", data.bookingId());
 
                 Booking booking = bookingRepository.findById(data.bookingId()).orElse(null);
@@ -200,59 +203,12 @@ public class BookingService {
                         return;
                 }
 
-                // ⭐ BỔ SUNG: GỌI LẠI SHOWTIME SERVICE ĐỂ KIỂM TRA TẤT CẢ GHẾ VẪN LÀ LOCKED
-                boolean allSeatsLocked = checkAllSeatsStillLocked(booking.getShowtimeId(),
-                                booking.getSeats().stream()
-                                                .map(BookingSeat::getSeatId)
-                                                .toList());
-
-                if (!allSeatsLocked) {
-                        log.error("💥 PAYMENT REJECTED: One or more seats for booking {} are no longer locked.",
-                                        data.bookingId());
-
-                        // Chuyển trạng thái sang CANCELLED/FAILED và gửi Event giải phóng các ghế còn
-                        // lại
-                        updateBookingStatus(booking, BookingStatus.CANCELLED);
-                        // Sau đó bạn có thể gửi một event PaymentFailedEvent trở lại Payment Service
-                        // nếu cần.
-                        return;
-                }
-                // ⭐ KẾT THÚC BỔ SUNG
-
                 // Cập nhật thông tin thanh toán
                 booking.setPaymentMethod(data.method());
                 booking.setTransactionId(data.transactionRef());
 
                 // Cập nhật trạng thái CONFIRMED và gửi Event
                 updateBookingStatus(booking, BookingStatus.CONFIRMED);
-        }
-
-        // ⭐ HÀM MỚI (Giả định bạn có webClient tới Showtime Service - ở đây tôi dùng
-        // pricingWebClient làm ví dụ)
-        private boolean checkAllSeatsStillLocked(UUID showtimeId, List<UUID> seatIds) {
-                // ⚠️ LƯU Ý: Bạn cần WebClient trỏ đến Showtime Service để gọi API kiểm tra.
-                // Giả sử có API: GET
-                // /api/showtime/seats/check-locked?showtimeId=...&seatIds=...
-                try {
-                        // Dùng WebClient mà bạn đã khai báo cho Showtime Service (giả định là
-                        // pricingWebClient)
-                        // **THAY THẾ BẰNG WEBCIENT CHÍNH XÁC CỦA SHOWTIME**
-                        Boolean isLocked = pricingWebClient.post() // Giả định là POST để gửi list ID
-                                        .uri("/api/showtime/seats/check-locked")
-                                        .bodyValue(seatIds) // Gửi danh sách Seat IDs
-                                        .retrieve()
-                                        .onStatus(HttpStatusCode::isError,
-                                                        response -> Mono.error(
-                                                                        new RuntimeException("Showtime check failed")))
-                                        .bodyToMono(Boolean.class) // API trả về true/false
-                                        .block();
-
-                        return isLocked != null && isLocked;
-                } catch (Exception e) {
-                        log.error("Error checking seat lock status with Showtime Service: {}", e.getMessage());
-                        // Nếu API lỗi, hãy coi đây là lỗi bảo mật và từ chối thanh toán
-                        return false;
-                }
         }
 
         @Transactional
@@ -291,9 +247,9 @@ public class BookingService {
                 BigDecimal fnbPrice = BigDecimal.ZERO;
 
                 // 2. Xử lý F&B
-                if (request.fnbItems() != null && !request.fnbItems().isEmpty()) {
+                if (request.getFnbItems() != null && !request.getFnbItems().isEmpty()) {
                         bookingFnbRepository.deleteByBooking_Id(bookingId);
-                        fnbPrice = processFnbItems(booking, request.fnbItems());
+                        fnbPrice = processFnbItems(booking, request.getFnbItems());
                 }
 
                 // 3. Cập nhật Total Price (Giá ghế + Giá F&B)
@@ -308,9 +264,9 @@ public class BookingService {
                 booking.setDiscountAmount(BigDecimal.ZERO);
 
                 // 4. Xử lý Khuyến mãi
-                if (request.promotionCode() != null && !request.promotionCode().isBlank()) {
+                if (request.getPromotionCode() != null && !request.getPromotionCode().isBlank()) {
                         bookingPromotionRepository.deleteByBooking_Id(bookingId);
-                        processPromotion(booking, request.promotionCode());
+                        processPromotion(booking, request.getPromotionCode());
                 }
 
                 // 5. Cập nhật trạng thái chính thức sang AWAITING_PAYMENT
@@ -321,6 +277,12 @@ public class BookingService {
 
                 log.info("Booking {} finalized: Total Price={}, Final Price={}",
                                 bookingId, booking.getTotalPrice(), booking.getFinalPrice());
+                bookingProducer.sendBookingFinalizedEvent(
+                                new BookingFinalizedEvent(
+                                                booking.getId(),
+                                                booking.getUserId(),
+                                                booking.getShowtimeId(),
+                                                booking.getFinalPrice()));
 
                 // Gửi Event cập nhật trạng thái
                 bookingProducer.sendBookingStatusUpdatedEvent(
@@ -335,36 +297,40 @@ public class BookingService {
         }
 
         // ... (Giữ nguyên processFnbItems và processPromotion)
-        private BigDecimal processFnbItems(Booking booking, List<FinalizeBookingRequest.FnbItemRequest> fnbItems) {
-                // ... (Giữ nguyên logic cũ)
-                BigDecimal totalFnbPrice = BigDecimal.ZERO;
+        private BigDecimal processFnbItems(Booking booking,
+                        List<FinalizeBookingRequest.CalculatedFnbItemDto> fnbItems) {
+                FnbCalculationRequest fnbRequest = new FnbCalculationRequest();
+                fnbRequest.setSelectedFnbItems(fnbItems);
+
+                FnbCalculationResponse fnbResponse = fnbWebClient.post()
+                                .uri("/api/fnb/calculate")
+                                .bodyValue(fnbRequest) // ✅ gửi object có field selectedFnbItems
+                                .retrieve()
+                                .bodyToMono(FnbCalculationResponse.class)
+                                .block();
+
+                if (fnbResponse == null || fnbResponse.getCalculatedFnbItems() == null) {
+                        throw new BookingException("❌ Không nhận được dữ liệu F&B từ service FNB.");
+                }
+                BigDecimal totalFnbPrice = fnbResponse.getTotalFnbPrice();
+                List<FinalizeBookingRequest.CalculatedFnbItemDto> calculatedItems = fnbResponse.getCalculatedFnbItems();
+
                 List<BookingFnb> bookingFnbs = new ArrayList<>();
 
-                for (var fnbRequest : fnbItems) {
-                        FnbItemResponse fnbItem = fnbWebClient.get()
-                                        .uri("/api/fnb/{fnbId}", fnbRequest.fnbId())
-                                        .retrieve()
-                                        .bodyToMono(FnbItemResponse.class)
-                                        .block();
-
-                        if (fnbItem == null || fnbItem.getUnitPrice() == null) {
-                                throw new BookingException("Không tìm thấy món F&B hoặc thiếu giá.");
-                        }
-
-                        BigDecimal unitPrice = fnbItem.getUnitPrice();
-                        BigDecimal itemTotalPrice = unitPrice.multiply(BigDecimal.valueOf(fnbRequest.quantity()));
-
-                        totalFnbPrice = totalFnbPrice.add(itemTotalPrice);
+                for (var item : calculatedItems) {
+                        BigDecimal unitPrice = item.getUnitPrice();
+                        BigDecimal itemTotalPrice = item.getTotalFnbItemPrice();
 
                         bookingFnbs.add(BookingFnb.builder()
-                                        .fnbItemId(fnbRequest.fnbId())
+                                        .fnbItemId(item.getFnbItemId())
                                         .unitPrice(unitPrice)
-                                        .quantity(fnbRequest.quantity())
+                                        .quantity(item.getQuantity())
                                         .totalFnbPrice(itemTotalPrice)
                                         .booking(booking)
                                         .build());
                 }
 
+                // 💾 Lưu danh sách FNB vào DB
                 bookingFnbRepository.saveAll(bookingFnbs);
 
                 return totalFnbPrice;
@@ -373,10 +339,8 @@ public class BookingService {
         private void processPromotion(Booking booking, String promoCode) {
                 // ... (Giữ nguyên logic cũ)
                 PromotionValidationResponse validationResponse = promotionWebClient.get()
-                                .uri(uriBuilder -> uriBuilder.path("/api/promotion/validate")
+                                .uri(uriBuilder -> uriBuilder.path("/api/promotions/validate")
                                                 .queryParam("code", promoCode)
-                                                .queryParam("userId", booking.getUserId())
-                                                .queryParam("totalPrice", booking.getTotalPrice())
                                                 .build())
                                 .retrieve()
                                 .onStatus(HttpStatusCode::is4xxClientError, response -> {
@@ -426,6 +390,7 @@ public class BookingService {
                 usedPromotionRepository.save(UsedPromotion.builder()
                                 .userId(booking.getUserId())
                                 .promotionCode(promoCode)
+                                .booking(booking)
                                 .usedAt(LocalDateTime.now())
                                 .build());
         }

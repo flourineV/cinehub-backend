@@ -2,6 +2,8 @@ package com.cinehub.payment.producer;
 
 import com.cinehub.payment.config.RabbitConfig;
 import com.cinehub.payment.events.EventMessage;
+import com.cinehub.payment.events.PaymentSuccessEvent; // Event mới
+import com.cinehub.payment.events.PaymentFailedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -17,19 +19,45 @@ public class PaymentProducer {
 
         private final RabbitTemplate rabbitTemplate;
 
-        public void sendPaymentSuccessEvent(Object event) {
-                rabbitTemplate.convertAndSend(
-                                RabbitConfig.PAYMENT_EVENT_EXCHANGE,
-                                RabbitConfig.PAYMENT_SUCCESS_KEY,
-                                event);
-                log.info("📤 Sent PaymentCompletedEvent to Booking & Notification");
+        // ... (Giữ nguyên cấu trúc EventMessage) ...
+
+        /**
+         * 📤 Gửi event Thanh toán Thành công.
+         */
+        public void sendPaymentSuccessEvent(PaymentSuccessEvent data) {
+                final String EXCHANGE = RabbitConfig.PAYMENT_EXCHANGE;
+                final String ROUTING_KEY = RabbitConfig.PAYMENT_SUCCESS_KEY;
+
+                var msg = new EventMessage<>(
+                                UUID.randomUUID().toString(),
+                                "PaymentSuccess", // Loại Event
+                                "v1",
+                                Instant.now(),
+                                data);
+
+                log.info("📤 Sending PaymentSuccessEvent → BookingService | exchange={}, routingKey={}, bookingId={}",
+                                EXCHANGE, ROUTING_KEY, data.bookingId());
+
+                rabbitTemplate.convertAndSend(EXCHANGE, ROUTING_KEY, msg);
         }
 
-        public void sendPaymentFailedEvent(Object event) {
-                rabbitTemplate.convertAndSend(
-                                RabbitConfig.PAYMENT_EVENT_EXCHANGE,
-                                RabbitConfig.PAYMENT_FAILED_KEY,
-                                event);
-                log.info("📤 Sent PaymentFailedEvent to Booking");
+        /**
+         * 📤 Gửi event Thanh toán Thất bại.
+         */
+        public void sendPaymentFailedEvent(PaymentFailedEvent data) {
+                final String EXCHANGE = RabbitConfig.PAYMENT_EXCHANGE;
+                final String ROUTING_KEY = RabbitConfig.PAYMENT_FAILED_KEY;
+
+                var msg = new EventMessage<>(
+                                UUID.randomUUID().toString(),
+                                "PaymentFailed", // Loại Event
+                                "v1",
+                                Instant.now(),
+                                data);
+
+                log.error("📤 Sending PaymentFailedEvent → BookingService | exchange={}, routingKey={}, bookingId={}",
+                                EXCHANGE, ROUTING_KEY, data.bookingId());
+
+                rabbitTemplate.convertAndSend(EXCHANGE, ROUTING_KEY, msg);
         }
 }

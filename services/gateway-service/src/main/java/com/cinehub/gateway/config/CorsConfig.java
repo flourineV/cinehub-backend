@@ -15,9 +15,7 @@ public class CorsConfig {
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfig = new CorsConfiguration();
 
-        // ❌ THAY THẾ DÒNG NÀY: corsConfig.setAllowedOrigins(List.of("*"));
-        // ✅ BẰNG DÒNG NÀY (hoặc danh sách các tên miền frontend của bạn):
-        corsConfig.setAllowedOrigins(List.of("http://localhost:5173", "https://your-production-domain.com"));
+        corsConfig.setAllowedOrigins(List.of("http://localhost:5173"));
 
         corsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         corsConfig.setAllowedHeaders(List.of("*"));

@@ -34,6 +34,7 @@ public class RabbitConfig {
     public static final String BOOKING_EXPIRED_KEY = "booking.expired";
     public static final String BOOKING_SEAT_UNLOCK_KEY = "seat.release.request";
     public static final String BOOKING_SEAT_MAPPED_KEY = "booking.seat.mapped";
+    public static final String BOOKING_FINALIZED_KEY = "booking.finalized";
 
     public static final String BOOKING_QUEUE = "booking.queue";
 

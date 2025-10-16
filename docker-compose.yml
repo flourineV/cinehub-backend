@@ -1,4 +1,21 @@
 services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: cinehub-rabbitmq
+    ports:
+      - "5672:5672" # AMQP protocol
+      - "15672:15672" # RabbitMQ dashboard
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  redis:
+    image: redis:7
+    container_name: cinehub-redis
+    command: ["redis-server", "--notify-keyspace-events", "KEA"]
+    ports:
+      - "6379:6379"
+
   auth-service:
     build: ./services/auth-service
     env_file:
@@ -23,6 +40,65 @@ services:
     ports:
       - "8083:8083"
 
+  showtime-service:
+    build: ./services/showtime-service
+    env_file:
+      - ./services/showtime-service/.env
+    container_name: showtime-service
+    ports:
+      - "8084:8084"
+    depends_on:
+      - rabbitmq
+      - redis
+
+  booking-service:
+    build: ./services/booking-service
+    env_file:
+      - ./services/booking-service/.env
+    container_name: booking-service
+    ports:
+      - "8085:8085"
+    depends_on:
+      - rabbitmq
+      - showtime-service
+      - pricing-service
+      - promotion-service
+      - fnb-service
+
+  payment-service:
+    build: ./services/payment-service
+    env_file:
+      - ./services/payment-service/.env
+    container_name: payment-service
+    ports:
+      - "8086:8086"
+    depends_on:
+      - rabbitmq
+
+  pricing-service:
+    build: ./services/pricing-service
+    env_file:
+      - ./services/pricing-service/.env
+    container_name: pricing-service
+    ports:
+      - "8087:8087"
+
+  fnb-service:
+    build: ./services/fnb-service
+    env_file:
+      - ./services/fnb-service/.env
+    container_name: fnb-service
+    ports:
+      - "8088:8088"
+
+  promotion-service:
+    build: ./services/promotion-service
+    env_file:
+      - ./services/promotion-service/.env
+    container_name: promotion-service
+    ports:
+      - "8089:8089"
+
   gateway-service:
     build: ./services/gateway-service
     container_name: gateway-service
@@ -33,11 +109,8 @@ services:
       - user-profile-service
       - movie-service
       - showtime-service
-
-  showtime-service:
-    build: ./services/showtime-service
-    env_file:
-      - ./services/showtime-service/.env
-    container_name: showtime-service
-    ports:
-      - "8084:8084"
+      - booking-service
+      - payment-service
+      - pricing-service
+      - fnb-service
+      - promotion-service

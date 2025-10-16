@@ -2,6 +2,7 @@ package com.cinehub.booking.producer;
 
 import com.cinehub.booking.config.RabbitConfig;
 import com.cinehub.booking.events.booking.BookingCreatedEvent;
+import com.cinehub.booking.events.booking.BookingFinalizedEvent;
 import com.cinehub.booking.events.booking.BookingStatusUpdatedEvent;
 import com.cinehub.booking.events.booking.BookingSeatMappedEvent;
 import com.cinehub.booking.events.showtime.SeatUnlockedEvent;
@@ -89,6 +90,24 @@ public class BookingProducer {
 
         log.warn("📤 Sending BookingExpiredEvent → ShowtimeService | exchange={}, routingKey={}, bookingId={}",
                 EXCHANGE, ROUTING_KEY, data.bookingId());
+
+        rabbitTemplate.convertAndSend(EXCHANGE, ROUTING_KEY, msg);
+    }
+
+    public void sendBookingFinalizedEvent(BookingFinalizedEvent data) {
+        final String EXCHANGE = RabbitConfig.BOOKING_EXCHANGE;
+        final String ROUTING_KEY = RabbitConfig.BOOKING_FINALIZED_KEY;
+
+        var msg = new EventMessage<>(
+                UUID.randomUUID().toString(),
+                "BookingFinalized",
+                "v1",
+                Instant.now(),
+                data);
+
+        log.info(
+                "📤 Sending BookingFinalizedEvent → PaymentService | exchange={}, routingKey={}, bookingId={}, finalPrice={}",
+                EXCHANGE, ROUTING_KEY, data.bookingId(), data.finalPrice());
 
         rabbitTemplate.convertAndSend(EXCHANGE, ROUTING_KEY, msg);
     }

@@ -2,7 +2,7 @@ package com.cinehub.booking.consumer;
 
 import com.cinehub.booking.config.RabbitConfig;
 import com.cinehub.booking.entity.BookingStatus;
-import com.cinehub.booking.events.payment.PaymentCompletedEvent;
+import com.cinehub.booking.events.payment.PaymentSuccessEvent;
 import com.cinehub.booking.events.payment.PaymentFailedEvent;
 import com.cinehub.booking.events.showtime.SeatLockedEvent;
 import com.cinehub.booking.events.showtime.SeatUnlockedEvent;
@@ -56,14 +56,15 @@ public class UnifiedEventConsumer {
 
                 // LOGIC PAYMENT
                 case RabbitConfig.PAYMENT_SUCCESS_KEY -> {
-                    PaymentCompletedEvent data = objectMapper.convertValue(dataObj, PaymentCompletedEvent.class);
+                    PaymentSuccessEvent data = objectMapper.convertValue(dataObj, PaymentSuccessEvent.class);
                     log.info("Processing PaymentSuccess for booking {}", data.bookingId());
-                    bookingService.updateBookingStatus(data.bookingId(), BookingStatus.CONFIRMED);
+                    bookingService.handlePaymentSuccess(data);
                 }
                 case RabbitConfig.PAYMENT_FAILED_KEY -> {
                     PaymentFailedEvent data = objectMapper.convertValue(dataObj, PaymentFailedEvent.class);
                     log.info("Processing PaymentFailed for booking {}", data.bookingId());
-                    bookingService.updateBookingStatus(data.bookingId(), BookingStatus.CANCELLED);
+                    bookingService.handlePaymentFailed(data);
+                    ;
                 }
                 default -> {
                     log.warn("⚠️ Unknown routing key: {}", routingKey);

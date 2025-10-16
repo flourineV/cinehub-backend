@@ -1,5 +1,6 @@
-// File: com.cinehub.fnb.dto.response.FnbCalculationResponse.java (ĐÃ SỬA)
-package com.cinehub.fnb.dto.response;
+package com.cinehub.booking.dto.external;
+
+import com.cinehub.booking.dto.request.FinalizeBookingRequest.CalculatedFnbItemDto;
 
 import lombok.Builder;
 import lombok.Data;

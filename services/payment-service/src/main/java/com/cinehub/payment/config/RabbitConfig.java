@@ -15,6 +15,7 @@ public class RabbitConfig {
 
     // routing key from payment queue to connect booking exchange
     public static final String BOOKING_CREATED_KEY = "booking.created";
+    public static final String BOOKING_FINALIZED_KEY = "booking.finalized";
 
     // payment exchange
     public static final String PAYMENT_EXCHANGE = "payment.exchange";
@@ -55,6 +56,13 @@ public class RabbitConfig {
         return BindingBuilder.bind(paymentQueue)
                 .to(bookingExchange)
                 .with(BOOKING_CREATED_KEY);
+    }
+
+    @Bean
+    public Binding bookingFinalizedBinding(Queue paymentQueue, DirectExchange bookingExchange) {
+        return BindingBuilder.bind(paymentQueue)
+                .to(bookingExchange)
+                .with(BOOKING_FINALIZED_KEY);
     }
 
     // === CONFIG CHUNG ===

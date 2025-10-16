@@ -34,7 +34,7 @@ public class SeatLockService {
     private final ShowtimeProducer showtimeProducer;
     private final ShowtimeSeatRepository showtimeSeatRepository; // Repository DB
 
-    @Value("${lock.timeout:20}")
+    @Value("${lock.timeout:200}")
     private int lockTimeout;
 
     // =======================================================================================
