@@ -32,7 +32,7 @@ public class BookingEventConsumer {
             Object dataObj = raw.get("data");
             switch (routingKey) {
 
-                case RabbitConfig.BOOKING_SEAT_MAPPED -> {
+                case RabbitConfig.BOOKING_SEAT_MAPPED_KEY -> {
                     BookingSeatMappedEvent event = objectMapper.convertValue(dataObj,
                             BookingSeatMappedEvent.class);
                     log.info("✨ Received mapped event. Saving bookingId {} to seat locks.", event.bookingId());

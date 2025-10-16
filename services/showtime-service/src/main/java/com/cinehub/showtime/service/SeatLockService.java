@@ -23,6 +23,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.Collections;
 
 @Slf4j
 @Service
@@ -140,6 +141,20 @@ public class SeatLockService {
                         newValue);
 
                 if (result == 1) {
+                    // LẤY TTL HIỆN TẠI (ĐÃ ĐƯỢC BẢO TOÀN BỞI LUA SCRIPT)
+                    Long currentTTL = redisTemplate.getExpire(lockKey, TimeUnit.SECONDS);
+
+                    // **🔥🔥 BỔ SUNG LOGIC TẠO KEY MAPPING RIÊNG Ở ĐÂY 🔥🔥**
+                    if (currentTTL != null && currentTTL > 0) {
+                        String mappingKey = BOOKING_MAPPING_KEY_PREFIX + event.showtimeId().toString() + ":"
+                                + seatId.toString();
+
+                        // Key mapping chỉ cần giữ bookingId
+                        // Set TTL dài hơn 5 giây để chắc chắn nó tồn tại khi lockKey hết hạn.
+                        redisTemplate.opsForValue().set(mappingKey, newBookingId, currentTTL + 5, TimeUnit.SECONDS);
+                        log.debug("MAPPING: Created dedicated mapping key {} with TTL {}s.", mappingKey,
+                                currentTTL + 5);
+                    }
                     log.debug("MAPPING: Successfully mapped booking {} to lock {}.", newBookingId, lockKey);
                 } else {
                     log.warn("MAPPING: Lock {} expired or not found before mapping booking {}.", lockKey, newBookingId);
@@ -250,6 +265,73 @@ public class SeatLockService {
         return seatIds.stream()
                 .map(seatId -> buildLockResponse(showtimeId, seatId, "AVAILABLE", 0))
                 .toList();
+    }
+
+    // Trong SeatLockService.java
+
+    // Trong SeatLockService.java
+
+    private static final String BOOKING_MAPPING_KEY_PREFIX = "booking_seat_map:"; // Giữ nguyên
+
+    @Transactional
+    public void handleExpiredLock(UUID showtimeId, UUID seatId) {
+
+        // 1. Cập nhật DB Showtime: Đặt lại trạng thái ghế trong DB thành AVAILABLE (Giữ
+        // nguyên)
+        int updatedCount = showtimeSeatRepository.bulkUpdateSeatStatus(
+                showtimeId,
+                Collections.singletonList(seatId), // Chỉ là 1 ghế
+                ShowtimeSeat.SeatStatus.AVAILABLE,
+                LocalDateTime.now());
+
+        log.info("⏰ EXPIRED: Seat {} of showtime {} status reset to AVAILABLE. DB updated: {}",
+                seatId, showtimeId, updatedCount);
+
+        // -----------------------------------------------------------
+        // LOGIC GỬI EVENT: Tìm Booking ID từ Key Mapping
+        // -----------------------------------------------------------
+
+        // 2. Xây dựng key mapping để lấy Booking ID
+        String mappingKey = BOOKING_MAPPING_KEY_PREFIX + showtimeId.toString() + ":" + seatId.toString();
+
+        // 3. Lấy Booking ID từ Redis (Key này đã được đảm bảo tồn tại lâu hơn lockKey
+        // chính)
+        String bookingIdStr = redisTemplate.opsForValue().get(mappingKey);
+
+        if (bookingIdStr != null) {
+            try {
+                UUID bookingId = UUID.fromString(bookingIdStr);
+
+                // 4. Gửi sự kiện SeatUnlockedEvent cho Booking Service
+                log.warn("🔥 TTL EXPIRED: Found mapping for Booking {}. Sending SeatUnlockedEvent.",
+                        bookingId);
+
+                // Tạo Event với thông tin của bạn
+                SeatUnlockedEvent event = new SeatUnlockedEvent(
+                        bookingId,
+                        showtimeId,
+                        Collections.singletonList(seatId), // Chỉ giải phóng 1 ghế
+                        "SEAT_LOCK_EXPIRED" // Lý do hết hạn
+                );
+
+                showtimeProducer.sendSeatUnlockedEvent(event);
+
+                // 5. Xóa key mapping để dọn dẹp Redis
+                // Vì key này có TTL dài hơn, ta cần xóa thủ công để tránh tồn tại rác.
+                // Nếu Lock Key chính hết hạn, việc Booking cần bị hủy đã được xử lý xong.
+                redisTemplate.delete(mappingKey);
+
+            } catch (IllegalArgumentException e) {
+                log.error("Invalid UUID format stored in Redis for key: {}", mappingKey, e);
+            }
+        } else {
+            // Log này có thể xảy ra nếu booking đã được CONFIRMED/CANCELED và key mapping
+            // đã bị xóa
+            // trong các hàm
+            // confirmBookingSeats/releaseSeatsByBookingStatus/releaseSeatsByCommand.
+            log.warn("Key mapping not found for expired seat lock: {} (Lock was likely handled by another event).",
+                    mappingKey);
+        }
     }
 
     /**

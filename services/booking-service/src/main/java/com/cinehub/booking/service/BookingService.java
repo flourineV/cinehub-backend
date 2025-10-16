@@ -187,6 +187,7 @@ public class BookingService {
                 updateBookingStatus(booking, BookingStatus.EXPIRED);
         }
 
+        // Trong BookingService.java
         @Transactional
         public void handlePaymentCompleted(PaymentCompletedEvent data) {
                 log.info("Received PaymentCompleted event for booking: {}", data.bookingId());
@@ -199,12 +200,59 @@ public class BookingService {
                         return;
                 }
 
+                // ⭐ BỔ SUNG: GỌI LẠI SHOWTIME SERVICE ĐỂ KIỂM TRA TẤT CẢ GHẾ VẪN LÀ LOCKED
+                boolean allSeatsLocked = checkAllSeatsStillLocked(booking.getShowtimeId(),
+                                booking.getSeats().stream()
+                                                .map(BookingSeat::getSeatId)
+                                                .toList());
+
+                if (!allSeatsLocked) {
+                        log.error("💥 PAYMENT REJECTED: One or more seats for booking {} are no longer locked.",
+                                        data.bookingId());
+
+                        // Chuyển trạng thái sang CANCELLED/FAILED và gửi Event giải phóng các ghế còn
+                        // lại
+                        updateBookingStatus(booking, BookingStatus.CANCELLED);
+                        // Sau đó bạn có thể gửi một event PaymentFailedEvent trở lại Payment Service
+                        // nếu cần.
+                        return;
+                }
+                // ⭐ KẾT THÚC BỔ SUNG
+
                 // Cập nhật thông tin thanh toán
                 booking.setPaymentMethod(data.method());
                 booking.setTransactionId(data.transactionRef());
 
                 // Cập nhật trạng thái CONFIRMED và gửi Event
                 updateBookingStatus(booking, BookingStatus.CONFIRMED);
+        }
+
+        // ⭐ HÀM MỚI (Giả định bạn có webClient tới Showtime Service - ở đây tôi dùng
+        // pricingWebClient làm ví dụ)
+        private boolean checkAllSeatsStillLocked(UUID showtimeId, List<UUID> seatIds) {
+                // ⚠️ LƯU Ý: Bạn cần WebClient trỏ đến Showtime Service để gọi API kiểm tra.
+                // Giả sử có API: GET
+                // /api/showtime/seats/check-locked?showtimeId=...&seatIds=...
+                try {
+                        // Dùng WebClient mà bạn đã khai báo cho Showtime Service (giả định là
+                        // pricingWebClient)
+                        // **THAY THẾ BẰNG WEBCIENT CHÍNH XÁC CỦA SHOWTIME**
+                        Boolean isLocked = pricingWebClient.post() // Giả định là POST để gửi list ID
+                                        .uri("/api/showtime/seats/check-locked")
+                                        .bodyValue(seatIds) // Gửi danh sách Seat IDs
+                                        .retrieve()
+                                        .onStatus(HttpStatusCode::isError,
+                                                        response -> Mono.error(
+                                                                        new RuntimeException("Showtime check failed")))
+                                        .bodyToMono(Boolean.class) // API trả về true/false
+                                        .block();
+
+                        return isLocked != null && isLocked;
+                } catch (Exception e) {
+                        log.error("Error checking seat lock status with Showtime Service: {}", e.getMessage());
+                        // Nếu API lỗi, hãy coi đây là lỗi bảo mật và từ chối thanh toán
+                        return false;
+                }
         }
 
         @Transactional

@@ -31,7 +31,7 @@ public class RabbitConfig {
     public static final String BOOKING_CANCELLED_KEY = "booking.cancelled";
     public static final String BOOKING_EXPIRED_KEY = "booking.expired";
     public static final String SEAT_RELEASE_REQUEST_KEY = "seat.release.request";
-    public static final String BOOKING_SEAT_MAPPED = "booking.seat.mapped";
+    public static final String BOOKING_SEAT_MAPPED_KEY = "booking.seat.mapped";
 
     @Bean
     public DirectExchange showtimeExchange() {
@@ -80,7 +80,7 @@ public class RabbitConfig {
     public Binding bookingSeatMappedBinding(Queue showtimeQueue, DirectExchange bookingExchange) {
         return BindingBuilder.bind(showtimeQueue)
                 .to(bookingExchange)
-                .with(BOOKING_SEAT_MAPPED);
+                .with(BOOKING_SEAT_MAPPED_KEY);
     }
 
     @Bean
