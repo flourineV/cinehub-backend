@@ -30,11 +30,11 @@ public class UserProfile {
     @Email
     @NotBlank
     @Size(max = 100)
-    @Column(name = "email", unique = true, nullable = false)
+    @Column(unique = true, nullable = false)
     private String email;
 
     @Size(max = 30)
-    @Column(name = "username", unique = true)
+    @Column(unique = true)
     private String username;
 
     @Size(max = 100)
@@ -45,7 +45,7 @@ public class UserProfile {
     private String avatarUrl;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "gender", length = 10)
+    @Column(length = 10)
     private Gender gender;
 
     @Column(name = "date_of_birth")
@@ -59,10 +59,10 @@ public class UserProfile {
     @Column(name = "national_id")
     private String nationalId;
 
-    @Column(name = "address", columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT")
     private String address;
 
-    @Column(name = "loyalty_point")
+    @Column(name = "loyalty_point", nullable = false)
     @Builder.Default
     private Integer loyaltyPoint = 0;
 
@@ -71,7 +71,7 @@ public class UserProfile {
     private UserRank rank;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", length = 20)
+    @Column(length = 20, nullable = false)
     @Builder.Default
     private UserStatus status = UserStatus.ACTIVE;
 

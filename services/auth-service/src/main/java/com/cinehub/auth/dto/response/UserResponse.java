@@ -15,14 +15,14 @@ import java.util.UUID;
 public class UserResponse {
 
     private UUID id;
-
     private String username;
-
-    private User.Role role;
+    private String role;
+    private String status;
 
     public UserResponse(User user) {
         this.id = user.getId();
         this.username = user.getUsername();
-        this.role = user.getRole();
+        this.status = user.getStatus();
+        this.role = user.getRole() != null ? user.getRole().getName() : null;
     }
 }

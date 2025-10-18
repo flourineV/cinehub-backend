@@ -5,7 +5,9 @@ import com.cinehub.auth.dto.request.SignUpRequest;
 import com.cinehub.auth.dto.response.JwtResponse;
 import com.cinehub.auth.dto.response.UserResponse;
 import com.cinehub.auth.entity.RefreshToken;
+import com.cinehub.auth.entity.Role;
 import com.cinehub.auth.entity.User;
+import com.cinehub.auth.repository.RoleRepository;
 import com.cinehub.auth.repository.UserRepository;
 import com.cinehub.auth.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final RefreshTokenService refreshTokenService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
@@ -49,20 +52,23 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "National ID is already taken!");
         }
 
-        // Create new user
+        Role defaultRole = roleRepository.findByName("customer")
+                .orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Default role not found"));
+
         User user = User.builder()
                 .email(request.getEmail())
                 .username(request.getUsername())
                 .phoneNumber(request.getPhoneNumber())
                 .nationalId(request.getNationalId())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .role(User.Role.USER)
+                .role(defaultRole)
                 .build();
 
         User savedUser = userRepository.save(user);
 
         // Generate tokens
-        String accessToken = jwtUtil.generateAccessToken(savedUser.getId(), savedUser.getRole().name());
+        String accessToken = jwtUtil.generateAccessToken(savedUser.getId(), savedUser.getRole().getName());
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(savedUser);
 
         return new JwtResponse(accessToken, refreshToken.getToken(), "Bearer", new UserResponse(savedUser));
@@ -78,7 +84,7 @@ public class AuthService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         // Generate tokens
-        String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getRole().name());
+        String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getRole().getName());
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
 
         return new JwtResponse(accessToken, refreshToken.getToken(), "Bearer", new UserResponse(user));

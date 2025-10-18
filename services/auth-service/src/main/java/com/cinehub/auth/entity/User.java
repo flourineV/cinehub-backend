@@ -29,19 +29,19 @@ public class User {
     @Email
     @NotBlank
     @Size(max = 100)
-    @Column(unique = true, nullable = false)
+    @Column(nullable = false, unique = true)
     private String email;
 
     @Size(max = 30)
-    @Column(unique = true)
+    @Column(nullable = false, unique = true)
     private String username;
 
     @Size(max = 15)
-    @Column(name = "phone_number")
+    @Column(name = "phone_number", nullable = false, unique = true)
     private String phoneNumber;
 
     @Size(max = 20)
-    @Column(name = "national_id")
+    @Column(name = "national_id", unique = true)
     private String nationalId;
 
     @NotBlank
@@ -50,10 +50,13 @@ public class User {
     @JsonIgnore
     private String passwordHash;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "role")
+    @Column(nullable = false)
     @Builder.Default
-    private Role role = Role.USER;
+    private String status = "ACTIVE"; // ACTIVE / BANNED
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "role_id")
+    private Role role;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -68,8 +71,4 @@ public class User {
     @ToString.Exclude
     @JsonIgnore
     private Set<RefreshToken> refreshTokens = new HashSet<>();
-
-    public enum Role {
-        USER, STAFF, ADMIN
-    }
 }

@@ -34,10 +34,6 @@ public class PaymentEventConsumer {
                     PaymentSuccessEvent event = objectMapper.convertValue(dataObj, PaymentSuccessEvent.class);
                     notificationService.handlePaymentSuccess(event);
                 }
-                case "PaymentFailed" -> {
-                    PaymentFailedEvent event = objectMapper.convertValue(dataObj, PaymentFailedEvent.class);
-                    notificationService.handlePaymentFailed(event);
-                }
                 default -> log.warn("⚠️ Unknown event type: {}", type);
             }
 
