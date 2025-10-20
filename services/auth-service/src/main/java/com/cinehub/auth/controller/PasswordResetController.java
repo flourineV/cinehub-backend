@@ -1,18 +1,12 @@
 package com.cinehub.auth.controller;
 
-import com.cinehub.auth.dto.request.ForgotPasswordRequest;
 import com.cinehub.auth.dto.request.ResetPasswordRequest;
-import com.cinehub.auth.entity.User;
-import com.cinehub.auth.repository.UserRepository;
+import com.cinehub.auth.dto.request.ForgotPasswordRequest;
 import com.cinehub.auth.service.PasswordResetService;
-import com.cinehub.auth.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
-
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
@@ -21,28 +15,22 @@ import org.springframework.http.HttpStatus;
 public class PasswordResetController {
 
     private final PasswordResetService passwordResetService;
-    private final EmailService emailService;
-    private final UserRepository userRepository;
 
-    @PostMapping("/forgot-password")
-    public ResponseEntity<String> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        var token = passwordResetService.createToken(user);
+    @PostMapping("/send-otp")
+    public ResponseEntity<String> sendOtp(@Valid @RequestBody ForgotPasswordRequest request) {
+        passwordResetService.sendOtp(request.getEmail());
+        return ResponseEntity.ok("✅ OTP has been sent to your email!");
+    }
 
-        // Gửi email cho user
-        emailService.sendEmail(
-                user.getEmail(),
-                "Password Reset Request",
-                "Click the link to reset your password: http://localhost:5173/redirect-reset?token="
-                        + token.getToken());
-
-        return ResponseEntity.ok("Password reset link sent to your email!");
+    @PostMapping("/resend-otp")
+    public ResponseEntity<String> resendOtp(@Valid @RequestBody ForgotPasswordRequest request) {
+        passwordResetService.resendOtp(request.getEmail());
+        return ResponseEntity.ok("✅ A new OTP has been sent to your email!");
     }
 
     @PostMapping("/reset-password")
     public ResponseEntity<String> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         passwordResetService.resetPassword(request);
-        return ResponseEntity.ok("Password has been reset successfully!");
+        return ResponseEntity.ok("✅ Password reset successfully!");
     }
 }

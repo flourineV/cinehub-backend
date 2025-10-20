@@ -25,6 +25,9 @@ public class StaffProfile {
     @JoinColumn(name = "user_profile_id", nullable = false, unique = true, foreignKey = @ForeignKey(name = "fk_staff_user"))
     private UserProfile userProfile;
 
+    @Column(name = "cinema_id")
+    private UUID cinemaId;
+
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 

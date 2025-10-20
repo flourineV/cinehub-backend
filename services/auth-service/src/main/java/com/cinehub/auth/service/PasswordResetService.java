@@ -1,12 +1,11 @@
 package com.cinehub.auth.service;
 
 import com.cinehub.auth.dto.request.ResetPasswordRequest;
-import com.cinehub.auth.entity.PasswordResetToken;
+import com.cinehub.auth.entity.PasswordResetOtp;
 import com.cinehub.auth.entity.User;
-import com.cinehub.auth.repository.PasswordResetTokenRepository;
+import com.cinehub.auth.repository.PasswordResetOtpRepository;
 import com.cinehub.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -15,54 +14,90 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
+import java.util.Optional;
+import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class PasswordResetService {
 
-    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final PasswordResetOtpRepository otpRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
-    @Value("${app.passwordResetDuration}")
-    private int passwordResetDuration;
+    @Value("${app.otp.expiration-minutes:5}")
+    private int otpExpirationMinutes;
 
-    public PasswordResetToken createToken(User user) {
-        PasswordResetToken token = PasswordResetToken.builder()
-                .user(user)
-                .token(UUID.randomUUID().toString())
-                .expiresAt(LocalDateTime.now().plusMinutes(passwordResetDuration))
+    /**
+     * Gửi OTP đến email người dùng (xóa OTP cũ nếu có).
+     */
+    public void sendOtp(String email) {
+        if (!userRepository.existsByEmail(email)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Email not registered");
+        }
+
+        // Xóa tất cả OTP cũ của email này (nếu có)
+        otpRepository.deleteAllByEmail(email);
+
+        // Sinh OTP 6 chữ số ngẫu nhiên
+        String otp = String.format("%06d", new Random().nextInt(1000000));
+
+        PasswordResetOtp otpEntity = PasswordResetOtp.builder()
+                .email(email)
+                .otp(otp)
+                .expiresAt(LocalDateTime.now().plusMinutes(otpExpirationMinutes))
                 .build();
-        return passwordResetTokenRepository.save(token);
+
+        otpRepository.save(otpEntity);
+
+        // Gửi email OTP
+        emailService.sendEmail(
+                email,
+                "CineHub - Xác thực đặt lại mật khẩu",
+                "Mã OTP của bạn là: " + otp + "\n\n" +
+                        "Mã này sẽ hết hạn sau " + otpExpirationMinutes + " phút.");
     }
 
-    public User validateToken(String token) {
-        PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenAndUsedAtIsNull(token)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid password reset token"));
-        if (resetToken.isExpired()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password reset token expired");
+    /**
+     * Gửi lại OTP nếu người dùng yêu cầu resend.
+     */
+    public void resendOtp(String email) {
+        Optional<PasswordResetOtp> existingOtp = otpRepository.findLatestValidOtp(email, LocalDateTime.now());
+
+        if (existingOtp.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "OTP vẫn còn hiệu lực, hãy thử lại sau.");
         }
-        return resetToken.getUser();
+
+        sendOtp(email);
     }
 
+    /**
+     * Xác thực OTP và đặt lại mật khẩu.
+     */
     public void resetPassword(ResetPasswordRequest request) {
-        PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenAndUsedAtIsNull(request.getToken())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid token"));
+        PasswordResetOtp otpEntity = otpRepository.findByEmailAndOtp(request.getEmail(), request.getOtp())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid OTP"));
 
-        if (resetToken.isExpired()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token expired");
+        if (otpEntity.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "OTP has expired");
         }
 
-        User user = resetToken.getUser();
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
 
-        passwordResetTokenRepository.markTokenAsUsed(request.getToken(), LocalDateTime.now());
+        // Xóa OTP sau khi dùng
+        otpRepository.deleteAllByEmail(request.getEmail());
     }
 
-    public void deleteExpiredTokens() {
-        passwordResetTokenRepository.deleteExpiredTokens(LocalDateTime.now());
+    /**
+     * Scheduler: Xóa OTP hết hạn tự động.
+     */
+    public void deleteExpiredOtps() {
+        otpRepository.deleteExpiredOtps(LocalDateTime.now());
     }
 }
