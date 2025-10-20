@@ -19,6 +19,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
@@ -249,4 +250,61 @@ public class MovieService {
                     "Movie not found with TMDb ID: " + tmdbId);
         }
     }
+
+    @Transactional
+    public MovieDetailResponse updateMovie(UUID id, MovieDetailResponse request) {
+        MovieDetail existingDetail = movieDetailRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Movie not found"));
+
+        MovieSummary existingSummary = movieSummaryRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Movie summary not found"));
+
+        // --- Update các trường cho phép chỉnh ---
+        if (request.getTitle() != null) {
+            existingDetail.setTitle(request.getTitle());
+            existingSummary.setTitle(request.getTitle());
+        }
+
+        if (request.getOverview() != null)
+            existingDetail.setOverview(request.getOverview());
+
+        if (request.getPosterUrl() != null)
+            existingSummary.setPosterUrl(request.getPosterUrl());
+
+        if (request.getGenres() != null && !request.getGenres().isEmpty()) {
+            existingDetail.setGenres(request.getGenres());
+            existingSummary.setGenres(request.getGenres());
+        }
+
+        if (request.getTime() != null)
+            existingDetail.setTime(request.getTime());
+
+        if (request.getCountry() != null)
+            existingDetail.setCountry(request.getCountry());
+
+        if (request.getTrailer() != null)
+            existingDetail.setTrailer(request.getTrailer());
+
+        if (request.getAge() != null)
+            existingDetail.setAge(request.getAge());
+
+        movieDetailRepository.save(existingDetail);
+        movieSummaryRepository.save(existingSummary);
+
+        return movieMapper.toDetailResponse(existingDetail);
+    }
+
+    @Transactional
+    public void deleteMovie(UUID id) {
+        MovieDetail existingDetail = movieDetailRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Movie not found"));
+        MovieSummary existingSummary = movieSummaryRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Movie summary not found"));
+
+        movieDetailRepository.delete(existingDetail);
+        movieSummaryRepository.delete(existingSummary);
+
+        log.info("Deleted movie manually: {}", existingDetail.getTitle());
+    }
+
 }

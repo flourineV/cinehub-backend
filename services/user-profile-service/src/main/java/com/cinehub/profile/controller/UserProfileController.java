@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+import java.util.List;
 
 //@CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
@@ -45,5 +46,18 @@ public class UserProfileController {
             @RequestBody Integer loyaltyPoint) {
 
         return ResponseEntity.ok(profileService.updateLoyaltyAndRank(userId, loyaltyPoint));
+    }
+
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<String> deleteProfile(@PathVariable UUID userId) {
+        profileService.deleteProfile(userId);
+        return ResponseEntity.ok("Profile deleted successfully ✅");
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<UserProfileResponse>> searchProfiles(
+            @RequestParam(required = false) String keyword) {
+
+        return ResponseEntity.ok(profileService.searchProfiles(keyword));
     }
 }

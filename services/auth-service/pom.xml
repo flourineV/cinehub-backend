@@ -109,19 +109,12 @@
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
-        <!--Webflux-->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webflux</artifactId>
-        </dependency>
-
         <!--Swagger-->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.6.0</version>
+            <version>2.7.0</version>
         </dependency>
-
     </dependencies>
 
     <build>

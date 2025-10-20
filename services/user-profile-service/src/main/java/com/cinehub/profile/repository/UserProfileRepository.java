@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.List;
 
 @Repository
 public interface UserProfileRepository extends JpaRepository<UserProfile, UUID> {
@@ -34,4 +35,9 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, UUID> 
 
     @Query("SELECT p FROM UserProfile p WHERE p.email = :identifier OR p.username = :identifier OR p.phoneNumber = :identifier")
     Optional<UserProfile> findByEmailOrUsernameOrPhoneNumber(@Param("identifier") String identifier);
+
+    List<UserProfile> findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCaseOrFullNameContainingIgnoreCase(
+            String username, String email, String fullName);
+
+    List<UserProfile> findTop20ByOrderByCreatedAtDesc();
 }

@@ -1,4 +1,4 @@
-package com.cinehub.auth.service;
+package com.cinehub.notification.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.SimpleMailMessage;

@@ -1,7 +1,6 @@
 package com.cinehub.notification.controller;
 
 import com.cinehub.notification.dto.NotificationResponse;
-import com.cinehub.notification.entity.NotificationStatus;
 import com.cinehub.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;

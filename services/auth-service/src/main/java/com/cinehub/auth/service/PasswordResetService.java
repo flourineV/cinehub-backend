@@ -30,18 +30,13 @@ public class PasswordResetService {
     @Value("${app.otp.expiration-minutes:5}")
     private int otpExpirationMinutes;
 
-    /**
-     * Gửi OTP đến email người dùng (xóa OTP cũ nếu có).
-     */
     public void sendOtp(String email) {
         if (!userRepository.existsByEmail(email)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Email not registered");
         }
 
-        // Xóa tất cả OTP cũ của email này (nếu có)
         otpRepository.deleteAllByEmail(email);
 
-        // Sinh OTP 6 chữ số ngẫu nhiên
         String otp = String.format("%06d", new Random().nextInt(1000000));
 
         PasswordResetOtp otpEntity = PasswordResetOtp.builder()
@@ -60,9 +55,6 @@ public class PasswordResetService {
                         "Mã này sẽ hết hạn sau " + otpExpirationMinutes + " phút.");
     }
 
-    /**
-     * Gửi lại OTP nếu người dùng yêu cầu resend.
-     */
     public void resendOtp(String email) {
         Optional<PasswordResetOtp> existingOtp = otpRepository.findLatestValidOtp(email, LocalDateTime.now());
 
@@ -73,9 +65,6 @@ public class PasswordResetService {
         sendOtp(email);
     }
 
-    /**
-     * Xác thực OTP và đặt lại mật khẩu.
-     */
     public void resetPassword(ResetPasswordRequest request) {
         PasswordResetOtp otpEntity = otpRepository.findByEmailAndOtp(request.getEmail(), request.getOtp())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid OTP"));
@@ -94,9 +83,6 @@ public class PasswordResetService {
         otpRepository.deleteAllByEmail(request.getEmail());
     }
 
-    /**
-     * Scheduler: Xóa OTP hết hạn tự động.
-     */
     public void deleteExpiredOtps() {
         otpRepository.deleteExpiredOtps(LocalDateTime.now());
     }

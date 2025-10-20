@@ -4,8 +4,8 @@ import com.cinehub.showtime.entity.ShowtimeSeat;
 import com.cinehub.showtime.repository.ShowtimeSeatRepository;
 import com.cinehub.showtime.dto.request.SeatSelectionDetail;
 import com.cinehub.showtime.dto.response.SeatLockResponse;
-import com.cinehub.showtime.events.BookingStatusUpdatedEvent; // ✅ Event mới
-import com.cinehub.showtime.events.BookingSeatMappedEvent; // ✅ Event mới
+import com.cinehub.showtime.events.BookingStatusUpdatedEvent;
+import com.cinehub.showtime.events.BookingSeatMappedEvent;
 import com.cinehub.showtime.events.SeatLockedEvent;
 import com.cinehub.showtime.events.SeatUnlockedEvent;
 import com.cinehub.showtime.exception.IllegalSeatLockException;
@@ -15,7 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.DefaultRedisScript; // ✅ Import Script
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,9 +37,6 @@ public class SeatLockService {
     @Value("${lock.timeout:200}")
     private int lockTimeout;
 
-    // =======================================================================================
-    // REDIS LUA SCRIPT CHO ÁNH XẠ BOOKING ID
-    // =======================================================================================
     private static final String UPDATE_LOCK_WITH_TTL_SCRIPT = """
             local ttl = redis.call('TTL', KEYS[1])
             if ttl > 0 then
@@ -50,13 +47,9 @@ public class SeatLockService {
             end
             """;
 
-    // Khai báo script để Spring Data Redis có thể sử dụng
     private final DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>(UPDATE_LOCK_WITH_TTL_SCRIPT,
             Long.class);
 
-    // =======================================================================================
-    // 1. LOGIC KHÓA GHẾ (API User)
-    // =======================================================================================
     @Transactional
     public List<SeatLockResponse> lockSeats(UUID showtimeId, List<SeatSelectionDetail> selectedSeats, UUID userId) {
 
@@ -165,10 +158,6 @@ public class SeatLockService {
         }
     }
 
-    /**
-     * ✅ Xử lý Event BOOKING_CONFIRMED: Chuyển ghế từ LOCKED -> BOOKED và xóa lock
-     * Redis.
-     */
     @Transactional
     public void confirmBookingSeats(BookingStatusUpdatedEvent event) {
         if (!"CONFIRMED".equals(event.status())) {

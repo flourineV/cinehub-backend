@@ -38,6 +38,4 @@ public class UserProfileRequest {
 
     @Size(max = 255)
     private String address;
-
-    private String avatarUrl;
 }

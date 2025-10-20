@@ -16,8 +16,15 @@ public interface PasswordResetOtpRepository extends JpaRepository<PasswordResetO
 
     Optional<PasswordResetOtp> findByEmailAndOtp(String email, String otp);
 
-    @Query("SELECT o FROM PasswordResetOtp o WHERE o.email = :email AND o.expiresAt > :now ORDER BY o.createdAt DESC")
+    @Query("SELECT o FROM PasswordResetOtp o " +
+            "WHERE o.email = :email AND o.expiresAt > :now " +
+            "ORDER BY o.createdAt DESC")
     Optional<PasswordResetOtp> findValidOtpByEmail(@Param("email") String email, @Param("now") LocalDateTime now);
+
+    @Query("SELECT o FROM PasswordResetOtp o " +
+            "WHERE o.email = :email AND o.expiresAt > :now " +
+            "ORDER BY o.createdAt DESC")
+    Optional<PasswordResetOtp> findLatestValidOtp(@Param("email") String email, @Param("now") LocalDateTime now);
 
     @Modifying
     @Query("DELETE FROM PasswordResetOtp o WHERE o.expiresAt < :now")

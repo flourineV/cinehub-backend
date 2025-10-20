@@ -1,11 +1,10 @@
 package com.cinehub.notification.service;
 
+import com.cinehub.notification.client.UserProfileClient;
 import com.cinehub.notification.dto.NotificationResponse;
 import com.cinehub.notification.entity.Notification;
-import com.cinehub.notification.entity.NotificationStatus;
 import com.cinehub.notification.entity.NotificationType;
 import com.cinehub.notification.events.PaymentSuccessEvent;
-import com.cinehub.notification.events.PaymentFailedEvent;
 import com.cinehub.notification.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,116 +19,105 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class NotificationService {
 
-    private final NotificationRepository notificationRepository;
+        private final NotificationRepository notificationRepository;
+        private final EmailService emailService;
+        private final UserProfileClient userProfileClient;
 
-    // ===================== 🔔 XỬ LÝ EVENT TỪ PAYMENT =====================
+        @Transactional
+        public void handlePaymentSuccess(PaymentSuccessEvent event) {
+                String message = String.format(
+                                "🎉 Thanh toán thành công %.0f VND cho đơn đặt vé %s qua %s.",
+                                event.amount(), event.bookingId(), event.method());
 
-    /**
-     * 💰 Xử lý khi thanh toán thành công (PaymentSuccessEvent)
-     */
-    @Transactional
-    public void handlePaymentSuccess(PaymentSuccessEvent event) {
-        String message = String.format(
-                "Thanh toán thành công %.0f VND cho đơn đặt vé %s qua %s.",
-                event.amount(), event.bookingId(), event.method());
+                var profile = userProfileClient.getUserProfile(event.userId().toString());
+                if (profile == null) {
+                        log.warn("⚠️ Không tìm thấy profile cho userId {}, chỉ lưu notification.", event.userId());
+                        createNotification(event.userId(), event.bookingId(), message,
+                                        NotificationType.PAYMENT_SUCCESS);
+                        return;
+                }
 
-        createNotification(
-                event.userId(),
-                event.bookingId(),
-                message,
-                NotificationType.PAYMENT_SUCCESS,
-                NotificationStatus.SENT);
+                String email = profile.email();
+                String name = (profile.fullName() != null && !profile.fullName().isEmpty())
+                                ? profile.fullName()
+                                : profile.username();
 
-        log.info("📨 Created PAYMENT_SUCCESS notification for user {}", event.userId());
-    }
+                // 💾 Lưu notification
+                Notification notification = createNotification(
+                                event.userId(),
+                                event.bookingId(),
+                                message,
+                                NotificationType.PAYMENT_SUCCESS);
 
-    /**
-     * ❌ Xử lý khi thanh toán thất bại (PaymentFailedEvent)
-     */
-    @Transactional
-    public void handlePaymentFailed(PaymentFailedEvent event) {
-        String message = String.format(
-                "Thanh toán cho đơn đặt vé %s thất bại. Lý do: %s",
-                event.bookingId(), event.reason());
+                // 📧 Gửi mail nếu có email
+                if (email != null && !email.isEmpty()) {
+                        String personalizedMsg = "Xin chào " + (name != null ? name : "bạn") + "!\n" + message;
+                        emailService.sendEmail(email, "CineHub - Thanh toán thành công 🎬", personalizedMsg);
+                        log.info("📧 Email sent to {} for booking {}", email, event.bookingId());
+                } else {
+                        log.warn("⚠️ User {} không có email, bỏ qua gửi mail.", event.userId());
+                }
 
-        createNotification(
-                event.userId(),
-                event.bookingId(),
-                message,
-                NotificationType.PAYMENT_FAILED,
-                NotificationStatus.SENT);
+                log.info("✅ PAYMENT_SUCCESS notification stored for user {}", event.userId());
+        }
 
-        log.warn("📨 Created PAYMENT_FAILED notification for user {}", event.userId());
-    }
+        // =====================================================
+        // 🎯 Gửi khuyến mãi (Admin gọi API)
+        // =====================================================
+        @Transactional
+        public NotificationResponse sendPromotion(UUID userId, String title, String message) {
+                var profile = userProfileClient.getUserProfile(userId.toString());
+                String email = (profile != null) ? profile.email() : null;
 
-    // ===================== 🧩 CRUD & HELPER =====================
+                Notification notification = createNotification(userId, null, message, NotificationType.PROMOTION);
 
-    /**
-     * ✅ Tạo mới thông báo (cho cả event & admin test)
-     */
-    @Transactional
-    public NotificationResponse createNotification(
-            UUID userId,
-            UUID bookingId,
-            String message,
-            NotificationType type,
-            NotificationStatus status) {
-        Notification notification = Notification.builder()
-                .userId(userId)
-                .bookingId(bookingId)
-                .message(message)
-                .type(type)
-                .status(status)
-                .build();
+                if (email != null && !email.isEmpty()) {
+                        emailService.sendEmail(
+                                        email,
+                                        title != null ? title : "🎁 Ưu đãi đặc biệt từ CineHub!",
+                                        message);
+                        log.info("🎁 Promotion email sent to {}", email);
+                } else {
+                        log.warn("⚠️ Không tìm thấy email cho userId {}, bỏ qua gửi mail.", userId);
+                }
 
-        Notification saved = notificationRepository.save(notification);
-        log.info("💾 Notification created: {} | user={} | type={}", saved.getId(), userId, type);
+                return toResponse(notification);
+        }
 
-        return toResponse(saved);
-    }
+        // =====================================================
+        // ⚙️ Helper & CRUD
+        // =====================================================
+        @Transactional
+        public Notification createNotification(UUID userId, UUID bookingId, String message, NotificationType type) {
+                Notification notification = Notification.builder()
+                                .userId(userId)
+                                .bookingId(bookingId)
+                                .message(message)
+                                .type(type)
+                                .build();
+                return notificationRepository.save(notification);
+        }
 
-    /**
-     * 📤 Lấy danh sách thông báo theo người dùng
-     */
-    public List<NotificationResponse> getByUser(UUID userId) {
-        return notificationRepository.findByUserId(userId).stream()
-                .map(this::toResponse)
-                .toList();
-    }
+        public List<NotificationResponse> getByUser(UUID userId) {
+                return notificationRepository.findByUserId(userId).stream()
+                                .map(this::toResponse)
+                                .toList();
+        }
 
-    /**
-     * 🗂️ Lấy toàn bộ thông báo (cho admin test)
-     */
-    public List<NotificationResponse> getAll() {
-        return notificationRepository.findAll().stream()
-                .map(this::toResponse)
-                .toList();
-    }
+        public List<NotificationResponse> getAll() {
+                return notificationRepository.findAll().stream()
+                                .map(this::toResponse)
+                                .toList();
+        }
 
-    /**
-     * 🔁 Cập nhật trạng thái thông báo
-     */
-    @Transactional
-    public void updateStatus(UUID id, NotificationStatus status) {
-        Notification notification = notificationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Notification not found: " + id));
-
-        notification.setStatus(status);
-        notificationRepository.save(notification);
-
-        log.info("🔄 Notification {} updated to status {}", id, status);
-    }
-
-    // ===================== ⚙️ MAPPER =====================
-    private NotificationResponse toResponse(Notification n) {
-        return NotificationResponse.builder()
-                .id(n.getId())
-                .userId(n.getUserId())
-                .bookingId(n.getBookingId())
-                .message(n.getMessage())
-                .type(n.getType())
-                .status(n.getStatus())
-                .createdAt(n.getCreatedAt())
-                .build();
-    }
+        private NotificationResponse toResponse(Notification n) {
+                return NotificationResponse.builder()
+                                .id(n.getId())
+                                .userId(n.getUserId())
+                                .bookingId(n.getBookingId())
+                                .message(n.getMessage())
+                                .type(n.getType())
+                                .createdAt(n.getCreatedAt())
+                                .build();
+        }
 }
