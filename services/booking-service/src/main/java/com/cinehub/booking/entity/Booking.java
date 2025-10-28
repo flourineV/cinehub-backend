@@ -24,6 +24,9 @@ public class Booking {
     @Column(nullable = false)
     private UUID showtimeId;
 
+    @Column(name = "payment_id", length = 100)
+    private UUID paymentId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private BookingStatus status;
@@ -39,10 +42,6 @@ public class Booking {
 
     @Column(name = "payment_method", length = 50)
     private String paymentMethod;
-
-    // ✅ THÊM: Mã giao dịch (Tham chiếu đến giao dịch Payment Service)
-    @Column(name = "transaction_id", length = 100)
-    private String transactionId;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

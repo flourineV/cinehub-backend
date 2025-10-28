@@ -13,9 +13,15 @@ public class RabbitConfig {
     // booking exchange
     public static final String BOOKING_EXCHANGE = "booking.exchange";
 
+    // showtime exchange
+    public static final String SHOWTIME_EXCHANGE = "showtime.exchange";
+
     // routing key from payment queue to connect booking exchange
     public static final String BOOKING_CREATED_KEY = "booking.created";
     public static final String BOOKING_FINALIZED_KEY = "booking.finalized";
+
+    // routing key from payment queue to connect showtime exchange
+    public static final String SEAT_UNLOCK_ROUTING_KEY = "seat.unlocked";
 
     // payment exchange
     public static final String PAYMENT_EXCHANGE = "payment.exchange";
@@ -32,24 +38,22 @@ public class RabbitConfig {
         return new Queue(PAYMENT_QUEUE, true);
     }
 
-    // === EXCHANGES ===
-
-    // 1. Exchange của Booking (Dùng để Consume)
     @Bean
     public DirectExchange bookingExchange() {
         // Khai báo Exchange này để tạo Binding, nhưng nó thuộc về Booking Service
         return new DirectExchange(BOOKING_EXCHANGE, true, false);
     }
 
-    // 2. Exchange của Payment (Dùng để Publish)
     @Bean
     public DirectExchange paymentExchange() {
         return new DirectExchange(PAYMENT_EXCHANGE, true, false);
     }
 
-    // === BINDINGS (Payment consume từ BOOKING_EXCHANGE) ===
+    @Bean
+    public DirectExchange showtimeExchange() {
+        return new DirectExchange(SHOWTIME_EXCHANGE, true, false);
+    }
 
-    // Binding để nhận BookingCreatedEvent từ Booking Service
     @Bean
     public Binding bookingToPaymentBinding(Queue paymentQueue, DirectExchange bookingExchange) {
         // Payment chỉ cần lắng nghe BookingCreated để bắt đầu giao dịch
@@ -63,6 +67,13 @@ public class RabbitConfig {
         return BindingBuilder.bind(paymentQueue)
                 .to(bookingExchange)
                 .with(BOOKING_FINALIZED_KEY);
+    }
+
+    @Bean
+    public Binding seatUnlockedBinding(Queue paymentQueue, DirectExchange showtimeExchange) {
+        return BindingBuilder.bind(paymentQueue)
+                .to(showtimeExchange)
+                .with(SEAT_UNLOCK_ROUTING_KEY);
     }
 
     // === CONFIG CHUNG ===

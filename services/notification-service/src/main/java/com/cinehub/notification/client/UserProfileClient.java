@@ -20,7 +20,7 @@ public class UserProfileClient {
                     .bodyToMono(UserProfileResponse.class)
                     .block();
         } catch (Exception e) {
-            log.error("❌ Failed to fetch user profile for userId {}: {}", userId, e.getMessage());
+            log.error("Failed to fetch user profile for userId {}: {}", userId, e.getMessage());
             return null;
         }
     }

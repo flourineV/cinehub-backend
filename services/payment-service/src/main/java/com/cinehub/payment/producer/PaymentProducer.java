@@ -19,31 +19,23 @@ public class PaymentProducer {
 
         private final RabbitTemplate rabbitTemplate;
 
-        // ... (Giữ nguyên cấu trúc EventMessage) ...
-
-        /**
-         * 📤 Gửi event Thanh toán Thành công.
-         */
         public void sendPaymentSuccessEvent(PaymentSuccessEvent data) {
                 final String EXCHANGE = RabbitConfig.PAYMENT_EXCHANGE;
                 final String ROUTING_KEY = RabbitConfig.PAYMENT_SUCCESS_KEY;
 
                 var msg = new EventMessage<>(
                                 UUID.randomUUID().toString(),
-                                "PaymentSuccess", // Loại Event
+                                "PaymentSuccess",
                                 "v1",
                                 Instant.now(),
                                 data);
 
-                log.info("📤 Sending PaymentSuccessEvent → BookingService | exchange={}, routingKey={}, bookingId={}",
+                log.info("Sending PaymentSuccessEvent → BookingService | exchange={}, routingKey={}, bookingId={}",
                                 EXCHANGE, ROUTING_KEY, data.bookingId());
 
                 rabbitTemplate.convertAndSend(EXCHANGE, ROUTING_KEY, msg);
         }
 
-        /**
-         * 📤 Gửi event Thanh toán Thất bại.
-         */
         public void sendPaymentFailedEvent(PaymentFailedEvent data) {
                 final String EXCHANGE = RabbitConfig.PAYMENT_EXCHANGE;
                 final String ROUTING_KEY = RabbitConfig.PAYMENT_FAILED_KEY;
@@ -55,7 +47,7 @@ public class PaymentProducer {
                                 Instant.now(),
                                 data);
 
-                log.error("📤 Sending PaymentFailedEvent → BookingService | exchange={}, routingKey={}, bookingId={}",
+                log.error("Sending PaymentFailedEvent → BookingService | exchange={}, routingKey={}, bookingId={}",
                                 EXCHANGE, ROUTING_KEY, data.bookingId());
 
                 rabbitTemplate.convertAndSend(EXCHANGE, ROUTING_KEY, msg);

@@ -18,7 +18,7 @@ public class BookingPromotion {
     private UUID id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "booking_id", nullable = false, unique = true) // UNIQUE vì 1 booking chỉ có 1 mã
+    @JoinColumn(name = "booking_id", nullable = false, unique = true)
     private Booking booking;
 
     @Column(name = "promotion_code", nullable = false, length = 50)

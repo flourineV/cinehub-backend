@@ -2,7 +2,7 @@ package com.cinehub.notification.consumer;
 
 import com.cinehub.notification.config.RabbitConfig;
 import com.cinehub.notification.events.PaymentSuccessEvent;
-import com.cinehub.notification.events.PaymentFailedEvent;
+import com.cinehub.notification.events.BookingTicketGeneratedEvent;
 import com.cinehub.notification.service.NotificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -27,12 +27,18 @@ public class PaymentEventConsumer {
             String type = (String) rawMessage.get("type");
             Object dataObj = rawMessage.get("data");
 
-            log.info("📩 NotificationService received event: {}", type);
+            log.info("NotificationService received event: {}", type);
 
             switch (type) {
-                case "PaymentSuccess" -> {
-                    PaymentSuccessEvent event = objectMapper.convertValue(dataObj, PaymentSuccessEvent.class);
-                    notificationService.handlePaymentSuccess(event);
+                // case "PaymentSuccess" -> {
+                // PaymentSuccessEvent event = objectMapper.convertValue(dataObj,
+                // PaymentSuccessEvent.class);
+                // notificationService.handlePaymentSuccess(event);
+                // }
+                case "BookingTicketGenerated" -> {
+                    BookingTicketGeneratedEvent event = objectMapper.convertValue(dataObj,
+                            BookingTicketGeneratedEvent.class);
+                    notificationService.sendSuccessBookingTicketNotification(event);
                 }
                 default -> log.warn("⚠️ Unknown event type: {}", type);
             }

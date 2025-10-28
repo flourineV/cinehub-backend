@@ -1,13 +1,14 @@
 package com.cinehub.booking.events.booking;
 
 import java.util.UUID;
-import com.cinehub.booking.entity.BookingStatus;
+import java.util.List;
 
 public record BookingStatusUpdatedEvent(
-        UUID bookingId,
-        UUID showtimeId,
-        UUID userId,
-        BookingStatus newStatus,
-        String previousStatus) {
+                UUID bookingId,
+                UUID showtimeId,
+                UUID userId,
+                List<UUID> seatIds,
+                String newStatus,
+                String previousStatus) {
 
 }

@@ -5,6 +5,7 @@ import com.cinehub.payment.entity.PaymentStatus;
 import com.cinehub.payment.events.BookingCreatedEvent;
 import com.cinehub.payment.events.BookingFinalizedEvent;
 import com.cinehub.payment.events.PaymentSuccessEvent;
+import com.cinehub.payment.events.SeatUnlockedEvent;
 import com.cinehub.payment.events.PaymentFailedEvent;
 import com.cinehub.payment.producer.PaymentProducer;
 import com.cinehub.payment.repository.PaymentRepository;
@@ -26,12 +27,13 @@ public class PaymentService {
         private final PaymentProducer paymentProducer;
         private final PaymentRepository paymentRepository;
 
-        // --- Hàm khởi tạo PENDING (Giữ nguyên) ---
         @Transactional
         public void createPendingTransaction(BookingCreatedEvent event) {
                 PaymentTransaction pendingTxn = PaymentTransaction.builder()
                                 .bookingId(event.bookingId())
                                 .userId(event.userId())
+                                .showtimeId(event.showtimeId())
+                                .seatIds(event.seatIds())
                                 .amount(event.totalPrice())
                                 .method("INIT_GATEWAY")
                                 .status(PaymentStatus.PENDING)
@@ -39,88 +41,80 @@ public class PaymentService {
                                 .build();
 
                 paymentRepository.save(pendingTxn);
-                log.info("💾 PENDING Transaction created for bookingId: {}", event.bookingId());
+                log.info("PENDING Transaction created for bookingId: {}", event.bookingId());
         }
 
-        // --- Hàm Xử lý Thành công ---
         @Transactional
         public void processPaymentSuccess(UUID bookingId, String transactionRef, String paymentMethod) {
 
                 Optional<PaymentTransaction> optionalTxn = paymentRepository.findByBookingId(bookingId)
-                                .stream() // ✅ CHUYỂN LIST SANG STREAM ĐỂ SỬ DỤNG FILTER
+                                .stream()
                                 .filter(t -> t.getStatus() == PaymentStatus.PENDING)
-                                .findFirst(); // ✅ LẤY PHẦN TỬ ĐẦU TIÊN (HOẶC OPTIONAL RỖNG)
+                                .findFirst();
 
                 if (optionalTxn.isEmpty()) {
-                        log.error("⚠️ Transaction not found or not PENDING for bookingId {}. Cannot confirm payment.",
+                        log.error("Transaction not found or not PENDING for bookingId {}. Cannot confirm payment.",
                                         bookingId);
-                        // ✅ SỬ DỤNG CUSTOM EXCEPTION
                         throw new PaymentProcessingException(
                                         "Transaction not found or not PENDING for bookingId: " + bookingId);
                 }
 
                 PaymentTransaction txn = optionalTxn.get();
 
-                // Kiểm tra Idempotency (redundant nếu filter PENDING, nhưng là safety check
-                // tốt)
                 if (txn.getStatus() == PaymentStatus.SUCCESS) {
                         log.warn("Transaction for bookingId {} already SUCCESS. Skipping.", bookingId);
                         return;
                 }
 
-                // 2. Cập nhật thông tin giao dịch
                 txn.setStatus(PaymentStatus.SUCCESS);
                 txn.setTransactionRef(transactionRef);
                 txn.setMethod(paymentMethod);
                 paymentRepository.save(txn);
-                log.info("✅ SUCCESS: Payment transaction updated for bookingId: {}", bookingId);
+                log.info("SUCCESS: Payment transaction updated for bookingId: {}", bookingId);
 
-                // 3. Gửi Event phản hồi
                 PaymentSuccessEvent successEvent = new PaymentSuccessEvent(
                                 txn.getId(),
                                 txn.getBookingId(),
+                                txn.getShowtimeId(),
                                 txn.getUserId(),
                                 txn.getAmount(),
                                 txn.getMethod(),
-                                null, // Seat IDs
+                                txn.getSeatIds(),
                                 "PAYMENT_SUCCESS");
 
                 paymentProducer.sendPaymentSuccessEvent(successEvent);
         }
 
-        // --- Hàm Xử lý Thất bại ---
         @Transactional
         public void processPaymentFailure(UUID bookingId, String transactionRef, String reason) {
 
                 Optional<PaymentTransaction> optionalTxn = paymentRepository.findByBookingId(bookingId)
-                                .stream() // ✅ CHUYỂN LIST SANG STREAM ĐỂ SỬ DỤNG FILTER
+                                .stream()
                                 .filter(t -> t.getStatus() == PaymentStatus.PENDING)
                                 .findFirst();
 
                 if (optionalTxn.isEmpty()) {
-                        log.error("⚠️ Transaction not found or not PENDING for bookingId {}. Cannot record failure.",
+                        log.error("Transaction not found or not PENDING for bookingId {}. Cannot record failure.",
                                         bookingId);
-                        // ✅ SỬ DỤNG CUSTOM EXCEPTION
                         throw new PaymentProcessingException(
                                         "Transaction not found or not PENDING for bookingId: " + bookingId);
                 }
 
                 PaymentTransaction txn = optionalTxn.get();
 
-                // 2. Cập nhật trạng thái
                 txn.setStatus(PaymentStatus.FAILED);
                 txn.setTransactionRef(transactionRef);
                 paymentRepository.save(txn);
-                log.warn("❌ FAILED: Payment transaction updated for bookingId: {}", bookingId);
+                log.warn("FAILED: Payment transaction updated for bookingId: {}", bookingId);
 
-                // 3. Gửi Event phản hồi
                 PaymentFailedEvent failedEvent = new PaymentFailedEvent(
                                 txn.getId(),
                                 txn.getBookingId(),
                                 txn.getUserId(),
+                                txn.getShowtimeId(),
                                 txn.getAmount(),
                                 txn.getMethod(),
-                                null, // Seat IDs
+                                txn.getSeatIds(),
                                 reason);
 
                 paymentProducer.sendPaymentFailedEvent(failedEvent);
@@ -138,7 +132,7 @@ public class PaymentService {
                                 .findFirst();
 
                 if (optionalTxn.isEmpty()) {
-                        log.warn("⚠️ No PENDING transaction found for bookingId {}. Skipping update.",
+                        log.warn("No PENDING transaction found for bookingId {}. Skipping update.",
                                         event.bookingId());
                         return;
                 }
@@ -147,7 +141,47 @@ public class PaymentService {
                 txn.setAmount(event.finalPrice());
                 paymentRepository.save(txn);
 
-                log.info("✅ Updated transaction amount for bookingId {} → {}", event.bookingId(), event.finalPrice());
+                log.info("Updated transaction amount for bookingId {} → {}", event.bookingId(), event.finalPrice());
+        }
+
+        @Transactional
+        public void updateStatus(SeatUnlockedEvent event) {
+                log.info("🕓 Updating payment status due to seat unlock | bookingId={} | reason={}",
+                                event.bookingId(), event.reason());
+
+                // Tìm transaction đang PENDING
+                Optional<PaymentTransaction> optionalTxn = paymentRepository.findByBookingId(event.bookingId())
+                                .stream()
+                                .filter(t -> t.getStatus() == PaymentStatus.PENDING)
+                                .findFirst();
+
+                if (optionalTxn.isEmpty()) {
+                        log.warn("No PENDING transaction found for bookingId {}. Skipping status update.",
+                                        event.bookingId());
+                        return;
+                }
+
+                PaymentTransaction txn = optionalTxn.get();
+
+                // ✅ Cập nhật trạng thái sang EXPIRED
+                txn.setStatus(PaymentStatus.EXPIRED);
+                txn.setTransactionRef("TXN_EXPIRED_" + UUID.randomUUID());
+                paymentRepository.save(txn);
+
+                log.info("💤 Transaction marked as EXPIRED for bookingId {}", event.bookingId());
+
+                // ✅ (Tuỳ chọn) phát event cho booking-service hoặc notification-service
+                PaymentFailedEvent expiredEvent = new PaymentFailedEvent(
+                                txn.getId(),
+                                txn.getBookingId(),
+                                txn.getUserId(),
+                                txn.getShowtimeId(),
+                                txn.getAmount(),
+                                txn.getMethod(),
+                                txn.getSeatIds(),
+                                "Payment expired: " + event.reason());
+
+                paymentProducer.sendPaymentFailedEvent(expiredEvent);
         }
 
 }

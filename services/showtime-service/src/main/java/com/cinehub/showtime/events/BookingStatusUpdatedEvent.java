@@ -1,11 +1,14 @@
 package com.cinehub.showtime.events;
 
-import java.util.List;
 import java.util.UUID;
+import java.util.List;
 
 public record BookingStatusUpdatedEvent(
-                UUID bookingId,
-                UUID showtimeId,
-                List<UUID> seatIds,
-                String status) {
+        UUID bookingId,
+        UUID showtimeId,
+        UUID userId,
+        List<UUID> seatIds,
+        String newStatus,
+        String previousStatus) {
+
 }

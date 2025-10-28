@@ -21,14 +21,6 @@ public class FnbController {
 
     private final FnbService fnbService;
 
-    // ---------------------------------------------------------------------
-    // 1. API TÍNH TOÁN (CHO BOOKING SERVICE)
-    // ---------------------------------------------------------------------
-
-    /**
-     * POST /api/fnb/calculate
-     * Endpoint được Booking Service gọi để tính tổng giá trị F&B.
-     */
     @PostMapping("/calculate")
     public ResponseEntity<FnbCalculationResponse> calculateFnbPrice(
             @Valid @RequestBody FnbCalculationRequest request) {
@@ -37,21 +29,22 @@ public class FnbController {
         return ResponseEntity.ok(response);
     }
 
-    // ---------------------------------------------------------------------
-    // 2. API QUẢN LÝ (CHO STAFF/ADMIN CRUD)
-    // ---------------------------------------------------------------------
-
-    /**
-     * GET /api/fnb - Lấy tất cả các mục F&B
-     */
     @GetMapping
     public ResponseEntity<List<FnbItemResponse>> getAllFnbItems() {
         return ResponseEntity.ok(fnbService.getAllFnbItems());
     }
 
-    /**
-     * POST /api/fnb - Tạo mục F&B mới
-     */
+    @GetMapping("/{id}")
+    public ResponseEntity<FnbItemResponse> getFnbItemById(@PathVariable UUID id) {
+        try {
+            FnbItemResponse response = fnbService.getFnbItemById(id);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            // Xử lý ngoại lệ ném ra từ Service khi không tìm thấy mục (404 Not Found)
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+    }
+
     @PostMapping
     public ResponseEntity<FnbItemResponse> createFnbItem(@Valid @RequestBody FnbItemRequest request) {
         try {

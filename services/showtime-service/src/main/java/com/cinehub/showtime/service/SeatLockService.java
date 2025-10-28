@@ -160,8 +160,8 @@ public class SeatLockService {
 
     @Transactional
     public void confirmBookingSeats(BookingStatusUpdatedEvent event) {
-        if (!"CONFIRMED".equals(event.status())) {
-            log.warn("RK confirmed received but event status is {}", event.status());
+        if (!"CONFIRMED".equals(event.newStatus())) {
+            log.warn("RK confirmed received but event status is {}", event.newStatus());
             return;
         }
 
@@ -183,7 +183,7 @@ public class SeatLockService {
      */
     @Transactional
     public void releaseSeatsByBookingStatus(BookingStatusUpdatedEvent event) {
-        String status = event.status();
+        String status = event.newStatus();
         if (!"CANCELLED".equals(status) && !"EXPIRED".equals(status)) {
             log.warn("RK cancelled/expired received but event status is {}", status);
             return;

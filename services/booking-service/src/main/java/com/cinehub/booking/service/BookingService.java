@@ -1,25 +1,30 @@
 package com.cinehub.booking.service;
 
 import com.cinehub.booking.dto.external.SeatPriceResponse;
+import com.cinehub.booking.dto.external.ShowtimeResponse;
 import com.cinehub.booking.dto.external.PromotionValidationResponse;
 import com.cinehub.booking.dto.external.FnbCalculationResponse;
 import com.cinehub.booking.dto.request.FinalizeBookingRequest;
 import com.cinehub.booking.dto.response.BookingResponse;
 import com.cinehub.booking.dto.response.BookingSeatResponse;
 import com.cinehub.booking.dto.external.FnbCalculationRequest;
+import com.cinehub.booking.dto.external.MovieSimpleResponse;
+import com.cinehub.booking.dto.external.SeatResponse;
+import com.cinehub.booking.dto.external.FnbItemResponse;
+
 import com.cinehub.booking.entity.*;
-import com.cinehub.booking.events.booking.BookingCreatedEvent;
-import com.cinehub.booking.events.booking.BookingFinalizedEvent;
-import com.cinehub.booking.events.booking.BookingStatusUpdatedEvent;
-import com.cinehub.booking.events.booking.BookingSeatMappedEvent; // ✅ Dùng DTO đúng tên
-import com.cinehub.booking.events.showtime.SeatLockedEvent;
-import com.cinehub.booking.events.showtime.SeatUnlockedEvent;
-import com.cinehub.booking.events.payment.PaymentSuccessEvent; // Giữ lại cho tương thích
-import com.cinehub.booking.events.payment.PaymentFailedEvent; // Giữ lại cho tương thích
+import com.cinehub.booking.events.booking.*;
+import com.cinehub.booking.events.notification.BookingTicketGeneratedEvent;
+import com.cinehub.booking.events.notification.FnbDetail;
+import com.cinehub.booking.events.notification.PromotionDetail;
+import com.cinehub.booking.events.notification.SeatDetail;
+import com.cinehub.booking.events.showtime.*;
+import com.cinehub.booking.events.payment.*;
 import com.cinehub.booking.exception.BookingException;
 import com.cinehub.booking.exception.BookingNotFoundException;
 import com.cinehub.booking.producer.BookingProducer;
 import com.cinehub.booking.repository.*;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -35,7 +40,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 @Service
@@ -45,7 +50,6 @@ public class BookingService {
         private final BookingRepository bookingRepository;
         private final UsedPromotionRepository usedPromotionRepository;
         private final BookingPromotionRepository bookingPromotionRepository;
-        private final BookingSeatRepository bookingSeatRepository;
         private final BookingFnbRepository bookingFnbRepository;
 
         @Qualifier("pricingWebClient")
@@ -54,15 +58,16 @@ public class BookingService {
         private final WebClient promotionWebClient;
         @Qualifier("fnbWebClient")
         private final WebClient fnbWebClient;
+        @Qualifier("showtimeWebClient")
+        private final WebClient showtimeWebClient;
+        @Qualifier("movieWebClient")
+        private final WebClient movieWebClient;
 
         private final BookingProducer bookingProducer;
 
-        // =======================================================================
-        // 1. EVENT HANDLERS
-        // =======================================================================
-
         @Transactional
         public void handleSeatLocked(SeatLockedEvent data) {
+
                 log.info("Received SeatLocked event: showtime={}, seats={}, user={}",
                                 data.showtimeId(), data.selectedSeats().size(), data.userId());
 
@@ -75,7 +80,6 @@ public class BookingService {
                                 .finalPrice(BigDecimal.ZERO)
                                 .build();
 
-                // 1. GỌI API BẰNG REACTIVE (Không dùng .block() trong vòng lặp)
                 List<Mono<SeatPriceResponse>> pricingMonos = data.selectedSeats().stream()
                                 .map(seatDetail -> pricingWebClient.get()
                                                 .uri(uriBuilder -> uriBuilder.path("/api/pricing/seat-price")
@@ -92,20 +96,13 @@ public class BookingService {
                                                 .bodyToMono(SeatPriceResponse.class))
                                 .toList();
 
-                // 2. CHỜ TẤT CẢ KẾT QUẢ (Khối đồng bộ lớn hơn)
                 List<SeatPriceResponse> seatPrices = Mono.zip(pricingMonos, responses -> (List<SeatPriceResponse>) List
-                                .of(responses).stream().map(o -> (SeatPriceResponse) o).toList()).block(); // Vẫn cần
-                                                                                                           // block ở
-                                                                                                           // đây vì hàm
-                                                                                                           // là
-                                                                                                           // @Transactional
-                                                                                                           // synchronous
+                                .of(responses).stream().map(o -> (SeatPriceResponse) o).toList()).block();
 
                 if (seatPrices == null || seatPrices.size() != data.selectedSeats().size()) {
                         throw new BookingException("Lỗi trong quá trình lấy giá ghế. Không đủ dữ liệu.");
                 }
 
-                // 3. TẠO BookingSeat và TÍNH TỔNG TIỀN
                 List<BookingSeat> seats = new ArrayList<>();
                 BigDecimal totalSeatPrice = BigDecimal.ZERO;
 
@@ -136,7 +133,7 @@ public class BookingService {
                 booking.setFinalPrice(totalSeatPrice); // Ban đầu FinalPrice = TotalPrice
                 bookingRepository.save(booking);
 
-                log.info("✅ Booking created: {} | total={} | seats={}",
+                log.info("Booking created: {} | total={} | seats={}",
                                 booking.getId(), totalSeatPrice, seats.size());
 
                 // 5. GỬI EVENTS
@@ -151,15 +148,11 @@ public class BookingService {
                                                 booking.getTotalPrice()));
 
                 // Event 2: BookingSeatMapped (Cho Showtime - Ánh xạ Booking ID vào Redis Lock)
-                bookingProducer.sendBookingSeatMappedEvent( // ✅ SỬA: Dùng BookingSeatMappedEvent
+                bookingProducer.sendBookingSeatMappedEvent(
                                 new BookingSeatMappedEvent(
-                                                // ✅ THAM SỐ 1: bookingId
                                                 booking.getId(),
-                                                // ✅ THAM SỐ 2: showtimeId
                                                 booking.getShowtimeId(),
-                                                // ✅ THAM SỐ 3: seatIds
                                                 booking.getSeats().stream().map(BookingSeat::getSeatId).toList(),
-                                                // ✅ THAM SỐ 4: userId
                                                 booking.getUserId()));
         }
 
@@ -177,7 +170,6 @@ public class BookingService {
 
                 Booking booking = bookingRepository.findById(bookingId).orElse(null);
 
-                // ✅ SỬA: CHỈ XỬ LÝ KHI booking TỒN TẠI và đang ở trạng thái CÓ THỂ BỊ HẾT HẠN
                 if (booking == null || (booking.getStatus() != BookingStatus.PENDING
                                 && booking.getStatus() != BookingStatus.AWAITING_PAYMENT)) {
                         log.warn("Booking {} not found or status is {}. Skipping unlock handler.",
@@ -185,14 +177,16 @@ public class BookingService {
                         return;
                 }
 
-                // Đặt trạng thái là EXPIRED (vì sự kiện này thường do TTL của Redis lock hết
-                // hạn)
+                bookingFnbRepository.deleteByBooking_Id(booking.getId());
+                bookingPromotionRepository.deleteByBooking_Id(booking.getId());
+                usedPromotionRepository.deleteByBooking_Id(booking.getId());
+
                 updateBookingStatus(booking, BookingStatus.EXPIRED);
         }
 
-        // Trong BookingService.java
         @Transactional
         public void handlePaymentSuccess(PaymentSuccessEvent data) {
+
                 log.info("Received PaymentCompleted event for booking: {}", data.bookingId());
 
                 Booking booking = bookingRepository.findById(data.bookingId()).orElse(null);
@@ -203,11 +197,9 @@ public class BookingService {
                         return;
                 }
 
-                // Cập nhật thông tin thanh toán
                 booking.setPaymentMethod(data.method());
-                booking.setTransactionId(data.transactionRef());
+                booking.setPaymentId(data.paymentId());
 
-                // Cập nhật trạng thái CONFIRMED và gửi Event
                 updateBookingStatus(booking, BookingStatus.CONFIRMED);
         }
 
@@ -223,13 +215,13 @@ public class BookingService {
                         return;
                 }
 
+                bookingFnbRepository.deleteByBooking_Id(booking.getId());
+                bookingPromotionRepository.deleteByBooking_Id(booking.getId());
+                usedPromotionRepository.deleteByBooking_Id(booking.getId());
+
                 // Cập nhật trạng thái CANCELLED và gửi Event
                 updateBookingStatus(booking, BookingStatus.CANCELLED);
         }
-
-        // =======================================================================
-        // 2. CORE BUSINESS LOGIC
-        // =======================================================================
 
         @Transactional
         public BookingResponse finalizeBooking(UUID bookingId, FinalizeBookingRequest request) {
@@ -284,19 +276,9 @@ public class BookingService {
                                                 booking.getShowtimeId(),
                                                 booking.getFinalPrice()));
 
-                // Gửi Event cập nhật trạng thái
-                bookingProducer.sendBookingStatusUpdatedEvent(
-                                new BookingStatusUpdatedEvent(
-                                                booking.getId(),
-                                                booking.getShowtimeId(),
-                                                booking.getUserId(),
-                                                BookingStatus.AWAITING_PAYMENT,
-                                                oldStatus.name()));
-
                 return mapToResponse(booking);
         }
 
-        // ... (Giữ nguyên processFnbItems và processPromotion)
         private BigDecimal processFnbItems(Booking booking,
                         List<FinalizeBookingRequest.CalculatedFnbItemDto> fnbItems) {
                 FnbCalculationRequest fnbRequest = new FnbCalculationRequest();
@@ -304,7 +286,7 @@ public class BookingService {
 
                 FnbCalculationResponse fnbResponse = fnbWebClient.post()
                                 .uri("/api/fnb/calculate")
-                                .bodyValue(fnbRequest) // ✅ gửi object có field selectedFnbItems
+                                .bodyValue(fnbRequest)
                                 .retrieve()
                                 .bodyToMono(FnbCalculationResponse.class)
                                 .block();
@@ -395,13 +377,6 @@ public class BookingService {
                                 .build());
         }
 
-        // =======================================================================
-        // 3. COMMON & CRUD
-        // =======================================================================
-
-        /**
-         * ✅ HÀM MỚI: Cập nhật trạng thái chính thức của Booking và gửi Event.
-         */
         @Transactional
         public void updateBookingStatus(UUID bookingId, BookingStatus newStatus) {
                 Booking booking = bookingRepository.findById(bookingId)
@@ -409,44 +384,32 @@ public class BookingService {
                 updateBookingStatus(booking, newStatus);
         }
 
-        /**
-         * ✅ HÀM MỚI: Cập nhật trạng thái chính thức của Booking và gửi Event.
-         * Dùng cho các event handler đã tìm thấy booking.
-         */
         @Transactional
         public void updateBookingStatus(Booking booking, BookingStatus newStatus) {
 
                 BookingStatus oldStatus = booking.getStatus();
 
-                // ⚠️ Kiểm tra chuyển đổi trạng thái cần được đặt TẠI ĐÂY nếu cần strictness cao
-                // Ví dụ: Không thể chuyển từ CONFIRMED sang PENDING.
-                // Hiện tại: Chỉ log cảnh báo nếu status là CONFIRMED (đã hoàn tất)
                 if (oldStatus == BookingStatus.CONFIRMED && newStatus != BookingStatus.CONFIRMED) {
                         log.warn("Attempted to update CONFIRMED booking {} from {} to {}. Skipping.",
                                         booking.getId(), oldStatus, newStatus);
                         return;
                 }
 
-                // Cập nhật trạng thái mới
                 booking.setStatus(newStatus);
                 booking.setUpdatedAt(LocalDateTime.now());
                 bookingRepository.save(booking);
 
                 log.info("Status updated: Booking {} from {} to {}.", booking.getId(), oldStatus, newStatus);
 
-                // Logic giải phóng ghế chỉ khi trạng thái chuyển sang CANCELLED/EXPIRED
+                List<UUID> seatIds = booking.getSeats().stream()
+                                .map(BookingSeat::getSeatId)
+                                .toList();
                 if (newStatus == BookingStatus.CANCELLED || newStatus == BookingStatus.EXPIRED) {
-
-                        // Lấy danh sách ghế đã đặt
-                        List<UUID> seatIds = booking.getSeats().stream()
-                                        .map(BookingSeat::getSeatId)
-                                        .toList();
 
                         // Gửi sự kiện giải phóng ghế trong Showtime Service
                         bookingProducer.sendSeatUnlockedEvent(
                                         new SeatUnlockedEvent(
                                                         booking.getShowtimeId(),
-                                                        // ✅ ĐÃ SỬA: bookingId phải đứng thứ 2
                                                         booking.getId(),
                                                         seatIds,
                                                         newStatus.name()));
@@ -458,11 +421,99 @@ public class BookingService {
                                                 booking.getId(),
                                                 booking.getShowtimeId(),
                                                 booking.getUserId(),
-                                                newStatus,
+                                                seatIds,
+                                                newStatus.toString(),
                                                 oldStatus.name()));
         }
 
-        // ... (Giữ nguyên các hàm CRUD khác)
+        @Transactional
+        private BookingTicketGeneratedEvent buildBookingTicketGeneratedEvent(Booking booking) {
+
+                ShowtimeResponse showtime = showtimeWebClient.get()
+                                .uri("/api/showtimes/{id}", booking.getShowtimeId())
+                                .retrieve()
+                                .bodyToMono(ShowtimeResponse.class)
+                                .block();
+
+                if (showtime == null) {
+                        throw new BookingException("Không thể lấy thông tin suất chiếu cho booking " + booking.getId());
+                }
+
+                MovieSimpleResponse movie = movieWebClient.get()
+                                .uri("/api/movies/{id}", showtime.getMovieId())
+                                .retrieve()
+                                .bodyToMono(MovieSimpleResponse.class)
+                                .block();
+
+                if (movie == null) {
+                        throw new BookingException("Không thể lấy thông tin phim cho booking " + booking.getId());
+                }
+
+                AtomicReference<String> roomNameRef = new AtomicReference<>("");
+
+                List<SeatDetail> seatDetails = booking.getSeats().stream()
+                                .map(seat -> {
+                                        SeatResponse seatInfo = showtimeWebClient.get()
+                                                        .uri("/api/showtimes/seats/{id}", seat.getSeatId())
+                                                        .retrieve()
+                                                        .bodyToMono(SeatResponse.class)
+                                                        .block();
+
+                                        if (seatInfo == null) {
+                                                throw new BookingException(
+                                                                "Không tìm thấy thông tin ghế " + seat.getSeatId());
+                                        }
+
+                                        roomNameRef.set(seatInfo.getRoomName());
+                                        String seatName = seatInfo.getSeatNumber();
+
+                                        return new SeatDetail(
+                                                        seatName,
+                                                        seat.getSeatType(),
+                                                        seat.getTicketType(),
+                                                        1,
+                                                        seat.getPrice());
+                                })
+                                .toList();
+
+                List<BookingFnb> bookingFnbs = bookingFnbRepository.findByBooking_Id(booking.getId());
+                List<FnbDetail> fnbDetails = bookingFnbs.stream()
+                                .map(fnb -> {
+                                        FnbItemResponse fnbInfo = fnbWebClient.get()
+                                                        .uri("/api/fnb/{id}", fnb.getFnbItemId())
+                                                        .retrieve()
+                                                        .bodyToMono(FnbItemResponse.class)
+                                                        .block();
+
+                                        String itemName = (fnbInfo != null) ? fnbInfo.getName() : "Unknown Item";
+                                        return new FnbDetail(
+                                                        itemName,
+                                                        fnb.getQuantity(),
+                                                        fnb.getUnitPrice(),
+                                                        fnb.getTotalFnbPrice());
+                                })
+                                .toList();
+                BookingPromotion promo = bookingPromotionRepository.findByBooking_Id(booking.getId()).orElse(null);
+                PromotionDetail promotionDetail = (promo != null)
+                                ? new PromotionDetail(promo.getPromotionCode(), booking.getDiscountAmount())
+                                : null;
+
+                return new BookingTicketGeneratedEvent(
+                                booking.getId(),
+                                booking.getUserId(),
+                                movie.getTitle(),
+                                showtime.getTheaterName(),
+                                roomNameRef.get(),
+                                showtime.getStartTime().toString(),
+                                seatDetails,
+                                fnbDetails,
+                                promotionDetail,
+                                booking.getTotalPrice(),
+                                booking.getFinalPrice(),
+                                booking.getPaymentMethod(),
+                                booking.getCreatedAt());
+        }
+
         public BookingResponse getBookingById(UUID id) {
                 Booking booking = bookingRepository.findById(id)
                                 .orElseThrow(() -> new BookingException("Booking not found: " + id)); // Dùng

@@ -21,11 +21,9 @@ public class BookingSeat {
     @Column(nullable = false)
     private UUID seatId;
 
-    // THÊM: Loại ghế (NORMAL/VIP)
     @Column(name = "seat_type", nullable = false, length = 50)
     private String seatType;
 
-    // THÊM: Loại vé (ADULT/CHILD)
     @Column(name = "ticket_type", nullable = false, length = 50)
     private String ticketType;
 

@@ -99,6 +99,17 @@ services:
     ports:
       - "8089:8089"
 
+  notification-service:
+    build: ./services/notification-service
+    env_file:
+      - ./services/notification-service/.env
+    container_name: notification-service
+    ports:
+      - "8090:8090"
+    depends_on:
+      - rabbitmq
+      - user-profile-service
+
   gateway-service:
     build: ./services/gateway-service
     container_name: gateway-service
@@ -114,3 +125,4 @@ services:
       - pricing-service
       - fnb-service
       - promotion-service
+      - notification-service

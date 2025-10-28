@@ -24,9 +24,4 @@ public class NotificationController {
     public List<NotificationResponse> getByUser(@PathVariable UUID userId) {
         return notificationService.getByUser(userId);
     }
-
-    @PatchMapping("/{id}/status")
-    public void updateStatus(@PathVariable UUID id, @RequestParam NotificationStatus status) {
-        notificationService.updateStatus(id, status);
-    }
 }

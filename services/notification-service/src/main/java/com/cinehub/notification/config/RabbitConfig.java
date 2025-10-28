@@ -15,9 +15,11 @@ public class RabbitConfig {
 
     // payment exchange
     public static final String PAYMENT_EXCHANGE = "payment.exchange";
-
-    // routing key from notification queue to connect payment exchange
     public static final String PAYMENT_SUCCESS_KEY = "payment.success";
+
+    // from booking
+    public static final String BOOKING_EXCHANGE = "booking.exchange";
+    public static final String BOOKING_TICKET_GENERATED_KEY = "booking.ticket.generated";
 
     @Bean
     public Queue notificationQueue() {
@@ -30,10 +32,22 @@ public class RabbitConfig {
     }
 
     @Bean
-    public Binding notificationBinding(Queue notificationQueue, DirectExchange paymentExchange) {
+    public DirectExchange bookingExchange() {
+        return new DirectExchange(BOOKING_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public Binding paymentNotificationBinding(Queue notificationQueue, DirectExchange paymentExchange) {
         return BindingBuilder.bind(notificationQueue)
                 .to(paymentExchange)
                 .with(PAYMENT_SUCCESS_KEY);
+    }
+
+    @Bean
+    public Binding bookingNotificationBinding(Queue notificationQueue, DirectExchange bookingExchange) {
+        return BindingBuilder.bind(notificationQueue)
+                .to(bookingExchange)
+                .with(BOOKING_TICKET_GENERATED_KEY);
     }
 
     @Bean

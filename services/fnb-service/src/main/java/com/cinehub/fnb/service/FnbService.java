@@ -27,14 +27,6 @@ public class FnbService {
 
     private final FnbItemRepository fnbItemRepository;
 
-    // ---------------------------------------------------------------------
-    // 1. LOGIC TÍNH TOÁN (CHO BOOKING SERVICE)
-    // ---------------------------------------------------------------------
-
-    /**
-     * Tính tổng giá F&B dựa trên danh sách các mục và số lượng được chọn.
-     * API này được Booking Service gọi đồng bộ.
-     */
     public FnbCalculationResponse calculateTotalPrice(List<FnbItemDto> selectedFnbItems) {
 
         Set<UUID> fnbIds = selectedFnbItems.stream()
@@ -88,22 +80,21 @@ public class FnbService {
                 .build();
     }
 
-    // ---------------------------------------------------------------------
-    // 2. CRUD CHO ADMIN/STAFF
-    // ---------------------------------------------------------------------
-
-    /**
-     * Lấy tất cả các mục F&B đang hoạt động.
-     */
     public List<FnbItemResponse> getAllFnbItems() {
         return fnbItemRepository.findAll().stream()
                 .map(this::mapToResponse)
                 .toList();
     }
 
-    /**
-     * Tạo mới một mục F&B.
-     */
+    public FnbItemResponse getFnbItemById(UUID id) {
+        return fnbItemRepository.findById(id)
+                .map(this::mapToResponse)
+                .orElseThrow(() -> {
+                    log.error("❌ F&B Item not found with ID: {}", id);
+                    return new IllegalArgumentException("F&B Item not found with ID: " + id);
+                });
+    }
+
     @Transactional
     public FnbItemResponse createFnbItem(FnbItemRequest request) {
         // Tùy chọn: Kiểm tra trùng tên (nếu cần xử lý lỗi thân thiện hơn)

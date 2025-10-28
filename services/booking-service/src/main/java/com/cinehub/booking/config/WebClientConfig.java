@@ -19,6 +19,28 @@ public class WebClientConfig {
     @Value("${promotion.service.url}")
     private String promotionServiceUrl;
 
+    @Value("${movie.service.url}")
+    private String movieServiceUrl;
+
+    @Value("${showtime.service.url}")
+    private String showtimeServiceUrl;
+
+    @Bean
+    public WebClient movieWebClient() {
+        return WebClient.builder()
+                .baseUrl(movieServiceUrl)
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .build();
+    }
+
+    @Bean
+    public WebClient showtimeWebClient() {
+        return WebClient.builder()
+                .baseUrl(showtimeServiceUrl)
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .build();
+    }
+
     @Bean
     public WebClient pricingWebClient() {
         return WebClient.builder()

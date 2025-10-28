@@ -36,6 +36,10 @@ public class RabbitConfig {
     public static final String BOOKING_SEAT_MAPPED_KEY = "booking.seat.mapped";
     public static final String BOOKING_FINALIZED_KEY = "booking.finalized";
 
+    // notification
+    public static final String NOTIFICATION_EXCHANGE = "notification.exchange";
+    public static final String BOOKING_TICKET_GENERATED_KEY = "booking.ticket.generated";
+
     public static final String BOOKING_QUEUE = "booking.queue";
 
     @Bean
@@ -56,6 +60,11 @@ public class RabbitConfig {
     @Bean
     public DirectExchange bookingExchange() {
         return new DirectExchange(BOOKING_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public DirectExchange notificationExchange() {
+        return new DirectExchange(NOTIFICATION_EXCHANGE, true, false);
     }
 
     @Bean

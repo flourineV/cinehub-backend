@@ -11,7 +11,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-// Cần tạo Unique Constraint ở mức DB (đã làm trong DDL)
+
 public class UsedPromotion {
 
     @Id
@@ -24,7 +24,6 @@ public class UsedPromotion {
     @Column(name = "promotion_code", nullable = false, length = 50)
     private String promotionCode;
 
-    // Liên kết OneToOne với Booking (Đơn hàng đã sử dụng mã này)
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "booking_id", nullable = false, unique = true)
     private Booking booking;

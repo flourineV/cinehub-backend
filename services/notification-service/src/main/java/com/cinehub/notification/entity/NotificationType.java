@@ -1,6 +1,6 @@
 package com.cinehub.notification.entity;
 
 public enum NotificationType {
-    PAYMENT_SUCCESS,
+    BOOKING_TICKET,
     PROMOTION
 }

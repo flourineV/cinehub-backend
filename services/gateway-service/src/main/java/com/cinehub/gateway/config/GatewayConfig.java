@@ -29,6 +29,8 @@ public class GatewayConfig {
                                                 .uri("http://fnb-service:8088"))
                                 .route("promotion-service", r -> r.path("/api/promotions/**")
                                                 .uri("http://promotion-service:8089"))
+                                .route("notification-service", r -> r.path("/api/notifications/**")
+                                                .uri("http://notification-service:8090"))
                                 .build();
         }
 }

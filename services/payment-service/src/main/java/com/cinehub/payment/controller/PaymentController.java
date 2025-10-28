@@ -17,32 +17,23 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
-    /**
-     * Mô phỏng WebHook/Callback Thành công từ Payment Gateway.
-     * Khi gọi thành công, Service sẽ lưu trạng thái SUCCESS và gửi
-     * PaymentSuccessEvent.
-     */
     @PostMapping("/callback/success")
     public ResponseEntity<String> mockSuccessCallback(
             @RequestParam UUID bookingId,
             @RequestParam String transactionRef) {
 
-        // GIẢ LẬP: Phương thức thanh toán thực tế sẽ đến từ body hoặc query param của
-        // WebHook
         String method = "VISA_MOCK";
 
         try {
-            log.info("📢 Receiving mock success callback for bookingId: {}", bookingId);
+            log.info("Receiving mock success callback for bookingId: {}", bookingId);
             paymentService.processPaymentSuccess(bookingId, transactionRef, method);
 
-            // Trả về HTTP 200 OK cho WebHook/Callback
             return ResponseEntity.ok("Payment confirmed and events sent.");
 
         } catch (PaymentProcessingException e) {
-            // Xử lý lỗi nghiệp vụ (Giao dịch không tồn tại/không PENDING).
-            // GlobalExceptionHandler sẽ bắt lỗi này và trả về HTTP 400.
+
             log.warn("❌ Callback failed due to business logic: {}", e.getMessage());
-            throw e; // Ném lại để GlobalExceptionHandler xử lý
+            throw e;
         } catch (Exception e) {
             // Xử lý lỗi hệ thống bất ngờ (Lỗi DB, lỗi mạng, etc.)
             log.error("❌ Unexpected error during success callback for bookingId {}: {}", bookingId, e.getMessage(), e);
@@ -50,10 +41,6 @@ public class PaymentController {
         }
     }
 
-    /**
-     * Mô phỏng WebHook/Callback Thất bại từ Payment Gateway.
-     * Khi gọi, Service sẽ lưu trạng thái FAILED và gửi PaymentFailedEvent.
-     */
     @PostMapping("/callback/failed")
     public ResponseEntity<String> mockFailedCallback(
             @RequestParam UUID bookingId,
