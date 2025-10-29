@@ -2,6 +2,7 @@ package com.cinehub.profile.controller;
 
 import com.cinehub.profile.dto.request.UserProfileRequest;
 import com.cinehub.profile.dto.request.UserProfileUpdateRequest; // DTO mới
+import com.cinehub.profile.dto.response.RankAndDiscountResponse;
 import com.cinehub.profile.dto.response.UserProfileResponse;
 import com.cinehub.profile.service.UserProfileService;
 import jakarta.validation.Valid;
@@ -51,7 +52,7 @@ public class UserProfileController {
     @DeleteMapping("/{userId}")
     public ResponseEntity<String> deleteProfile(@PathVariable UUID userId) {
         profileService.deleteProfile(userId);
-        return ResponseEntity.ok("Profile deleted successfully ✅");
+        return ResponseEntity.ok("Profile deleted successfully");
     }
 
     @GetMapping("/search")
@@ -59,5 +60,11 @@ public class UserProfileController {
             @RequestParam(required = false) String keyword) {
 
         return ResponseEntity.ok(profileService.searchProfiles(keyword));
+    }
+
+    @GetMapping("/{userId}/rank")
+    public ResponseEntity<RankAndDiscountResponse> getUserRankAndDiscount(@PathVariable UUID userId) {
+        RankAndDiscountResponse response = profileService.getRankAndDiscount(userId);
+        return ResponseEntity.ok(response);
     }
 }

@@ -11,6 +11,7 @@ import com.cinehub.booking.dto.external.FnbCalculationRequest;
 import com.cinehub.booking.dto.external.MovieSimpleResponse;
 import com.cinehub.booking.dto.external.SeatResponse;
 import com.cinehub.booking.dto.external.FnbItemResponse;
+import com.cinehub.booking.dto.external.RankAndDiscountResponse;
 
 import com.cinehub.booking.entity.*;
 import com.cinehub.booking.events.booking.*;
@@ -62,6 +63,8 @@ public class BookingService {
         private final WebClient showtimeWebClient;
         @Qualifier("movieWebClient")
         private final WebClient movieWebClient;
+        @Qualifier("userProfileWebClient")
+        private final WebClient userProfileWebClient;
 
         private final BookingProducer bookingProducer;
 
@@ -225,10 +228,15 @@ public class BookingService {
 
         @Transactional
         public BookingResponse finalizeBooking(UUID bookingId, FinalizeBookingRequest request) {
-                // ... (Logic finalizeBooking giữ nguyên)
-                // Lưu ý: Logic này chuyển trạng thái sang AWAITING_PAYMENT
 
-                // 1. Tìm Booking và kiểm tra trạng thái
+                RankAndDiscountResponse rankAndDiscountResponse = userProfileWebClient.get()
+                                .uri("/api/profiles/rank/")
+                                .retrieve()
+                                .bodyToMono(FnbCalculationResponse.class)
+                                .block();
+
+                UUID userByBooking = bookingRepository.findById(bookingId).orElseThrow().getUserId();
+
                 Booking booking = bookingRepository.findById(bookingId)
                                 .orElseThrow(() -> new BookingNotFoundException(bookingId.toString()));
 

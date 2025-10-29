@@ -2,6 +2,7 @@ package com.cinehub.profile.service;
 
 import com.cinehub.profile.dto.request.UserProfileRequest;
 import com.cinehub.profile.dto.request.UserProfileUpdateRequest;
+import com.cinehub.profile.dto.response.RankAndDiscountResponse;
 import com.cinehub.profile.dto.response.UserProfileResponse;
 import com.cinehub.profile.entity.UserProfile;
 import com.cinehub.profile.entity.UserRank;
@@ -60,6 +61,22 @@ public class UserProfileService {
     public Optional<UserProfileResponse> getProfileByUserId(UUID userId) {
         return profileRepository.findByUserId(userId)
                 .map(this::mapToResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public RankAndDiscountResponse getRankAndDiscount(UUID userId) {
+        UserProfile profile = profileRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy user profile với ID " + userId));
+
+        UserRank rank = Optional.ofNullable(profile.getRank())
+                .orElseGet(() -> rankService.findRankByLoyaltyPoint(profile.getLoyaltyPoint())
+                        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy rank phù hợp cho user")));
+
+        return RankAndDiscountResponse.builder()
+                .userId(userId)
+                .rankName(rank.getName())
+                .discountRate(rank.getDiscountRate())
+                .build();
     }
 
     public UserProfileResponse updateProfile(UUID userId, UserProfileUpdateRequest request) {

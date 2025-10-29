@@ -18,13 +18,13 @@ public class GatewayApplication {
                 return builder.routes()
                                 .route("auth-service", r -> r
                                                 .path("/api/auth/**")
-                                                .uri("http://localhost:8081"))
+                                                .uri("http://auth-service:8081"))
                                 .route("user-profile-service", r -> r
                                                 .path("/api/profiles/**")
-                                                .uri("http://localhost:8082"))
+                                                .uri("http://user-profile-service:8082"))
                                 .route("movie-service", r -> r
                                                 .path("/api/movies/**")
-                                                .uri("http://localhost:8083"))
+                                                .uri("http://movie-service:8083"))
                                 .route("showtime-service", r -> r
                                                 .path("/api/showtimes/**")
                                                 .uri("http://showtime-service:8084"))

@@ -25,6 +25,9 @@ public class WebClientConfig {
     @Value("${showtime.service.url}")
     private String showtimeServiceUrl;
 
+    @Value("${user-profile.service.url}")
+    private String userProfileServiceUrl;
+
     @Bean
     public WebClient movieWebClient() {
         return WebClient.builder()
@@ -61,6 +64,14 @@ public class WebClientConfig {
     public WebClient promotionWebClient() {
         return WebClient.builder()
                 .baseUrl(promotionServiceUrl)
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .build();
+    }
+
+    @Bean
+    public WebClient userProfileWebClient() {
+        return WebClient.builder()
+                .baseUrl(userProfileServiceUrl)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .build();
     }
