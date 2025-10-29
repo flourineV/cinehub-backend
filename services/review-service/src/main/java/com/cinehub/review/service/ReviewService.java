@@ -2,39 +2,49 @@ package com.cinehub.review.service;
 
 import com.cinehub.review.dto.ReviewRequest;
 import com.cinehub.review.dto.ReviewResponse;
+import com.cinehub.review.dto.UserProfileResponse;
 import com.cinehub.review.entity.Review;
 import com.cinehub.review.entity.ReviewStatus;
 import com.cinehub.review.repository.ReviewRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.springframework.stereotype.Service;
-
-import lombok.RequiredArgsConstructor;
-
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ReviewService implements IReviewService {
 
     private final ReviewRepository reviewRepository;
+    private final WebClient userProfileWebClient;
 
     @Override
     public ReviewResponse createReview(ReviewRequest request) {
+        // kiểm tra user tồn tại
+        UserProfileResponse userProfile = getUserProfile(request.getUserId());
+
         Review review = Review.builder()
                 .movieId(request.getMovieId())
                 .userId(request.getUserId())
                 .rating(request.getRating())
                 .comment(request.getComment())
                 .status(ReviewStatus.VISIBLE)
+                .reported(false)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
 
         reviewRepository.save(review);
-        return toResponse(review);
+
+        // thêm fullname & avatar từ userProfile
+        return toResponse(review, userProfile);
     }
 
     @Override
@@ -42,12 +52,14 @@ public class ReviewService implements IReviewService {
         Review review = reviewRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Review not found"));
 
+        UserProfileResponse userProfile = getUserProfile(request.getUserId());
+
         review.setRating(request.getRating());
         review.setComment(request.getComment());
         review.setUpdatedAt(LocalDateTime.now());
-
         reviewRepository.save(review);
-        return toResponse(review);
+
+        return toResponse(review, userProfile);
     }
 
     @Override
@@ -57,9 +69,12 @@ public class ReviewService implements IReviewService {
 
     @Override
     public List<ReviewResponse> getReviewsByMovie(UUID movieId) {
-        return reviewRepository.findByMovieIdAndStatus(movieId, ReviewStatus.VISIBLE)
-                .stream()
-                .map(this::toResponse)
+        List<Review> reviews = reviewRepository.findByMovieIdAndStatus(movieId, ReviewStatus.VISIBLE);
+        return reviews.stream()
+                .map(review -> {
+                    UserProfileResponse profile = getUserProfile(review.getUserId());
+                    return toResponse(review, profile);
+                })
                 .collect(Collectors.toList());
     }
 
@@ -75,7 +90,9 @@ public class ReviewService implements IReviewService {
                 .orElseThrow(() -> new RuntimeException("Review not found"));
         review.setReported(true);
         reviewRepository.save(review);
-        return toResponse(review);
+
+        UserProfileResponse userProfile = getUserProfile(review.getUserId());
+        return toResponse(review, userProfile);
     }
 
     @Override
@@ -84,14 +101,35 @@ public class ReviewService implements IReviewService {
                 .orElseThrow(() -> new RuntimeException("Review not found"));
         review.setStatus(ReviewStatus.HIDDEN);
         reviewRepository.save(review);
-        return toResponse(review);
+
+        UserProfileResponse userProfile = getUserProfile(review.getUserId());
+        return toResponse(review, userProfile);
     }
 
-    private ReviewResponse toResponse(Review review) {
+    // Gọi UserProfileService để lấy fullname + avatarUrl
+    private UserProfileResponse getUserProfile(UUID userId) {
+        try {
+            return userProfileWebClient.get()
+                    .uri("/profiles/{id}", userId)
+                    .retrieve()
+                    .bodyToMono(UserProfileResponse.class)
+                    .block();
+        } catch (WebClientResponseException.NotFound e) {
+            throw new RuntimeException("User not found: " + userId);
+        } catch (Exception e) {
+            log.error("Error calling UserProfileService", e);
+            throw new RuntimeException("Failed to connect to UserProfileService");
+        }
+    }
+
+    // Convert Entity -> DTO
+    private ReviewResponse toResponse(Review review, UserProfileResponse profile) {
         return ReviewResponse.builder()
                 .id(review.getId())
                 .movieId(review.getMovieId())
                 .userId(review.getUserId())
+                .fullName(profile != null ? profile.getFullName() : null)
+                .avatarUrl(profile != null ? profile.getAvatarUrl() : null)
                 .rating(review.getRating())
                 .comment(review.getComment())
                 .status(review.getStatus())
