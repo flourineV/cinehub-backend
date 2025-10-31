@@ -76,7 +76,6 @@ public class RabbitConfig {
 
     @Bean
     public Binding seatUnlockedBinding(Queue bookingQueue, DirectExchange showtimeExchange) {
-        // Lắng nghe sự kiện UNLOCKED từ Showtime (khi Showtime timeout)
         return BindingBuilder.bind(bookingQueue)
                 .to(showtimeExchange)
                 .with(SEAT_UNLOCK_ROUTING_KEY);

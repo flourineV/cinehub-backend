@@ -76,7 +76,6 @@ public class RabbitConfig {
                 .with(SEAT_UNLOCK_ROUTING_KEY);
     }
 
-    // === CONFIG CHUNG ===
 
     @Bean
     public Jackson2JsonMessageConverter jsonMessageConverter() {

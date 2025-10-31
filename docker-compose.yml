@@ -64,6 +64,7 @@ services:
       - pricing-service
       - promotion-service
       - fnb-service
+      - user-profile-service
 
   payment-service:
     build: ./services/payment-service
@@ -108,7 +109,6 @@ services:
       - "8090:8090"
     depends_on:
       - rabbitmq
-      - user-profile-service
 
   gateway-service:
     build: ./services/gateway-service

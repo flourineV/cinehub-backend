@@ -11,9 +11,7 @@ import java.util.List;
 @Builder
 public class FnbCalculationResponse {
 
-    // Tổng giá trị F&B của toàn bộ đơn hàng (Tổng cộng của totalFnbItemPrice)
     private BigDecimal totalFnbPrice;
 
-    // DANH SÁCH CHI TIẾT các mục F&B đã được tính giá
     private List<CalculatedFnbItemDto> calculatedFnbItems;
 }

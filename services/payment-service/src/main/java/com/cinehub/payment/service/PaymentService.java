@@ -9,15 +9,14 @@ import com.cinehub.payment.events.SeatUnlockedEvent;
 import com.cinehub.payment.events.PaymentFailedEvent;
 import com.cinehub.payment.producer.PaymentProducer;
 import com.cinehub.payment.repository.PaymentRepository;
-import com.cinehub.payment.exception.PaymentProcessingException; // ✅ Đảm bảo import này
+import com.cinehub.payment.exception.PaymentProcessingException; 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
-import java.util.Optional; // Cần thiết cho logic tìm kiếm chính xác
-import java.util.List; // Thêm import List
+import java.util.Optional; 
 
 @Slf4j
 @Service

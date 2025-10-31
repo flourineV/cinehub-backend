@@ -135,16 +135,16 @@ public class BookingProducer {
 
         public void sendBookingTicketGeneratedEvent(BookingTicketGeneratedEvent data) {
                 final String EXCHANGE = RabbitConfig.BOOKING_EXCHANGE;
-                final String ROUTING_KEY = "booking.ticket.generated"; // key thống nhất với noti-service
+                final String ROUTING_KEY = "booking.ticket.generated"; 
 
                 var msg = new EventMessage<>(
                                 UUID.randomUUID().toString(),
                                 "BookingTicketGenerated",
                                 "v1",
                                 Instant.now(),
-                                data);
+                                data); 
 
-                log.info("🎟️ Sending BookingTicketGeneratedEvent → NotificationService | exchange={}, routingKey={}, bookingId={}",
+                log.info("Sending BookingTicketGeneratedEvent → NotificationService | exchange={}, routingKey={}, bookingId={}",
                                 EXCHANGE, ROUTING_KEY, data.bookingId());
 
                 rabbitTemplate.convertAndSend(EXCHANGE, ROUTING_KEY, msg);

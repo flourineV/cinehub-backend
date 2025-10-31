@@ -1,8 +1,8 @@
 package com.cinehub.notification.service;
 
-import com.cinehub.notification.dto.external.FnbDetail;
-import com.cinehub.notification.dto.external.PromotionDetail;
-import com.cinehub.notification.dto.external.SeatDetail;
+import com.cinehub.notification.events.dto.SeatDetail;
+import com.cinehub.notification.events.dto.FnbDetail;
+import com.cinehub.notification.events.dto.PromotionDetail;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -25,11 +25,6 @@ public class EmailService {
     @Qualifier("emailTemplateEngine")
     private final TemplateEngine templateEngine;
 
-    /**
-     * Gửi email “Vé xem phim thành công” (sau khi Booking phát
-     * BookingTicketGeneratedEvent).
-     * Template gợi ý: resources/templates/booking-ticket.html
-     */
     public void sendBookingTicketEmail(
             String to,
             String userName,
@@ -40,10 +35,13 @@ public class EmailService {
             List<SeatDetail> seats,
             List<FnbDetail> fnbs,
             PromotionDetail promotion,
+            String rankName,                    
+            BigDecimal rankDiscountAmount,      
+            BigDecimal totalPrice,              
             BigDecimal finalPrice,
-            String paymentMethod) throws MessagingException {
+            String paymentMethod
+    ) throws MessagingException {
 
-        // ---- Build Thymeleaf context ----
         Context ctx = new Context();
         ctx.setVariable("userName", userName);
         ctx.setVariable("movieTitle", movieTitle);
@@ -52,27 +50,25 @@ public class EmailService {
         ctx.setVariable("showDateTime", showDateTime);
         ctx.setVariable("paymentMethod", paymentMethod);
 
-        // Danh sách ghế & FNB chuyển thẳng cho template lặp
         ctx.setVariable("seats", seats);
         ctx.setVariable("fnbs", fnbs);
 
-        // Khuyến mãi (có thể null)
+        ctx.setVariable("rankName", rankName != null ? rankName : "Chưa có hạng");
+        ctx.setVariable("rankDiscountAmount", rankDiscountAmount != null ? rankDiscountAmount : BigDecimal.ZERO);
+
         if (promotion != null) {
             ctx.setVariable("promotionCode", promotion.code());
             ctx.setVariable("promotionDiscount", promotion.discountAmount());
         } else {
             ctx.setVariable("promotionCode", null);
-            ctx.setVariable("promotionDiscount", null);
+            ctx.setVariable("promotionDiscount", BigDecimal.ZERO);
         }
 
-        // Giá trị hiển thị
+        ctx.setVariable("totalPrice", totalPrice);
         ctx.setVariable("finalPrice", finalPrice);
-        ctx.setVariable("finalPriceDisplay",
-                finalPrice != null ? String.format("%,.0f", finalPrice) : "0");
 
         String html = templateEngine.process("booking-ticket", ctx);
 
-        // ---- Gửi mail ----
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
         helper.setTo(to);

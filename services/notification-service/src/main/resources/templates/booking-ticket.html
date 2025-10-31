@@ -1,106 +1,236 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head>
-  <meta charset="UTF-8" />
-  <title>CineHub - Xác nhận đặt vé</title>
-</head>
-<body style="font-family: Arial, sans-serif; background-color: #f8f8f8; margin: 0; padding: 0;">
-  <div style="max-width: 720px; margin: 30px auto; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 3px 6px rgba(0,0,0,0.05);">
+  <head>
+    <meta charset="UTF-8" />
+    <title>CineHub - Vé xem phim của bạn</title>
+  </head>
+  <body
+    style="
+      font-family: Arial, sans-serif;
+      background-color: #f8f8f8;
+      margin: 0;
+      padding: 0;
+    "
+  >
+    <div
+      style="
+        max-width: 720px;
+        margin: 30px auto;
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.05);
+      "
+    >
+      <!-- Header -->
+      <div
+        style="
+          background: #fff;
+          padding: 20px 30px;
+          border-bottom: 3px solid #a020f0;
+        "
+      >
+        <h1 style="color: #3c1d99; font-size: 24px; margin: 0">
+          🎬 <b style="color: #f0b400">CINE</b
+          ><span style="color: #3c1d99">HUB</span> CINEMAS
+        </h1>
+        <p style="margin: 5px 0 0; font-size: 14px; color: #666">
+          Xác nhận đặt vé thành công!
+        </p>
+      </div>
 
-    <!-- Header -->
-    <div style="background: #fff; padding: 20px 30px; border-bottom: 3px solid #a020f0;">
-      <h1 style="color: #3c1d99; font-size: 24px; margin: 0;">
-        🎬 <b style="color:#f0b400;">CINE</b><span style="color:#3c1d99;">HUB</span> CINEMAS
-      </h1>
-      <p style="margin: 5px 0 0; font-size: 14px; color: #666;">
-        Xác nhận đặt vé thành công!
-      </p>
-    </div>
+      <!-- Info section -->
+      <div style="padding: 20px 30px">
+        <p style="font-size: 16px">
+          Xin chào <b th:text="${userName}">bạn</b> 👋
+        </p>
+        <p style="font-size: 15px; color: #444">
+          Bạn đã đặt vé thành công cho phim:
+        </p>
+        <h2 style="color: #3c1d99; margin: 8px 0" th:text="${movieTitle}">
+          MOVIE TITLE
+        </h2>
 
-    <!-- Info section -->
-    <div style="padding: 20px 30px;">
-      <p style="font-size: 16px;">Xin chào <b th:text="${userName}">bạn</b> 👋</p>
-      <p style="font-size: 15px; color: #444;">Bạn đã đặt vé thành công cho phim:</p>
-      <h2 style="color: #3c1d99; margin: 8px 0;" th:text="${movieTitle}">MOVIE TITLE</h2>
-
-      <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
-        <tr><td><b>Suất chiếu:</b></td><td th:text="${showDateTime}">15/02/2025 20:45</td></tr>
-        <tr><td><b>Phòng chiếu:</b></td><td th:text="${roomName}">02</td></tr>
-        <tr><td><b>Rạp:</b></td><td th:text="${cinemaName}">CineHub Bình Dương</td></tr>
-        <tr><td><b>Thanh toán:</b></td><td th:text="${paymentMethod}">ZaloPay</td></tr>
-      </table>
-
-      <hr style="margin: 20px 0; border: none; border-top: 1px dashed #ccc;" />
-
-      <!-- Seat Table -->
-      <h3 style="color:#3c1d99;">🎟️ Thông tin ghế</h3>
-      <table style="width:100%; border-collapse: collapse; font-size: 14px; margin-top: 10px;">
-        <thead>
-          <tr style="background:#3c1d99; color:white;">
-            <th style="padding:8px; text-align:left;">STT</th>
-            <th style="padding:8px;">Ghế</th>
-            <th style="padding:8px;">Loại</th>
-            <th style="padding:8px;">Vé</th>
-            <th style="padding:8px;">Giá (VNĐ)</th>
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse">
+          <tr>
+            <td><b>Suất chiếu:</b></td>
+            <td th:text="${showDateTime}">15/02/2025 20:45</td>
           </tr>
-        </thead>
-        <tbody>
-          <tr th:each="s, iter : ${seats}" th:style="${iter.index % 2 == 0} ? 'background-color:#faf7ff;' : ''">
-            <td style="padding:8px;" th:text="${iter.index + 1}">1</td>
-            <td style="padding:8px;" th:text="${s.seatName()}">G10</td>
-            <td style="padding:8px;" th:text="${s.seatType()}">NORMAL</td>
-            <td style="padding:8px;" th:text="${s.ticketType()}">ADULT</td>
-            <td style="padding:8px; text-align:right;" th:text="${#numbers.formatDecimal(s.price(), 0, 'POINT', 0, 'NONE')}">45000</td>
+          <tr>
+            <td><b>Phòng chiếu:</b></td>
+            <td th:text="${roomName}">02</td>
           </tr>
-        </tbody>
-      </table>
+          <tr>
+            <td><b>Rạp:</b></td>
+            <td th:text="${cinemaName}">CineHub Bình Dương</td>
+          </tr>
+          <tr>
+            <td><b>Thanh toán:</b></td>
+            <td th:text="${paymentMethod}">ZaloPay</td>
+          </tr>
+        </table>
 
-      <!-- FnB section -->
-      <div th:if="${fnbs != null and !fnbs.isEmpty()}" style="margin-top: 25px;">
-        <h3 style="color:#3c1d99;">🍿 Đồ ăn & thức uống</h3>
-        <table style="width:100%; border-collapse: collapse; font-size: 14px;">
+        <hr style="margin: 20px 0; border: none; border-top: 1px dashed #ccc" />
+
+        <!-- Seat Table -->
+        <h3 style="color: #3c1d99">🎟️ Thông tin ghế</h3>
+        <table
+          style="
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            margin-top: 10px;
+          "
+        >
           <thead>
-            <tr style="background:#3c1d99; color:white;">
-              <th style="padding:8px;">STT</th>
-              <th style="padding:8px;">Sản phẩm</th>
-              <th style="padding:8px;">Số lượng</th>
-              <th style="padding:8px;">Đơn giá (VNĐ)</th>
+            <tr style="background: #3c1d99; color: white">
+              <th style="padding: 8px; text-align: left">STT</th>
+              <th style="padding: 8px">Ghế</th>
+              <th style="padding: 8px">Loại</th>
+              <th style="padding: 8px">Vé</th>
+              <th style="padding: 8px">Giá (VNĐ)</th>
             </tr>
           </thead>
           <tbody>
-            <tr th:each="f, iter : ${fnbs}" th:style="${iter.index % 2 == 0} ? 'background-color:#faf7ff;' : ''">
-              <td style="padding:8px;" th:text="${iter.index + 1}">1</td>
-              <td style="padding:8px;" th:text="${f.itemName()}">Popcorn</td>
-              <td style="padding:8px;" th:text="${f.quantity()}">1</td>
-              <td style="padding:8px; text-align:right;" th:text="${#numbers.formatDecimal(f.price(), 0, 'POINT', 0, 'NONE')}">45000</td>
+            <tr
+              th:each="s, iter : ${seats}"
+              th:style="${iter.index % 2 == 0} ? 'background-color:#faf7ff;' : ''"
+            >
+              <td th:text="${iter.index + 1}" style="padding: 8px">1</td>
+              <td th:text="${s.seatName()}" style="padding: 8px">G10</td>
+              <td th:text="${s.seatType()}" style="padding: 8px">NORMAL</td>
+              <td th:text="${s.ticketType()}" style="padding: 8px">ADULT</td>
+              <td
+                th:text="${#numbers.formatDecimal(s.price(), 0, 'POINT', 0, 'NONE')}"
+                style="padding: 8px; text-align: right"
+              >
+                45000
+              </td>
             </tr>
           </tbody>
         </table>
+
+        <!-- FnB section -->
+        <div
+          th:if="${fnbs != null and !fnbs.isEmpty()}"
+          style="margin-top: 25px"
+        >
+          <h3 style="color: #3c1d99">🍿 Đồ ăn & thức uống</h3>
+          <table
+            style="width: 100%; border-collapse: collapse; font-size: 14px"
+          >
+            <thead>
+              <tr style="background: #3c1d99; color: white">
+                <th style="padding: 8px">STT</th>
+                <th style="padding: 8px">Sản phẩm</th>
+                <th style="padding: 8px">Số lượng</th>
+                <th style="padding: 8px">Đơn giá (VNĐ)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                th:each="f, iter : ${fnbs}"
+                th:style="${iter.index % 2 == 0} ? 'background-color:#faf7ff;' : ''"
+              >
+                <td th:text="${iter.index + 1}" style="padding: 8px">1</td>
+                <td th:text="${f.itemName()}" style="padding: 8px">Popcorn</td>
+                <td th:text="${f.quantity()}" style="padding: 8px">1</td>
+                <td
+                  th:text="${#numbers.formatDecimal(f.unitPrice(), 0, 'POINT', 0, 'NONE')}"
+                  style="padding: 8px; text-align: right"
+                >
+                  45000
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Rank discount -->
+        <div style="margin-top: 25px">
+          <h3 style="color: #3c1d99">🎖️ Ưu đãi thành viên</h3>
+          <p><b>Hạng:</b> <span th:text="${rankName}">GOLD</span></p>
+          <p>
+            Giảm giá từ hạng:
+            <b
+              th:text="${#numbers.formatDecimal(rankDiscountAmount, 0, 'POINT', 0, 'NONE')}"
+              >10000</b
+            >
+            VNĐ
+          </p>
+        </div>
+
+        <!-- Promotion -->
+        <div th:if="${promotion != null}" style="margin-top: 20px">
+          <h3 style="color: #3c1d99">🏷️ Mã khuyến mãi</h3>
+          <p><b>Mã:</b> <span th:text="${promotion.code()}">FIX50K</span></p>
+          <p>
+            Giảm giá:
+            <b
+              th:text="${#numbers.formatDecimal(promotion.discountAmount(), 0, 'POINT', 0, 'NONE')}"
+              >50000</b
+            >
+            VNĐ
+          </p>
+        </div>
+
+        <!-- Bill summary -->
+        <div
+          style="
+            margin-top: 25px;
+            text-align: right;
+            font-size: 15px;
+            line-height: 1.6;
+          "
+        >
+          <p>
+            Tổng cộng:
+            <b
+              th:text="${#numbers.formatDecimal(totalPrice, 0, 'POINT', 0, 'NONE')}"
+              >230000</b
+            >
+            VNĐ
+          </p>
+          <p>
+            Giảm giá hạng + mã:
+            <b style="color: #f00"
+              >-<span
+                th:text="${#numbers.formatDecimal(rankDiscountAmount.add(promotion != null ? promotion.discountAmount() : 0), 0, 'POINT', 0, 'NONE')}"
+                >60000</span
+              ></b
+            >
+            VNĐ
+          </p>
+          <h3 style="color: #3c1d99">
+            Thành tiền:
+            <span
+              style="color: #f0b400"
+              th:text="${#numbers.formatDecimal(finalPrice, 0, 'POINT', 0, 'NONE')}"
+              >170000</span
+            >
+            VNĐ
+          </h3>
+        </div>
       </div>
 
-      <!-- Promotion -->
-      <div th:if="${promotion != null}" style="margin-top:20px;">
-        <p><b>Mã khuyến mãi:</b> <span th:text="${promotion.code()}">FIX50K</span></p>
-        <p>Giảm giá: <b th:text="${#numbers.formatDecimal(promotion.discountAmount(), 0, 'POINT', 0, 'NONE')}">50000</b> VNĐ</p>
-      </div>
-
-      <!-- Total -->
-      <div style="margin-top:25px; text-align:right;">
-        <h3 style="color:#3c1d99; font-size:18px;">Tổng cộng: 
-          <span style="color:#f0b400;" th:text="${#numbers.formatDecimal(finalPrice, 0, 'POINT', 0, 'NONE')}">180000</span> VNĐ
-        </h3>
+      <!-- Footer -->
+      <div
+        style="
+          background: #f6f2ff;
+          border-top: 2px solid #a020f0;
+          text-align: center;
+          padding: 16px;
+        "
+      >
+        <p style="font-size: 13px; color: #555">
+          Cảm ơn bạn đã xem phim tại
+          <b style="color: #a020f0">CineHub</b> 🎥<br />
+          Chúc bạn có một buổi xem phim thật vui vẻ!
+        </p>
+        <small style="color: #999"
+          >Đây là email tự động. Vui lòng không trả lời email này.</small
+        >
       </div>
     </div>
-
-    <!-- Footer -->
-    <div style="background:#f6f2ff; border-top:2px solid #a020f0; text-align:center; padding:16px;">
-      <p style="font-size:13px; color:#555;">
-        Cảm ơn bạn đã xem phim tại <b style="color:#a020f0;">CineHub</b> 🎥<br/>
-        Chúc bạn có một buổi xem phim thật vui vẻ!
-      </p>
-      <small style="color:#999;">Đây là email tự động. Vui lòng không trả lời email này.</small>
-    </div>
-
-  </div>
-</body>
+  </body>
 </html>

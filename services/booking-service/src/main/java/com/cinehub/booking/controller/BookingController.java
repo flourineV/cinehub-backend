@@ -1,9 +1,12 @@
 package com.cinehub.booking.controller;
 
 import com.cinehub.booking.dto.request.FinalizeBookingRequest;
-import com.cinehub.booking.dto.response.*;
+import com.cinehub.booking.dto.response.BookingResponse;
 import com.cinehub.booking.service.BookingService;
+
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,30 +19,30 @@ public class BookingController {
 
     private final BookingService bookingService;
 
-    // 1. Lấy Booking theo ID
     @GetMapping("/{id}")
-    public BookingResponse getBookingById(@PathVariable UUID id) {
-        return bookingService.getBookingById(id);
+    public ResponseEntity<BookingResponse> getBookingById(@PathVariable UUID id) {
+        BookingResponse booking = bookingService.getBookingById(id);
+        return ResponseEntity.ok(booking);
     }
-
-    // 2. Lấy danh sách Booking của người dùng
+    
     @GetMapping("/user/{userId}")
-    public List<BookingResponse> getBookingsByUser(@PathVariable UUID userId) {
-        return bookingService.getBookingsByUser(userId);
+    public ResponseEntity<List<BookingResponse>> getBookingsByUser(@PathVariable UUID userId) {
+        List<BookingResponse> bookings = bookingService.getBookingsByUser(userId);
+        return ResponseEntity.ok(bookings);
     }
 
     @PatchMapping("/{id}/finalize")
-    public BookingResponse finalizeBooking(
-            @PathVariable("id") UUID bookingId, // Lấy bookingId từ URL
-            @RequestBody FinalizeBookingRequest request) {
+    public ResponseEntity<BookingResponse> finalizeBooking(
+            @PathVariable("id") UUID bookingId,
+            @Valid @RequestBody FinalizeBookingRequest request) {
 
-        // Gọi hàm service với bookingId và request
-        return bookingService.finalizeBooking(bookingId, request);
+        BookingResponse response = bookingService.finalizeBooking(bookingId, request);
+        return ResponseEntity.ok(response);
     }
 
-    // 4. Xóa Booking (Chỉ nên dùng cho Testing/Admin)
     @DeleteMapping("/{id}")
-    public void deleteBooking(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteBooking(@PathVariable UUID id) {
         bookingService.deleteBooking(id);
+        return ResponseEntity.noContent().build(); 
     }
 }

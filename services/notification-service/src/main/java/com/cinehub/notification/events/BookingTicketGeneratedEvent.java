@@ -1,6 +1,6 @@
 package com.cinehub.notification.events;
 
-import com.cinehub.notification.dto.external.*;
+import com.cinehub.notification.events.dto.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -18,6 +18,8 @@ public record BookingTicketGeneratedEvent(
         List<FnbDetail> fnbs,
         PromotionDetail promotion,
         BigDecimal totalPrice,
+        String rankName,
+        BigDecimal rankDiscountAmount,  
         BigDecimal finalPrice,
         String paymentMethod,
         LocalDateTime createdAt) {

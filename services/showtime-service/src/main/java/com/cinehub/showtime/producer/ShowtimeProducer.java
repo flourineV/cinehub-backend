@@ -21,7 +21,6 @@ public class ShowtimeProducer {
                                 Instant.now(),
                                 data);
 
-                // Gửi SeatLockedEvent
                 rabbitTemplate.convertAndSend(
                                 RabbitConfig.SHOWTIME_EXCHANGE,
                                 RabbitConfig.SEAT_LOCK_ROUTING_KEY,
@@ -29,7 +28,6 @@ public class ShowtimeProducer {
         }
 
         public <T> void sendSeatUnlockedEvent(T data) {
-                // Event này được gửi khi Showtime tự động mở khóa (ví dụ: timeout)
                 var msg = new EventMessage<>(
                                 UUID.randomUUID().toString(),
                                 "SeatUnlocked",

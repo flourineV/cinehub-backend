@@ -1,23 +1,20 @@
 package com.cinehub.booking.consumer;
 
 import com.cinehub.booking.config.RabbitConfig;
-import com.cinehub.booking.entity.BookingStatus;
 import com.cinehub.booking.events.payment.PaymentSuccessEvent;
 import com.cinehub.booking.events.payment.PaymentFailedEvent;
 import com.cinehub.booking.events.showtime.SeatLockedEvent;
 import com.cinehub.booking.events.showtime.SeatUnlockedEvent;
-import com.cinehub.booking.service.BookingService;
+import com.cinehub.booking.service.impl.BookingServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.messaging.handler.annotation.Header; // ✅ Import Header
+import org.springframework.messaging.handler.annotation.Header; 
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
-
-// booking-service/consumer/UnifiedEventConsumer.java (Ví dụ)
 
 @Slf4j
 @Component
@@ -25,14 +22,14 @@ import java.util.Map;
 public class UnifiedEventConsumer {
 
     private final ObjectMapper objectMapper;
-    private final BookingService bookingService;
+    private final BookingServiceImpl bookingService;
 
     @RabbitListener(queues = RabbitConfig.BOOKING_QUEUE)
     public void consume(
             @Payload Map<String, Object> rawMessage,
             @Header("amqp_receivedRoutingKey") String routingKey) {
 
-        log.info("📥 Received unified event | RoutingKey: {}", routingKey);
+        log.info("Received unified event | RoutingKey: {}", routingKey);
         Object dataObj = rawMessage.get("data");
 
         if (dataObj == null) {
@@ -45,12 +42,12 @@ public class UnifiedEventConsumer {
                 // LOGIC SHOWTIME
                 case RabbitConfig.SEAT_LOCK_ROUTING_KEY -> {
                     SeatLockedEvent data = objectMapper.convertValue(dataObj, SeatLockedEvent.class);
-                    log.info("🔓 Seatlocked received: {}", data);
+                    log.info("Seatlocked received: {}", data);
                     bookingService.handleSeatLocked(data); // TẠO BOOKING PENDING
                 }
                 case RabbitConfig.SEAT_UNLOCK_ROUTING_KEY -> {
                     SeatUnlockedEvent data = objectMapper.convertValue(dataObj, SeatUnlockedEvent.class);
-                    log.info("🔓 SeatUnlocked received: {}", data);
+                    log.info("SeatUnlocked received: {}", data);
                     bookingService.handleSeatUnlocked(data);
                 }
 
@@ -67,11 +64,11 @@ public class UnifiedEventConsumer {
                     ;
                 }
                 default -> {
-                    log.warn("⚠️ Unknown routing key: {}", routingKey);
+                    log.warn("Unknown routing key: {}", routingKey);
                 }
             }
         } catch (Exception e) {
-            log.error("❌ Error processing event (RK: {}): {}", routingKey, e.getMessage(), e);
+            log.error("Error processing event (RK: {}): {}", routingKey, e.getMessage(), e);
             throw new RuntimeException("Error processing event.", e);
         }
     }

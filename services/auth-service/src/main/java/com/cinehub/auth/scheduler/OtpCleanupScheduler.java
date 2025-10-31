@@ -15,7 +15,7 @@ public class OtpCleanupScheduler {
 
     @Scheduled(cron = "0 0 3 * * *", zone = "Asia/Ho_Chi_Minh")
     public void cleanExpiredOtps() {
-        log.info("🧹 [Scheduler] Cleaning expired OTP tokens...");
+        log.info("[Scheduler] Cleaning expired OTP tokens...");
         passwordResetService.deleteExpiredOtps();
     }
 }

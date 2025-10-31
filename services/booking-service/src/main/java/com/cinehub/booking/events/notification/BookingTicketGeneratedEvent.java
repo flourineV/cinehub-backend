@@ -16,6 +16,8 @@ public record BookingTicketGeneratedEvent(
         List<FnbDetail> fnbs,
         PromotionDetail promotion,
         BigDecimal totalPrice,
+        String rankName,
+        BigDecimal rankDiscountAmount,  
         BigDecimal finalPrice,
         String paymentMethod,
         LocalDateTime createdAt) {
