@@ -1,5 +1,6 @@
 package com.cinehub.movie.dto;
 
+import com.cinehub.movie.entity.MovieStatus;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,18 +13,20 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 
 public class MovieDetailResponse {
+
     private UUID id;
     private Integer tmdbId;
     private String title;
     private String age;
+    private MovieStatus status;
     private String posterUrl;
     private List<String> genres;
-    private Integer time; // runtime (minutes)
+    private Integer time; 
     private String country;
     private List<String> spokenLanguages;
-    private List<String> crew; // [Director, Writer...]
-    private List<String> cast; // [Actor1, Actor2...]
-    private String releaseDate; // 2025-09-03
+    private List<String> crew;
+    private List<String> cast; 
+    private String releaseDate; 
     private String overview;
-    private String trailer; // YouTube URL
+    private String trailer; 
 }

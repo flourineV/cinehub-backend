@@ -15,6 +15,7 @@ import org.thymeleaf.context.Context;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +29,7 @@ public class EmailService {
     public void sendBookingTicketEmail(
             String to,
             String userName,
+            UUID bookingId,
             String movieTitle,
             String cinemaName,
             String roomName,

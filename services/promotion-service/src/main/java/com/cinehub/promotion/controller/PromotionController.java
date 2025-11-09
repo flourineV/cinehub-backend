@@ -20,14 +20,6 @@ public class PromotionController {
 
     private final PromotionService promotionService;
 
-    // ---------------------------------------------------------------------
-    // 1. API TRA CỨU (CHO BOOKING SERVICE)
-    // ---------------------------------------------------------------------
-
-    /**
-     * GET /api/promotions/validate?code={code}
-     * Endpoint được Booking Service gọi để kiểm tra và lấy chi tiết mã giảm giá.
-     */
     @GetMapping("/validate")
     public ResponseEntity<PromotionValidationResponse> validatePromotion(
             @RequestParam String code) {
@@ -40,21 +32,11 @@ public class PromotionController {
         }
     }
 
-    // ---------------------------------------------------------------------
-    // 2. API QUẢN LÝ (CHO STAFF/ADMIN CRUD)
-    // ---------------------------------------------------------------------
-
-    /**
-     * GET /api/promotions - Lấy tất cả các khuyến mãi
-     */
     @GetMapping
     public ResponseEntity<List<PromotionResponse>> getAllPromotions() {
         return ResponseEntity.ok(promotionService.getAllPromotions());
     }
 
-    /**
-     * POST /api/promotions - Tạo mới khuyến mãi
-     */
     @PostMapping
     public ResponseEntity<PromotionResponse> createPromotion(@Valid @RequestBody PromotionRequest request) {
         try {
@@ -66,9 +48,6 @@ public class PromotionController {
         }
     }
 
-    /**
-     * PUT /api/promotions/{id} - Cập nhật khuyến mãi
-     */
     @PutMapping("/{id}")
     public ResponseEntity<PromotionResponse> updatePromotion(
             @PathVariable UUID id,
@@ -81,9 +60,6 @@ public class PromotionController {
         }
     }
 
-    /**
-     * DELETE /api/promotions/{id} - Xóa khuyến mãi
-     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePromotion(@PathVariable UUID id) {
         try {

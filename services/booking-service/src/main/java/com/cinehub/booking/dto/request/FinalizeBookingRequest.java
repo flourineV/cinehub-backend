@@ -16,8 +16,6 @@ public class FinalizeBookingRequest {
 
         private boolean useLoyaltyDiscount;
 
-        private BigDecimal loyaltyDiscountValue;
-
         @Data
         public static class CalculatedFnbItemDto {
                 private UUID fnbItemId;

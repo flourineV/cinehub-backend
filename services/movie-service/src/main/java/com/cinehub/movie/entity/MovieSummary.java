@@ -21,7 +21,7 @@ public class MovieSummary {
     private String title;
     private String posterUrl;
     private String age;
-    private String status; // NOW_PLAYING, UPCOMING
+    private MovieStatus status;
     private List<String> spokenLanguages;
     private String country;
     private Integer time;

@@ -18,7 +18,7 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class BookingEventConsumer {
+public class ShowtimeConsumer {
 
     private final ObjectMapper objectMapper;
     private final SeatLockService seatLockService;
@@ -35,39 +35,28 @@ public class BookingEventConsumer {
                 case RabbitConfig.BOOKING_SEAT_MAPPED_KEY -> {
                     BookingSeatMappedEvent event = objectMapper.convertValue(dataObj,
                             BookingSeatMappedEvent.class);
-                    log.info("✨ Received mapped event. Saving bookingId {} to seat locks.", event.bookingId());
-                    // ✅ HÀM MỚI: Cập nhật giá trị lock key trong Redis để bao gồm bookingId
+                    log.info("Received mapped event. Saving bookingId {} to seat locks.", event.bookingId());
                     seatLockService.mapBookingIdToSeatLocks(event);
                 }
 
                 case RabbitConfig.BOOKING_CONFIRMED_KEY -> {
                     BookingStatusUpdatedEvent event = objectMapper.convertValue(dataObj,
                             BookingStatusUpdatedEvent.class);
-                    // Ghế đã được thanh toán, chuyển sang trạng thái BOOKED
-                    seatLockService.confirmBookingSeats(event);
+                    seatLockService.confirmBookingSeats(event); // nhận event -> xử lý thành Booked
                 }
 
-                // 2. CANCELLED, 3. EXPIRED, 4. RELEASE REQUEST (Tất cả đều giải phóng ghế)
                 case RabbitConfig.BOOKING_CANCELLED_KEY,
-                        RabbitConfig.BOOKING_EXPIRED_KEY -> {
+                        RabbitConfig.BOOKING_EXPIRED_KEY,
+                        RabbitConfig.BOOKING_REFUNDED_KEY -> {
                     BookingStatusUpdatedEvent event = objectMapper.convertValue(dataObj,
                             BookingStatusUpdatedEvent.class);
-                    // Booking hủy/hết hạn, chuyển ghế từ LOCKED -> AVAILABLE
-                    seatLockService.releaseSeatsByBookingStatus(event);
+                    seatLockService.releaseSeatsByBookingStatus(event); // 3 case này mở ghế từ booking status
                 }
 
-                // Lệnh mở khóa khẩn cấp từ Booking (Thường là Payment Failed)
-                case RabbitConfig.SEAT_RELEASE_REQUEST_KEY -> {
-                    SeatUnlockedEvent event = objectMapper.convertValue(dataObj,
-                            SeatUnlockedEvent.class);
-                    // Thực hiện lệnh mở khóa ngay lập tức
-                    seatLockService.releaseSeatsByCommand(event);
-                }
-
-                default -> log.warn("⚠️ Received event with unknown Routing Key: {}", routingKey);
+                default -> log.warn("Received event with unknown Routing Key: {}", routingKey);
             }
         } catch (Exception e) {
-            log.error("❌ Failed to process event with RK {}: {}", routingKey, e.getMessage(), e);
+            log.error("Failed to process event with RK {}: {}", routingKey, e.getMessage(), e);
         }
     }
 }

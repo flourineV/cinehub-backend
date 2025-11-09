@@ -4,8 +4,10 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 public record BookingFinalizedEvent(
-                UUID bookingId,
-                UUID userId,
-                UUID showtimeId,
-                BigDecimal finalPrice) {
+        UUID bookingId,
+        UUID userId,
+        String guestName,
+        String guestEmail,
+        UUID showtimeId,
+        BigDecimal finalPrice) {
 }

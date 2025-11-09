@@ -3,8 +3,9 @@ package com.cinehub.payment.consumer;
 import com.cinehub.payment.config.RabbitConfig;
 import com.cinehub.payment.events.BookingCreatedEvent;
 import com.cinehub.payment.events.BookingFinalizedEvent;
+import com.cinehub.payment.events.BookingRefundedEvent;
 import com.cinehub.payment.events.SeatUnlockedEvent;
-import com.cinehub.payment.service.PaymentService; // Inject Service thay vì Producer
+import com.cinehub.payment.service.PaymentService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +54,12 @@ public class PaymentConsumer {
                             "[PaymentConsumer] Processing SeatUnlockedEvent | bookingId={} | showtimeId={} | seatIds={}",
                             event.bookingId(), event.showtimeId(), event.seatIds());
                     paymentService.updateStatus(event);
+                }
+
+                case RabbitConfig.BOOKING_REFUNDED_KEY -> {
+                    BookingRefundedEvent event = objectMapper.convertValue(dataObj, BookingRefundedEvent.class);
+                    log.info("[PaymentConsumer] Processing BookingRefundedEvent | bookingId={}", event.bookingId());
+                    paymentService.processRefund(event);
                 }
 
                 default -> log.warn("Received event with unknown Routing Key: {}", routingKey);

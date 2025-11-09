@@ -27,7 +27,7 @@ public class MovieMapper {
                 entity.getAge(),
                 entity.getStatus(),
                 entity.getTime(),
-                entity.getSpokenLanguages(), // Trả về full list
+                entity.getSpokenLanguages(), 
                 entity.getGenres(),
                 entity.getTrailer());
     }
@@ -50,11 +50,12 @@ public class MovieMapper {
                 entity.getTmdbId(),
                 entity.getTitle(),
                 entity.getAge(),
+                entity.getStatus(),
                 entity.getPosterUrl(),
                 entity.getGenres(),
                 entity.getTime(),
                 entity.getCountry(),
-                entity.getSpokenLanguages(), // Trả về full list
+                entity.getSpokenLanguages(), 
                 entity.getCrew(),
                 entity.getCast(),
                 entity.getReleaseDate(),

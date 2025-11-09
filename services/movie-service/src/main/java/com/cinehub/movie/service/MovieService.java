@@ -6,6 +6,7 @@ import com.cinehub.movie.dto.TMDb.TMDbCreditsResponse;
 import com.cinehub.movie.dto.TMDb.TMDbMovieResponse;
 import com.cinehub.movie.dto.TMDb.TMDbReleaseDatesResponse;
 import com.cinehub.movie.entity.MovieDetail;
+import com.cinehub.movie.entity.MovieStatus;
 import com.cinehub.movie.entity.MovieSummary;
 import com.cinehub.movie.mapper.MovieMapper;
 import com.cinehub.movie.repository.MovieDetailRepository;
@@ -35,7 +36,7 @@ public class MovieService {
 
     private final MovieSummaryRepository movieSummaryRepository;
     private final MovieDetailRepository movieDetailRepository;
-    private final TMDbClient tmdbClient; // client gọi TMDb API
+    private final TMDbClient tmdbClient; 
     private final MovieMapper movieMapper;
 
     public MovieDetailResponse getMovieByUuid(UUID id) {
@@ -54,7 +55,6 @@ public class MovieService {
         List<TMDbMovieResponse> nowPlaying = tmdbClient.fetchNowPlaying();
         List<TMDbMovieResponse> upcoming = tmdbClient.fetchUpcoming();
 
-        // Merge lại 2 list
         List<TMDbMovieResponse> allMovies = new ArrayList<>();
         allMovies.addAll(nowPlaying);
         allMovies.addAll(upcoming);
@@ -63,37 +63,36 @@ public class MovieService {
 
         for (TMDbMovieResponse movie : nowPlaying) {
             TMDbMovieResponse fullMovie = tmdbClient.fetchMovieDetail(movie.getId());
-            syncMovie(fullMovie, "NOW_PLAYING");
+            syncMovie(fullMovie, MovieStatus.NOW_PLAYING);
         }
         for (TMDbMovieResponse movie : upcoming) {
             TMDbMovieResponse fullMovie = tmdbClient.fetchMovieDetail(movie.getId());
-            syncMovie(fullMovie, "UPCOMING");
+            syncMovie(fullMovie, MovieStatus.UPCOMING);
         }
 
-        // Xóa phim k còn active
         List<MovieSummary> dbMovies = movieSummaryRepository.findAll();
         for (MovieSummary summary : dbMovies) {
             if (!activeTmdbIds.contains(summary.getTmdbId())) {
-                movieSummaryRepository.deleteByTmdbId(summary.getTmdbId());
-                movieDetailRepository.deleteByTmdbId(summary.getTmdbId());
-                log.info("Deleted movie with tmdb={}", summary.getTmdbId());
+                if (summary.getStatus() != MovieStatus.ARCHIVED) {
+                    summary.setStatus(MovieStatus.ARCHIVED);
+                    movieSummaryRepository.save(summary);
+                    log.info("Archived movie with tmdb={}", summary.getTmdbId());
+                }
             }
         }
+
         log.info("[{}] Movie sync completed. {} movies active.",
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
                 activeTmdbIds.size());
     }
 
-    private void syncMovie(TMDbMovieResponse movie, String status) {
-        // Gọi thêm API phụ
+    private void syncMovie(TMDbMovieResponse movie, MovieStatus status) {
+
         TMDbCreditsResponse credits = tmdbClient.fetchCredits(movie.getId());
         TMDbReleaseDatesResponse releaseDates = tmdbClient.fetchReleaseDates(movie.getId());
         String trailer = tmdbClient.fetchTrailerKey(movie.getId());
-
-        // Lấy age rating từ release_dates
         String age = AgeRatingNormalizer.normalize(extractAgeRating(releaseDates));
 
-        // --- Summary ---
         MovieSummary summary = movieSummaryRepository.findByTmdbId(movie.getId())
                 .orElse(new MovieSummary());
 
@@ -150,7 +149,6 @@ public class MovieService {
         log.info("Synced movie: {} ({})", movie.getTitle(), movie.getId());
     }
 
-    // HelperL extract age
     private String extractAgeRating(TMDbReleaseDatesResponse releaseDates) {
         return releaseDates.getResults().stream()
                 .filter(r -> "US".equals(r.getIso31661())) // ưu tiên US
@@ -161,15 +159,18 @@ public class MovieService {
                 .orElse(null);
     }
 
-    // ================== PUBLIC API METHODS ==================
-
     public Page<MovieSummaryResponse> getNowPlayingMovies(Pageable pageable) {
-        Page<MovieSummary> entities = movieSummaryRepository.findByStatus("NOW_PLAYING", pageable);
+        Page<MovieSummary> entities = movieSummaryRepository.findByStatus(MovieStatus.NOW_PLAYING, pageable);
         return movieMapper.toSummaryResponsePage(entities);
     }
 
     public Page<MovieSummaryResponse> getUpcomingMovies(Pageable pageable) {
-        Page<MovieSummary> entities = movieSummaryRepository.findByStatus("UPCOMING", pageable);
+        Page<MovieSummary> entities = movieSummaryRepository.findByStatus(MovieStatus.UPCOMING, pageable);
+        return movieMapper.toSummaryResponsePage(entities);
+    }
+
+    public Page<MovieSummaryResponse> getArchivedMovies(Pageable pageable) {
+        Page<MovieSummary> entities = movieSummaryRepository.findByStatus(MovieStatus.ARCHIVED, pageable);
         return movieMapper.toSummaryResponsePage(entities);
     }
 
@@ -177,7 +178,9 @@ public class MovieService {
         if (title == null || title.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Title parameter is required");
         }
-        Page<MovieSummary> entities = movieSummaryRepository.findByTitleContainingIgnoreCase(title.trim(), pageable);
+        Page<MovieSummary> entities =
+        movieSummaryRepository.findByStatusNotAndTitleContainingIgnoreCase(MovieStatus.ARCHIVED, title, pageable);
+
         return movieMapper.toSummaryResponsePage(entities);
     }
 
@@ -186,13 +189,12 @@ public class MovieService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "TMDb ID is required");
         }
 
-        // Tìm trong database trước
         Optional<MovieDetail> movieDetail = movieDetailRepository.findByTmdbId(tmdbId);
         if (movieDetail.isPresent()) {
             return movieMapper.toDetailResponse(movieDetail.get());
         }
 
-        // Nếu không tìm thấy trong DB, gọi TMDb API
+        // Không tìm thấy trong DB, gọi TMDb API
         try {
             log.info("Movie detail not found in DB for tmdbId={}. Fetching from TMDb API...", tmdbId);
 
@@ -203,17 +205,14 @@ public class MovieService {
                         "Movie not found with TMDb ID: " + tmdbId);
             }
 
-            // Fetch additional data for complete movie detail
             TMDbCreditsResponse credits = tmdbClient.fetchCredits(tmdbId);
             TMDbReleaseDatesResponse releaseDates = tmdbClient.fetchReleaseDates(tmdbId);
             String trailer = tmdbClient.fetchTrailerKey(tmdbId);
             String age = AgeRatingNormalizer.normalize(extractAgeRating(releaseDates));
 
-            // Tạo MovieDetail từ TMDb data
             MovieDetail detail = new MovieDetail();
 
-            detail.setId(UUID.randomUUID()); // <--- Thêm đoạn này
-
+            detail.setId(UUID.randomUUID()); 
             detail.setTmdbId(movieResponse.getId());
             detail.setTitle(movieResponse.getTitle());
             detail.setOverview(movieResponse.getOverview());
@@ -237,7 +236,8 @@ public class MovieService {
             detail.setAge(age);
             detail.setTrailer(trailer);
 
-            // Lưu vào database để lần sau không phải gọi API
+            // Lưu vào database
+
             movieDetailRepository.save(detail);
             log.info("Saved movie detail from TMDb API: {} ({})", movieResponse.getTitle(), tmdbId);
 
@@ -259,7 +259,6 @@ public class MovieService {
         MovieSummary existingSummary = movieSummaryRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Movie summary not found"));
 
-        // --- Update các trường cho phép chỉnh ---
         if (request.getTitle() != null) {
             existingDetail.setTitle(request.getTitle());
             existingSummary.setTitle(request.getTitle());
@@ -306,5 +305,4 @@ public class MovieService {
 
         log.info("Deleted movie manually: {}", existingDetail.getTitle());
     }
-
 }

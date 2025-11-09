@@ -4,19 +4,20 @@ import com.cinehub.payment.entity.PaymentTransaction;
 import com.cinehub.payment.entity.PaymentStatus;
 import com.cinehub.payment.events.BookingCreatedEvent;
 import com.cinehub.payment.events.BookingFinalizedEvent;
+import com.cinehub.payment.events.BookingRefundedEvent;
 import com.cinehub.payment.events.PaymentSuccessEvent;
 import com.cinehub.payment.events.SeatUnlockedEvent;
 import com.cinehub.payment.events.PaymentFailedEvent;
 import com.cinehub.payment.producer.PaymentProducer;
 import com.cinehub.payment.repository.PaymentRepository;
-import com.cinehub.payment.exception.PaymentProcessingException; 
+import com.cinehub.payment.exception.PaymentProcessingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
-import java.util.Optional; 
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -117,6 +118,46 @@ public class PaymentService {
                                 reason);
 
                 paymentProducer.sendPaymentFailedEvent(failedEvent);
+        }
+
+        @Transactional
+        public void processRefund(BookingRefundedEvent event) {
+                log.info("Processing refund for bookingId={} | refundedValue={}",
+                                event.bookingId(), event.refundedValue());
+
+                Optional<PaymentTransaction> optionalTxn = paymentRepository.findByBookingId(event.bookingId())
+                                .stream()
+                                .filter(t -> t.getStatus() == PaymentStatus.SUCCESS)
+                                .findFirst();
+
+                if (optionalTxn.isEmpty()) {
+                        log.error("No SUCCESS transaction found for bookingId {}. Cannot process refund.",
+                                        event.bookingId());
+                        throw new PaymentProcessingException(
+                                        "No SUCCESS transaction found for bookingId: " + event.bookingId());
+                }
+
+                PaymentTransaction txn = optionalTxn.get();
+
+                txn.setStatus(PaymentStatus.REFUNDED);
+                txn.setTransactionRef("TXN_REFUND_" + UUID.randomUUID());
+                txn.setAmount(event.refundedValue());
+                paymentRepository.save(txn);
+
+                log.info("REFUNDED: Transaction updated for bookingId {} | amount={}",
+                                event.bookingId(), event.refundedValue());
+
+                PaymentSuccessEvent refundEvent = new PaymentSuccessEvent(
+                                txn.getId(),
+                                txn.getBookingId(),
+                                txn.getShowtimeId(),
+                                txn.getUserId(),
+                                txn.getAmount(),
+                                txn.getMethod(),
+                                txn.getSeatIds(),
+                                "PAYMENT_REFUNDED");
+
+                paymentProducer.sendPaymentSuccessEvent(refundEvent);
         }
 
         @Transactional

@@ -19,6 +19,7 @@ public class MovieDetail {
     private Integer tmdbId;
     private String title;
     private String age;
+    private MovieStatus status;
     private String posterUrl;
     private List<String> genres;
     private Integer time;

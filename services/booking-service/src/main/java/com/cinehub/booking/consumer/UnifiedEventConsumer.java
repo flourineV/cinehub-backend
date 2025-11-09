@@ -10,7 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.messaging.handler.annotation.Header; 
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
@@ -39,7 +39,6 @@ public class UnifiedEventConsumer {
 
         try {
             switch (routingKey) {
-                // LOGIC SHOWTIME
                 case RabbitConfig.SEAT_LOCK_ROUTING_KEY -> {
                     SeatLockedEvent data = objectMapper.convertValue(dataObj, SeatLockedEvent.class);
                     log.info("Seatlocked received: {}", data);
@@ -51,7 +50,6 @@ public class UnifiedEventConsumer {
                     bookingService.handleSeatUnlocked(data);
                 }
 
-                // LOGIC PAYMENT
                 case RabbitConfig.PAYMENT_SUCCESS_KEY -> {
                     PaymentSuccessEvent data = objectMapper.convertValue(dataObj, PaymentSuccessEvent.class);
                     log.info("Processing PaymentSuccess for booking {}", data.bookingId());
@@ -61,7 +59,6 @@ public class UnifiedEventConsumer {
                     PaymentFailedEvent data = objectMapper.convertValue(dataObj, PaymentFailedEvent.class);
                     log.info("Processing PaymentFailed for booking {}", data.bookingId());
                     bookingService.handlePaymentFailed(data);
-                    ;
                 }
                 default -> {
                     log.warn("Unknown routing key: {}", routingKey);

@@ -1,5 +1,6 @@
 package com.cinehub.movie.dto;
 
+import com.cinehub.movie.entity.MovieStatus;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,12 +13,13 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 
 public class MovieSummaryResponse {
+    
     private UUID id;
     private Integer tmdbId;
     private String title;
     private String posterUrl;
     private String age;
-    private String status;
+    private MovieStatus status;
     private Integer time;
     private List<String> spokenLanguages;
     private List<String> genres;

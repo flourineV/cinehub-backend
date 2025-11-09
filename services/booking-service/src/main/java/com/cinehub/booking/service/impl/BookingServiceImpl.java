@@ -24,6 +24,7 @@ import com.cinehub.booking.producer.BookingProducer;
 import com.cinehub.booking.repository.*;
 import com.cinehub.booking.adapter.client.*;
 import com.cinehub.booking.service.BookingService;
+import com.cinehub.booking.mapper.BookingMapper;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,29 +54,37 @@ public class BookingServiceImpl implements BookingService {
         private final ShowtimeClient showtimeClient;
         private final MovieClient movieClient;
         private final UserProfileClient userProfileClient;
-
+        private final BookingMapper bookingMapper;
         private final BookingProducer bookingProducer;
 
         @Transactional
         public void handleSeatLocked(SeatLockedEvent data) {
 
-                log.info("Received SeatLocked event: showtime={}, seats={}, user={}",
-                        data.showtimeId(), data.selectedSeats().size(), data.userId());
+                if (data.userId() != null) {
+                        log.info("Received SeatLocked event: showtime={}, seats={}, user={}",
+                                        data.showtimeId(), data.selectedSeats().size(), data.userId());
+                } else {
+                        log.info("Received SeatLocked event: showtime={}, seats={}, guestName={}, guestEmail={}",
+                                        data.showtimeId(), data.selectedSeats().size(), data.guestName(),
+                                        data.guestEmail());
+                }
 
                 Booking booking = Booking.builder()
-                        .userId(data.userId())
-                        .showtimeId(data.showtimeId())
-                        .status(BookingStatus.PENDING)
-                        .totalPrice(BigDecimal.ZERO)
-                        .discountAmount(BigDecimal.ZERO)
-                        .finalPrice(BigDecimal.ZERO)
-                        .build();
+                                .userId(data.userId())
+                                .showtimeId(data.showtimeId())
+                                .status(BookingStatus.PENDING)
+                                .totalPrice(BigDecimal.ZERO)
+                                .discountAmount(BigDecimal.ZERO)
+                                .finalPrice(BigDecimal.ZERO)
+                                .guestName(data.guestName())
+                                .guestEmail(data.guestEmail())
+                                .build();
 
                 List<SeatPriceResponse> seatPrices = data.selectedSeats().stream()
-                        .map(seatDetail -> pricingClient.getSeatPrice(
-                                seatDetail.getSeatType(), 
-                                seatDetail.getTicketType())) 
-                        .toList();
+                                .map(seatDetail -> pricingClient.getSeatPrice(
+                                                seatDetail.getSeatType(),
+                                                seatDetail.getTicketType()))
+                                .toList();
 
                 if (seatPrices == null || seatPrices.size() != data.selectedSeats().size()) {
                         throw new BookingException("Lỗi trong quá trình lấy giá ghế. Không đủ dữ liệu.");
@@ -89,44 +98,48 @@ public class BookingServiceImpl implements BookingService {
                         SeatPriceResponse seatPrice = seatPrices.get(i);
 
                         if (seatPrice == null || seatPrice.getBasePrice() == null) {
-                        throw new BookingException("Không tìm thấy mức giá cho loại ghế/vé này.");
+                                throw new BookingException("Không tìm thấy mức giá cho loại ghế/vé này.");
                         }
 
                         BigDecimal price = seatPrice.getBasePrice();
                         totalSeatPrice = totalSeatPrice.add(price);
 
                         seats.add(BookingSeat.builder()
-                                .seatId(seatDetail.getSeatId())
-                                .seatType(seatDetail.getSeatType())
-                                .ticketType(seatDetail.getTicketType())
-                                .price(price)
-                                .createdAt(LocalDateTime.now())
-                                .booking(booking)
-                                .build());
+                                        .seatId(seatDetail.getSeatId())
+                                        .seatType(seatDetail.getSeatType())
+                                        .ticketType(seatDetail.getTicketType())
+                                        .price(price)
+                                        .createdAt(LocalDateTime.now())
+                                        .booking(booking)
+                                        .build());
                 }
 
                 booking.setSeats(seats);
                 booking.setTotalPrice(totalSeatPrice);
-                booking.setFinalPrice(totalSeatPrice); 
+                booking.setFinalPrice(totalSeatPrice);
                 bookingRepository.save(booking);
 
                 log.info("Booking created: {} | total={} | seats={}",
-                        booking.getId(), totalSeatPrice, seats.size());
+                                booking.getId(), totalSeatPrice, seats.size());
 
                 bookingProducer.sendBookingCreatedEvent(
-                        new BookingCreatedEvent(
-                                booking.getId(),
-                                booking.getUserId(),
-                                booking.getShowtimeId(),
-                                booking.getSeats().stream().map(BookingSeat::getSeatId).toList(),
-                                booking.getTotalPrice()));
+                                new BookingCreatedEvent(
+                                                booking.getId(),
+                                                booking.getUserId(),
+                                                booking.getGuestName(),
+                                                booking.getGuestEmail(),
+                                                booking.getShowtimeId(),
+                                                booking.getSeats().stream().map(BookingSeat::getSeatId).toList(),
+                                                booking.getTotalPrice()));
 
                 bookingProducer.sendBookingSeatMappedEvent(
-                        new BookingSeatMappedEvent(
-                                booking.getId(),
-                                booking.getShowtimeId(),
-                                booking.getSeats().stream().map(BookingSeat::getSeatId).toList(),
-                                booking.getUserId()));
+                                new BookingSeatMappedEvent(
+                                                booking.getId(),
+                                                booking.getShowtimeId(),
+                                                booking.getSeats().stream().map(BookingSeat::getSeatId).toList(),
+                                                booking.getUserId(),
+                                                booking.getGuestName(),
+                                                booking.getGuestEmail()));
         }
 
         @Transactional
@@ -198,10 +211,6 @@ public class BookingServiceImpl implements BookingService {
         @Transactional
         public BookingResponse finalizeBooking(UUID bookingId, FinalizeBookingRequest request) {
 
-                UUID userId = bookingRepository.findById(bookingId).orElseThrow().getUserId();
-                RankAndDiscountResponse rankAndDiscountResponse = userProfileClient.getUserRankAndDiscount(userId);
-
-
                 Booking booking = bookingRepository.findById(bookingId)
                                 .orElseThrow(() -> new BookingNotFoundException(bookingId.toString()));
 
@@ -209,46 +218,106 @@ public class BookingServiceImpl implements BookingService {
                         throw new BookingException("Booking đã được thanh toán hoặc hết hạn.");
                 }
 
+                // ======== Tính tổng ban đầu ========
                 BigDecimal fnbPrice = BigDecimal.ZERO;
 
-                // Xử lý F&B
                 if (request.getFnbItems() != null && !request.getFnbItems().isEmpty()) {
                         bookingFnbRepository.deleteByBooking_Id(bookingId);
                         fnbPrice = processFnbItems(booking, request.getFnbItems());
                 }
 
-                // Cập nhật Total Price (Giá ghế + Giá F&B)
                 BigDecimal seatPrice = booking.getSeats().stream()
                                 .map(BookingSeat::getPrice)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                BigDecimal newTotalPrice = seatPrice.add(fnbPrice);
+                BigDecimal totalPrice = seatPrice.add(fnbPrice);
+                booking.setTotalPrice(totalPrice);
 
-                booking.setTotalPrice(newTotalPrice);
-                booking.setFinalPrice(newTotalPrice);
-                booking.setDiscountAmount(BigDecimal.ZERO);
+                BigDecimal discountAmount = BigDecimal.ZERO;
+                BigDecimal finalPrice = totalPrice;
 
-                // Xử lý Khuyến mãi
+                // ======== Áp dụng giảm giá (mutually exclusive) ========
+
+                // Ưu tiên: Promotion code
                 if (request.getPromotionCode() != null && !request.getPromotionCode().isBlank()) {
+
                         bookingPromotionRepository.deleteByBooking_Id(bookingId);
                         processPromotion(booking, request.getPromotionCode());
+
+                        // processPromotion() đã tự set discountAmount + finalPrice
+                        log.info("Applied promotion code: {}", request.getPromotionCode());
+
+                }
+                // Nếu không có promotion → dùng refund voucher
+                else if (request.getRefundVoucherCode() != null && !request.getRefundVoucherCode().isBlank()) {
+
+                        var voucher = promotionClient.markRefundVoucherAsUsed(request.getRefundVoucherCode());
+
+                        if (voucher == null) {
+                                throw new BookingException("Không thể sử dụng voucher hoàn tiền.");
+                        }
+
+                        if (voucher.getUserId() != null && !voucher.getUserId().equals(booking.getUserId())) {
+                                throw new BookingException("Voucher không thuộc về người dùng.");
+                        }
+                        if (Boolean.TRUE.equals(voucher.getIsUsed())) {
+                                throw new BookingException("Voucher đã được sử dụng.");
+                        }
+                        if (voucher.getExpiredAt() != null && voucher.getExpiredAt().isBefore(LocalDateTime.now())) {
+                                throw new BookingException("Voucher đã hết hạn.");
+                        }
+
+                        BigDecimal voucherValue = voucher.getValue() != null ? voucher.getValue() : BigDecimal.ZERO;
+                        finalPrice = totalPrice.subtract(voucherValue).max(BigDecimal.ZERO);
+                        discountAmount = voucherValue;
+
+                        booking.setDiscountAmount(discountAmount);
+                        booking.setFinalPrice(finalPrice.setScale(0, RoundingMode.HALF_UP));
+
+                        log.info("Applied refund voucher: {} | value={}", voucher.getCode(), voucherValue);
+                }
+                // Nếu không có promotion hoặc voucher → áp dụng rank discount
+                else {
+                        RankAndDiscountResponse rankInfo = userProfileClient
+                                        .getUserRankAndDiscount(booking.getUserId());
+
+                        if (rankInfo != null && rankInfo.getDiscountRate() != null
+                                        && rankInfo.getDiscountRate().compareTo(BigDecimal.ZERO) > 0) {
+
+                                discountAmount = totalPrice.multiply(rankInfo.getDiscountRate()).setScale(0,
+                                                RoundingMode.HALF_UP);
+                                finalPrice = totalPrice.subtract(discountAmount).max(BigDecimal.ZERO);
+
+                                booking.setDiscountAmount(discountAmount);
+                                booking.setFinalPrice(finalPrice);
+
+                                log.info("Applied rank discount: {} ({})", rankInfo.getRankName(),
+                                                rankInfo.getDiscountRate());
+                        } else {
+                                booking.setDiscountAmount(BigDecimal.ZERO);
+                                booking.setFinalPrice(totalPrice);
+                        }
                 }
 
-                BookingStatus oldStatus = booking.getStatus();
-                booking.setStatus(BookingStatus.AWAITING_PAYMENT); 
+                // ======== Lưu & gửi event ========
+                booking.setStatus(BookingStatus.AWAITING_PAYMENT);
                 booking.setUpdatedAt(LocalDateTime.now());
                 bookingRepository.save(booking);
 
-                log.info("Booking {} finalized: Total Price={}, Final Price={}",
-                                bookingId, booking.getTotalPrice(), booking.getFinalPrice());
                 bookingProducer.sendBookingFinalizedEvent(
                                 new BookingFinalizedEvent(
                                                 booking.getId(),
                                                 booking.getUserId(),
+                                                booking.getGuestName(),
+                                                booking.getGuestEmail(),
                                                 booking.getShowtimeId(),
                                                 booking.getFinalPrice()));
 
-                return mapToResponse(booking);
+                log.info("Booking {} finalized: Total={}, Final={}, Discount={}",
+                                bookingId, booking.getTotalPrice(), booking.getFinalPrice(),
+                                booking.getDiscountAmount());
+
+                return bookingMapper.toBookingResponse(booking);
         }
 
         private BigDecimal processFnbItems(Booking booking,
@@ -296,7 +365,8 @@ public class BookingServiceImpl implements BookingService {
                         throw new BookingException("Lỗi xử lý khuyến mãi: Thiếu thông tin loại hoặc giá trị giảm.");
                 }
 
-                if (isOneTimeUse && usedPromotionRepository.existsByUserIdAndPromotionCode(booking.getUserId(), promoCode)) {
+                if (isOneTimeUse && usedPromotionRepository.existsByUserIdAndPromotionCode(booking.getUserId(),
+                                promoCode)) {
                         throw new BookingException("Người dùng đã sử dụng mã khuyến mãi này rồi!");
                 }
 
@@ -368,8 +438,45 @@ public class BookingServiceImpl implements BookingService {
                 List<UUID> seatIds = booking.getSeats().stream()
                                 .map(BookingSeat::getSeatId)
                                 .toList();
-                if (newStatus == BookingStatus.CANCELLED || newStatus == BookingStatus.EXPIRED) {
 
+                // Cho phép hoàn tiền nếu có userId
+                if (newStatus == BookingStatus.CANCELLED && booking.getUserId() != null) {
+                        try {
+                                ShowtimeResponse showtime = showtimeClient.getShowtimeById(booking.getShowtimeId());
+                                if (showtime != null) {
+                                        LocalDateTime startTime = showtime.getStartTime();
+                                        LocalDateTime now = LocalDateTime.now();
+
+                                        // Hủy trước giờ chiếu ít nhất 60 phút → được hoàn
+                                        if (now.isBefore(startTime.minusMinutes(60))) {
+                                                BigDecimal refundValue = booking.getFinalPrice();
+
+                                                promotionClient.createRefundVoucher(
+                                                                booking.getUserId(),
+                                                                refundValue);
+
+                                                log.info("Refund voucher created for booking {} | user={} | value={}",
+                                                                booking.getId(), booking.getUserId(), refundValue);
+
+                                                bookingProducer.sendBookingRefundedEvent(
+                                                                new BookingRefundedEvent(
+                                                                                booking.getId(),
+                                                                                booking.getUserId(),
+                                                                                refundValue));
+
+                                                log.info("BookingRefundedEvent sent for booking {}", booking.getId());
+                                        } else {
+                                                log.info("Booking {} canceled too close to showtime (<60m), no refund voucher.",
+                                                                booking.getId());
+                                        }
+                                }
+                        } catch (Exception e) {
+                                log.error("Error creating refund voucher for booking {}: {}", booking.getId(),
+                                                e.getMessage());
+                        }
+                }
+
+                if (newStatus == BookingStatus.CANCELLED || newStatus == BookingStatus.EXPIRED) {
                         bookingProducer.sendSeatUnlockedEvent(
                                         new SeatUnlockedEvent(
                                                         booking.getShowtimeId(),
@@ -382,7 +489,6 @@ public class BookingServiceImpl implements BookingService {
                                 new BookingStatusUpdatedEvent(
                                                 booking.getId(),
                                                 booking.getShowtimeId(),
-                                                booking.getUserId(),
                                                 seatIds,
                                                 newStatus.toString(),
                                                 oldStatus.name()));
@@ -408,21 +514,22 @@ public class BookingServiceImpl implements BookingService {
                 }
 
                 String roomName = booking.getSeats().isEmpty() ? "Unknown Room"
-                        : showtimeClient.getSeatInfoById(booking.getSeats().get(0).getSeatId()).getRoomName();
+                                : showtimeClient.getSeatInfoById(booking.getSeats().get(0).getSeatId()).getRoomName();
 
                 List<SeatDetail> seatDetails = booking.getSeats().stream()
-                        .map(seat -> {
-                                SeatResponse seatInfo = showtimeClient.getSeatInfoById(seat.getSeatId());
-                                if (seatInfo == null)
-                                throw new BookingException("Không tìm thấy thông tin ghế " + seat.getSeatId());
-                                return new SeatDetail(
-                                        seatInfo.getSeatNumber(),
-                                        seat.getSeatType(),
-                                        seat.getTicketType(),
-                                        1,
-                                        seat.getPrice());
+                                .map(seat -> {
+                                        SeatResponse seatInfo = showtimeClient.getSeatInfoById(seat.getSeatId());
+                                        if (seatInfo == null)
+                                                throw new BookingException(
+                                                                "Không tìm thấy thông tin ghế " + seat.getSeatId());
+                                        return new SeatDetail(
+                                                        seatInfo.getSeatNumber(),
+                                                        seat.getSeatType(),
+                                                        seat.getTicketType(),
+                                                        1,
+                                                        seat.getPrice());
                                 })
-                                .toList();  
+                                .toList();
 
                 List<BookingFnb> bookingFnbs = bookingFnbRepository.findByBooking_Id(booking.getId());
                 List<FnbDetail> fnbDetails = bookingFnbs.stream()
@@ -450,9 +557,9 @@ public class BookingServiceImpl implements BookingService {
                 String rankName = "Bronze";
 
                 if (rank != null && rank.getDiscountRate() != null) {
-                        rankDiscountRate = rank.getDiscountRate(); 
+                        rankDiscountRate = rank.getDiscountRate();
                         rankDiscountAmount = booking.getTotalPrice().multiply(rankDiscountRate)
-                                .setScale(2, RoundingMode.HALF_UP);
+                                        .setScale(2, RoundingMode.HALF_UP);
                         rankName = rank.getRankName();
                 }
 
@@ -473,57 +580,23 @@ public class BookingServiceImpl implements BookingService {
                                 booking.getPaymentMethod(),
                                 booking.getCreatedAt());
 
-                
         }
-
 
         public BookingResponse getBookingById(UUID id) {
                 Booking booking = bookingRepository.findById(id)
                                 .orElseThrow(() -> new BookingException("Booking not found: " + id)); // Dùng
                                                                                                       // BookingException
-                return mapToResponse(booking);
+                return bookingMapper.toBookingResponse(booking);
         }
 
         public List<BookingResponse> getBookingsByUser(UUID userId) {
                 return bookingRepository.findByUserId(userId).stream()
-                                .map(this::mapToResponse)
+                                .map(r -> bookingMapper.toBookingResponse(r))
                                 .toList();
         }
 
         @Transactional
         public void deleteBooking(UUID id) {
                 bookingRepository.deleteById(id);
-        }
-
-        // Trong BookingService.java
-        private BookingSeatResponse mapToSeatResponse(BookingSeat seat) {
-                return BookingSeatResponse.builder()
-                                .seatId(seat.getSeatId())
-                                .seatType(seat.getSeatType())
-                                .ticketType(seat.getTicketType())
-                                .price(seat.getPrice())
-                                .build();
-        }
-
-        // Helper mapper (Giữ nguyên)
-        private BookingResponse mapToResponse(Booking booking) {
-
-                // Ánh xạ danh sách ghế
-                List<BookingSeatResponse> seatResponses = booking.getSeats().stream()
-                                .map(this::mapToSeatResponse)
-                                .toList();
-
-                return BookingResponse.builder()
-                                .bookingId(booking.getId())
-                                .userId(booking.getUserId())
-                                .showtimeId(booking.getShowtimeId())
-                                .status(booking.getStatus().name())
-                                .totalPrice(booking.getTotalPrice())
-                                .discountAmount(booking.getDiscountAmount())
-                                .finalPrice(booking.getFinalPrice())
-                                .createdAt(booking.getCreatedAt())
-                                .updatedAt(booking.getUpdatedAt())
-                                .seats(seatResponses) // ✅ THÊM DANH SÁCH GHẾ
-                                .build();
         }
 }

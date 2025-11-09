@@ -106,6 +106,7 @@ public class NotificationService {
                         emailService.sendBookingTicketEmail(
                                 userEmail,
                                 userName,
+                                event.bookingId(),
                                 event.movieTitle(),
                                 event.cinemaName(),
                                 event.roomName(),

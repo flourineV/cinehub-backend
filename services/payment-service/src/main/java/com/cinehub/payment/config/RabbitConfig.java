@@ -19,6 +19,7 @@ public class RabbitConfig {
     // routing key from payment queue to connect booking exchange
     public static final String BOOKING_CREATED_KEY = "booking.created";
     public static final String BOOKING_FINALIZED_KEY = "booking.finalized";
+    public static final String BOOKING_REFUNDED_KEY = "booking.refunded";
 
     // routing key from payment queue to connect showtime exchange
     public static final String SEAT_UNLOCK_ROUTING_KEY = "seat.unlocked";
@@ -76,6 +77,12 @@ public class RabbitConfig {
                 .with(SEAT_UNLOCK_ROUTING_KEY);
     }
 
+    @Bean
+    public Binding bookingRefundedBinding(Queue paymentQueue, DirectExchange bookingExchange) {
+        return BindingBuilder.bind(paymentQueue)
+                .to(bookingExchange)
+                .with(BOOKING_REFUNDED_KEY);
+    }
 
     @Bean
     public Jackson2JsonMessageConverter jsonMessageConverter() {

@@ -16,20 +16,17 @@ public class RabbitConfig {
     // showtime exchange
     public static final String SHOWTIME_EXCHANGE = "showtime.exchange";
 
-    // routing key from showtime exchange
     public static final String SEAT_LOCK_ROUTING_KEY = "seat.locked";
     public static final String SEAT_UNLOCK_ROUTING_KEY = "seat.unlocked";
 
-    // showtime queue
     public static final String SHOWTIME_QUEUE = "showtime.queue";
 
-    // booking exchange
     public static final String BOOKING_EXCHANGE = "booking.exchange";
 
-    // routing key from showtime queue connected to booking exchange
     public static final String BOOKING_CONFIRMED_KEY = "booking.confirmed";
     public static final String BOOKING_CANCELLED_KEY = "booking.cancelled";
     public static final String BOOKING_EXPIRED_KEY = "booking.expired";
+    public static final String BOOKING_REFUNDED_KEY = "booking.refunded";
     public static final String SEAT_RELEASE_REQUEST_KEY = "seat.release.request";
     public static final String BOOKING_SEAT_MAPPED_KEY = "booking.seat.mapped";
 
@@ -67,6 +64,13 @@ public class RabbitConfig {
         return BindingBuilder.bind(showtimeQueue)
                 .to(bookingExchange)
                 .with(BOOKING_EXPIRED_KEY);
+    }
+
+    @Bean
+    public Binding bookingRefundedBinding(Queue showtimeQueue, DirectExchange bookingExchange) {
+        return BindingBuilder.bind(showtimeQueue)
+                .to(bookingExchange)
+                .with(BOOKING_REFUNDED_KEY);
     }
 
     @Bean

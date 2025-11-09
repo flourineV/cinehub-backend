@@ -18,7 +18,9 @@ public class Booking {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @Column(nullable = false)
+    private String BookingCode;
+
+    @Column(nullable = true)
     private UUID userId;
 
     @Column(nullable = false)
@@ -42,6 +44,12 @@ public class Booking {
 
     @Column(name = "payment_method", length = 50)
     private String paymentMethod;
+
+    @Column(name = "guest_name", length = 100)
+    private String guestName;
+
+    @Column(name = "guest_email", length = 100)
+    private String guestEmail;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -74,6 +82,7 @@ public class Booking {
         this.updatedAt = LocalDateTime.now();
     }
 
-    @Version
-    private Long version;
+    public static String generateCode() {
+        return UUID.randomUUID().toString().substring(0, 10).toUpperCase();
+    }
 }

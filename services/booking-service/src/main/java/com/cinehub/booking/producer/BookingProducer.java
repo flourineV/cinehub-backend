@@ -6,6 +6,7 @@ import com.cinehub.booking.events.booking.BookingFinalizedEvent;
 import com.cinehub.booking.events.booking.BookingStatusUpdatedEvent;
 import com.cinehub.booking.events.booking.BookingSeatMappedEvent;
 import com.cinehub.booking.events.showtime.SeatUnlockedEvent;
+import com.cinehub.booking.events.booking.BookingRefundedEvent;
 import com.cinehub.booking.events.booking.EventMessage;
 import com.cinehub.booking.events.notification.BookingTicketGeneratedEvent;
 
@@ -35,7 +36,7 @@ public class BookingProducer {
                                 Instant.now(),
                                 data);
 
-                log.info("📤 Sending BookingCreatedEvent → PaymentService | exchange={}, routingKey={}, bookingId={}",
+                log.info("Sending BookingCreatedEvent → PaymentService | exchange={}, routingKey={}, bookingId={}",
                                 EXCHANGE, ROUTING_KEY, data.bookingId());
 
                 rabbitTemplate.convertAndSend(EXCHANGE, ROUTING_KEY, msg);
@@ -57,7 +58,7 @@ public class BookingProducer {
                                 data);
 
                 log.info(
-                                "📤 Sending BookingStatusUpdatedEvent → ShowtimeService | exchange={}, routingKey={}, bookingId={}, status={}",
+                                "Sending BookingStatusUpdatedEvent → ShowtimeService | exchange={}, routingKey={}, bookingId={}, status={}",
                                 EXCHANGE, ROUTING_KEY, data.bookingId(), data.newStatus());
 
                 rabbitTemplate.convertAndSend(EXCHANGE, ROUTING_KEY, msg);
@@ -74,7 +75,7 @@ public class BookingProducer {
                                 Instant.now(),
                                 data);
 
-                log.warn("📤 Sending BookingExpiredEvent → ShowtimeService | exchange={}, routingKey={}, bookingId={}",
+                log.warn("Sending BookingExpiredEvent → ShowtimeService | exchange={}, routingKey={}, bookingId={}",
                                 EXCHANGE, ROUTING_KEY, data.bookingId());
 
                 rabbitTemplate.convertAndSend(EXCHANGE, ROUTING_KEY, msg);
@@ -92,8 +93,26 @@ public class BookingProducer {
                                 data);
 
                 log.info(
-                                "📤 Sending BookingFinalizedEvent → PaymentService | exchange={}, routingKey={}, bookingId={}, finalPrice={}",
+                                "Sending BookingFinalizedEvent → PaymentService | exchange={}, routingKey={}, bookingId={}, finalPrice={}",
                                 EXCHANGE, ROUTING_KEY, data.bookingId(), data.finalPrice());
+
+                rabbitTemplate.convertAndSend(EXCHANGE, ROUTING_KEY, msg);
+        }
+
+        public void sendBookingRefundedEvent(BookingRefundedEvent data) {
+                final String EXCHANGE = RabbitConfig.BOOKING_EXCHANGE;
+                final String ROUTING_KEY = RabbitConfig.BOOKING_REFUNDED_KEY;
+
+                var msg = new EventMessage<>(
+                                UUID.randomUUID().toString(),
+                                "BookingRefunded",
+                                "v1",
+                                Instant.now(),
+                                data);
+
+                log.info(
+                                "Sending BookingRefundedEvent → ShowtimeService | exchange={}, routingKey={}, bookingId={}, refundedValue={}",
+                                EXCHANGE, ROUTING_KEY, data.bookingId(), data.refundedValue());
 
                 rabbitTemplate.convertAndSend(EXCHANGE, ROUTING_KEY, msg);
         }
@@ -135,14 +154,14 @@ public class BookingProducer {
 
         public void sendBookingTicketGeneratedEvent(BookingTicketGeneratedEvent data) {
                 final String EXCHANGE = RabbitConfig.BOOKING_EXCHANGE;
-                final String ROUTING_KEY = "booking.ticket.generated"; 
+                final String ROUTING_KEY = "booking.ticket.generated";
 
                 var msg = new EventMessage<>(
                                 UUID.randomUUID().toString(),
                                 "BookingTicketGenerated",
                                 "v1",
                                 Instant.now(),
-                                data); 
+                                data);
 
                 log.info("Sending BookingTicketGeneratedEvent → NotificationService | exchange={}, routingKey={}, bookingId={}",
                                 EXCHANGE, ROUTING_KEY, data.bookingId());

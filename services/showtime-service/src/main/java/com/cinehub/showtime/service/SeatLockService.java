@@ -4,6 +4,7 @@ import com.cinehub.showtime.entity.ShowtimeSeat;
 import com.cinehub.showtime.repository.ShowtimeSeatRepository;
 import com.cinehub.showtime.dto.request.SeatSelectionDetail;
 import com.cinehub.showtime.dto.response.SeatLockResponse;
+import com.cinehub.showtime.dto.request.SeatLockRequest;
 import com.cinehub.showtime.events.BookingStatusUpdatedEvent;
 import com.cinehub.showtime.events.BookingSeatMappedEvent;
 import com.cinehub.showtime.events.SeatLockedEvent;
@@ -51,66 +52,78 @@ public class SeatLockService {
             Long.class);
 
     @Transactional
-    public List<SeatLockResponse> lockSeats(UUID showtimeId, List<SeatSelectionDetail> selectedSeats, UUID userId) {
+    public List<SeatLockResponse> lockSeats(SeatLockRequest req) {
 
         List<SeatLockResponse> responses = new java.util.ArrayList<>();
         List<UUID> successfullyLockedSeats = new java.util.ArrayList<>();
-        List<UUID> seatIds = selectedSeats.stream().map(SeatSelectionDetail::getSeatId).toList();
+        List<UUID> seatIds = req.getSelectedSeats().stream().map(SeatSelectionDetail::getSeatId).toList();
 
-        for (SeatSelectionDetail seatDetail : selectedSeats) {
+        for (SeatSelectionDetail seatDetail : req.getSelectedSeats()) {
             UUID seatId = seatDetail.getSeatId();
-            String key = key(showtimeId, seatId);
+            String key = key(req.getShowtimeId(), seatId);
             long expireAt = System.currentTimeMillis() + lockTimeout * 1000L;
-            // Giá trị ban đầu: userId|expireAt
-            String value = userId + "|" + expireAt;
 
-            // Sử dụng SETNX (Set if Not Exists)
+            String ownerType;
+            String ownerIdentifier;
+
+            if (req.getUserId() != null) {
+                ownerType = "USER";
+                ownerIdentifier = req.getUserId().toString();
+            } else {
+                ownerType = "GUEST";
+                ownerIdentifier = req.getGuestEmail() + ":" + UUID.randomUUID();
+            }
+
+            // USER|<UUID>|<expireAt> hoặc GUEST|<name> + <email>|<expireAt>
+            String value = ownerType + "|" + ownerIdentifier + "|" + expireAt;
+
             Boolean success = redisTemplate.opsForValue().setIfAbsent(key, value, lockTimeout, TimeUnit.SECONDS);
 
             if (Boolean.TRUE.equals(success)) {
                 successfullyLockedSeats.add(seatId);
-                responses.add(buildLockResponse(showtimeId, seatId, "LOCKED", lockTimeout));
+                responses.add(buildLockResponse(req.getShowtimeId(), seatId, "LOCKED", lockTimeout));
             } else {
-                log.warn("⚠️ Seat {} of showtime {} already locked. Rolling back {} seats.",
-                        seatId, showtimeId, successfullyLockedSeats.size());
+                log.warn("Seat {} of showtime {} already locked. Rolling back {} seats.",
+                        seatId, req.getShowtimeId(), successfullyLockedSeats.size());
 
-                // ❌ SỬA: CHỈ DÙNG deleteRedisLocks để xóa locks đã tạo thành công
-                deleteRedisLocks(showtimeId, successfullyLockedSeats);
+                deleteRedisLocks(req.getShowtimeId(), successfullyLockedSeats);
 
-                // Ném ngoại lệ để Spring Transaction rollback DB
                 throw new IllegalSeatLockException("Seat " + seatId + " is already locked by another user or session.");
             }
         }
 
-        // 3. Nếu khóa thành công TẤT CẢ (Redis OK) -> Cập nhật DB
+        // Nếu khóa thành công TẤT CẢ (Redis OK) -> Cập nhật DB
         int updatedCount = showtimeSeatRepository.bulkUpdateSeatStatus(
-                showtimeId,
+                req.getShowtimeId(),
                 seatIds,
-                ShowtimeSeat.SeatStatus.LOCKED, // Trạng thái mới trong DB
+                ShowtimeSeat.SeatStatus.LOCKED,
                 LocalDateTime.now());
 
-        // 4. Gửi Event
         SeatLockedEvent event = new SeatLockedEvent(
-                userId,
-                showtimeId,
-                selectedSeats,
+                req.getUserId(),
+                req.getGuestName(),
+                req.getGuestEmail(),
+                req.getShowtimeId(),
+                req.getSelectedSeats(),
                 lockTimeout);
+
         showtimeProducer.sendSeatLockedEvent(event);
 
-        log.info("🎟️ All {} seats locked (Redis+DB) for showtime {} by user {}. DB updated: {}",
-                seatIds.size(), showtimeId, userId, updatedCount);
+        if (req.getUserId() != null) {
+            log.info("All {} seats locked (Redis+DB) for showtime {} by user {}. DB updated: {}",
+                    seatIds.size(), req.getShowtimeId(), req.getUserId(), updatedCount);
+        } else {
+            log.info("All {} seats locked (Redis+DB) for showtime {} by guest [{} - {}]. DB updated: {}",
+                    seatIds.size(),
+                    req.getShowtimeId(),
+                    req.getGuestName(),
+                    req.getGuestEmail(),
+                    updatedCount);
+        }
 
         return responses;
     }
 
-    // =======================================================================================
-    // 2. LOGIC XỬ LÝ EVENT TỪ BOOKING SERVICE (Hàm chuyển từ
-    // SeatStatusUpdateService)
-    // =======================================================================================
-
-    /**
-     * ✅ Xử lý Event BOOKING_SEAT_MAPPED: Ánh xạ bookingId vào giá trị Redis Lock.
-     */
     public void mapBookingIdToSeatLocks(BookingSeatMappedEvent event) {
         log.info("MAPPING: Received bookingId {} for showtime {}. Updating Redis locks...",
                 event.bookingId(), event.showtimeId());
@@ -137,7 +150,7 @@ public class SeatLockService {
                     // LẤY TTL HIỆN TẠI (ĐÃ ĐƯỢC BẢO TOÀN BỞI LUA SCRIPT)
                     Long currentTTL = redisTemplate.getExpire(lockKey, TimeUnit.SECONDS);
 
-                    // **🔥🔥 BỔ SUNG LOGIC TẠO KEY MAPPING RIÊNG Ở ĐÂY 🔥🔥**
+                    // *BỔ SUNG LOGIC TẠO KEY MAPPING RIÊNG Ở ĐÂY**
                     if (currentTTL != null && currentTTL > 0) {
                         String mappingKey = BOOKING_MAPPING_KEY_PREFIX + event.showtimeId().toString() + ":"
                                 + seatId.toString();
@@ -177,15 +190,11 @@ public class SeatLockService {
         deleteRedisLocks(event.showtimeId(), event.seatIds());
     }
 
-    /**
-     * ✅ Xử lý Event CANCELLED/EXPIRED: Chuyển ghế từ LOCKED -> AVAILABLE và xóa
-     * lock Redis.
-     */
     @Transactional
     public void releaseSeatsByBookingStatus(BookingStatusUpdatedEvent event) {
         String status = event.newStatus();
-        if (!"CANCELLED".equals(status) && !"EXPIRED".equals(status)) {
-            log.warn("RK cancelled/expired received but event status is {}", status);
+        if (!"CANCELLED".equals(status) && !"EXPIRED".equals(status) && !"REFUNDED".equals(status)) {
+            log.warn("RK cancelled/expired/refunded received but event status is {}", status);
             return;
         }
 
@@ -201,31 +210,6 @@ public class SeatLockService {
         deleteRedisLocks(event.showtimeId(), event.seatIds());
     }
 
-    /**
-     * ✅ Xử lý Event SEAT_RELEASE_REQUEST: Lệnh mở khóa khẩn cấp.
-     */
-    @Transactional
-    public void releaseSeatsByCommand(SeatUnlockedEvent event) {
-        int updated = showtimeSeatRepository.bulkUpdateSeatStatus(
-                event.showtimeId(),
-                event.seatIds(),
-                ShowtimeSeat.SeatStatus.AVAILABLE,
-                LocalDateTime.now());
-
-        log.info("RELEASED (Command: {}): Bulk updated {} seats for booking {}.", event.reason(), updated,
-                event.bookingId());
-
-        // Xóa lock Redis
-        deleteRedisLocks(event.showtimeId(), event.seatIds());
-    }
-
-    // =======================================================================================
-    // 3. LOGIC GIẢI PHÓNG GHẾ (API/Hàm chung)
-    // =======================================================================================
-
-    /**
-     * Giải phóng nhiều ghế (khi user huỷ) - Public API
-     */
     @Transactional
     public List<SeatLockResponse> releaseSeats(UUID showtimeId, List<UUID> seatIds, UUID bookingId, String reason) {
 
@@ -247,7 +231,7 @@ public class SeatLockService {
                 reason);
         showtimeProducer.sendSeatUnlockedEvent(event);
 
-        log.info("🔓 Released {} seats (Redis+DB) for showtime {} (Reason: {}). DB updated: {}",
+        log.info("Released {} seats (Redis+DB) for showtime {} (Reason: {}). DB updated: {}",
                 seatIds.size(), showtimeId, reason, updatedCount);
 
         // 4. Trả về phản hồi
@@ -256,29 +240,19 @@ public class SeatLockService {
                 .toList();
     }
 
-    // Trong SeatLockService.java
-
-    // Trong SeatLockService.java
-
     private static final String BOOKING_MAPPING_KEY_PREFIX = "booking_seat_map:"; // Giữ nguyên
 
     @Transactional
     public void handleExpiredLock(UUID showtimeId, UUID seatId) {
 
-        // 1. Cập nhật DB Showtime: Đặt lại trạng thái ghế trong DB thành AVAILABLE (Giữ
-        // nguyên)
         int updatedCount = showtimeSeatRepository.bulkUpdateSeatStatus(
                 showtimeId,
                 Collections.singletonList(seatId), // Chỉ là 1 ghế
                 ShowtimeSeat.SeatStatus.AVAILABLE,
                 LocalDateTime.now());
 
-        log.info("⏰ EXPIRED: Seat {} of showtime {} status reset to AVAILABLE. DB updated: {}",
+        log.info("EXPIRED: Seat {} of showtime {} status reset to AVAILABLE. DB updated: {}",
                 seatId, showtimeId, updatedCount);
-
-        // -----------------------------------------------------------
-        // LOGIC GỬI EVENT: Tìm Booking ID từ Key Mapping
-        // -----------------------------------------------------------
 
         // 2. Xây dựng key mapping để lấy Booking ID
         String mappingKey = BOOKING_MAPPING_KEY_PREFIX + showtimeId.toString() + ":" + seatId.toString();
@@ -292,7 +266,7 @@ public class SeatLockService {
                 UUID bookingId = UUID.fromString(bookingIdStr);
 
                 // 4. Gửi sự kiện SeatUnlockedEvent cho Booking Service
-                log.warn("🔥 TTL EXPIRED: Found mapping for Booking {}. Sending SeatUnlockedEvent.",
+                log.warn("TTL EXPIRED: Found mapping for Booking {}. Sending SeatUnlockedEvent.",
                         bookingId);
 
                 // Tạo Event với thông tin của bạn
@@ -306,26 +280,18 @@ public class SeatLockService {
                 showtimeProducer.sendSeatUnlockedEvent(event);
 
                 // 5. Xóa key mapping để dọn dẹp Redis
-                // Vì key này có TTL dài hơn, ta cần xóa thủ công để tránh tồn tại rác.
-                // Nếu Lock Key chính hết hạn, việc Booking cần bị hủy đã được xử lý xong.
+
                 redisTemplate.delete(mappingKey);
 
             } catch (IllegalArgumentException e) {
                 log.error("Invalid UUID format stored in Redis for key: {}", mappingKey, e);
             }
         } else {
-            // Log này có thể xảy ra nếu booking đã được CONFIRMED/CANCELED và key mapping
-            // đã bị xóa
-            // trong các hàm
-            // confirmBookingSeats/releaseSeatsByBookingStatus/releaseSeatsByCommand.
             log.warn("Key mapping not found for expired seat lock: {} (Lock was likely handled by another event).",
                     mappingKey);
         }
     }
 
-    /**
-     * Kiểm tra trạng thái ghế (LOCKED / AVAILABLE) - Public API
-     */
     public SeatLockResponse seatStatus(UUID showtimeId, UUID seatId) {
         String key = key(showtimeId, seatId);
         boolean locked = Boolean.TRUE.equals(redisTemplate.hasKey(key));
@@ -339,13 +305,6 @@ public class SeatLockService {
                 .build();
     }
 
-    // =======================================================================================
-    // 4. HÀM HỖ TRỢ (HELPER METHODS)
-    // =======================================================================================
-
-    /**
-     * Hàm nội bộ CHỈ XÓA Redis locks.
-     */
     private void deleteRedisLocks(UUID showtimeId, List<UUID> seatIds) {
         List<String> keys = seatIds.stream()
                 .map(seatId -> key(showtimeId, seatId))

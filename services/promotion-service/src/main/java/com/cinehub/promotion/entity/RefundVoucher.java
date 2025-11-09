@@ -1,4 +1,4 @@
-package com.cinehub.payment.entity;
+package com.cinehub.promotion.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

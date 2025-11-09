@@ -1,14 +1,14 @@
-package com.cinehub.payment.service;
+package com.cinehub.promotion.service;
 
-import com.cinehub.payment.dto.request.RefundVoucherRequest;
-import com.cinehub.payment.dto.response.RefundVoucherResponse;
-import com.cinehub.payment.entity.RefundVoucher;
-import com.cinehub.payment.repository.RefundVoucherRepository;
+import com.cinehub.promotion.dto.request.RefundVoucherRequest;
+import com.cinehub.promotion.dto.response.RefundVoucherResponse;
+import com.cinehub.promotion.entity.RefundVoucher;
+import com.cinehub.promotion.repository.RefundVoucherRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -50,7 +50,7 @@ public class RefundVoucherService {
                 .build();
 
         refundVoucherRepository.save(voucher);
-        log.info("🎟️ Created refund voucher {} for user {}", code, request.getUserId());
+        log.info("Created refund voucher {} for user {}", code, request.getUserId());
 
         return mapToResponse(voucher);
     }
@@ -70,9 +70,6 @@ public class RefundVoucherService {
                 .collect(Collectors.toList());
     }
 
-    // =====================================================
-    // ✅ Đánh dấu voucher đã sử dụng
-    // =====================================================
     public RefundVoucherResponse markAsUsed(String code) {
         RefundVoucher voucher = refundVoucherRepository.findByCode(code)
                 .orElseThrow(() -> new RuntimeException("Voucher không tồn tại"));
@@ -84,13 +81,10 @@ public class RefundVoucherService {
         voucher.setIsUsed(true);
         refundVoucherRepository.save(voucher);
 
-        log.info("✅ Voucher {} marked as used", code);
+        log.info("Voucher {} marked as used", code);
         return mapToResponse(voucher);
     }
 
-    // =====================================================
-    // 🧩 Hàm tiện ích
-    // =====================================================
     private String generateVoucherCode() {
         String code;
         do {

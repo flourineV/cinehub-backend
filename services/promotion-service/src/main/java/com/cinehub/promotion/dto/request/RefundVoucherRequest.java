@@ -1,4 +1,4 @@
-package com.cinehub.payment.dto.request;
+package com.cinehub.promotion.dto.request;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

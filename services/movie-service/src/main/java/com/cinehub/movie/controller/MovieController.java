@@ -14,33 +14,35 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/movies")
 @RequiredArgsConstructor
-// @CrossOrigin(origins = "*", maxAge = 3600)
+
 public class MovieController {
 
     private final MovieService movieService;
 
-    // ================== SYNC ==================
     @PostMapping("/sync")
     public ResponseEntity<String> syncMovies() {
         movieService.syncMovies();
         return ResponseEntity.ok("Movies synced successfully!");
     }
 
-    // ================== LIST NOW PLAYING ==================
     @GetMapping("/now-playing")
     public ResponseEntity<Page<MovieSummaryResponse>> getNowPlaying(Pageable pageable) {
         Page<MovieSummaryResponse> movies = movieService.getNowPlayingMovies(pageable);
         return ResponseEntity.ok(movies);
     }
 
-    // ================== LIST UPCOMING ==================
     @GetMapping("/upcoming")
     public ResponseEntity<Page<MovieSummaryResponse>> getUpcoming(Pageable pageable) {
         Page<MovieSummaryResponse> movies = movieService.getUpcomingMovies(pageable);
         return ResponseEntity.ok(movies);
     }
 
-    // ================== SEARCH ==================
+    @GetMapping("/archived")
+    public ResponseEntity<Page<MovieSummaryResponse>> getArchivedMovies(Pageable pageable){
+        Page<MovieSummaryResponse> movies = movieService.getArchivedMovies(pageable);
+        return ResponseEntity.ok(movies);
+    }
+
     @GetMapping("/search")
     public ResponseEntity<Page<MovieSummaryResponse>> searchMovies(
             @RequestParam String title,
@@ -49,7 +51,6 @@ public class MovieController {
         return ResponseEntity.ok(movies);
     }
 
-    // ================== DETAIL ==================
     @GetMapping("/tmdb/{tmdbId}")
     public ResponseEntity<MovieDetailResponse> getMovieDetail(@PathVariable Integer tmdbId) {
         MovieDetailResponse movie = movieService.getMovieDetail(tmdbId);

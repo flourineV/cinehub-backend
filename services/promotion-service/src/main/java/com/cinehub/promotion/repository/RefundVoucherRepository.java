@@ -1,7 +1,8 @@
-package com.cinehub.payment.repository;
+package com.cinehub.promotion.repository;
 
-import com.cinehub.payment.entity.RefundVoucher;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.cinehub.promotion.entity.RefundVoucher;
 
 import java.time.LocalDateTime;
 import java.util.Optional;

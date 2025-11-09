@@ -14,8 +14,8 @@ import java.util.List;
 @Builder
 public class SeatLockRequest {
     private UUID userId;
+    private String guestName;
+    private String guestEmail;
     private UUID showtimeId;
-
-    // Đã thay đổi: Truyền list chi tiết các ghế đã chọn
     private List<SeatSelectionDetail> selectedSeats;
 }
