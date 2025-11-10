@@ -12,8 +12,6 @@ import com.cinehub.auth.repository.UserRepository;
 import com.cinehub.auth.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,16 +27,12 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
-    private final AuthenticationManager authenticationManager;
 
     public JwtResponse signUp(SignUpRequest request) {
-
-        // Validate confirm password
         if (!request.getPassword().equals(request.getConfirmPassword())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password and confirm password do not match!");
         }
 
-        // Validate unique fields
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already taken!");
         }
@@ -67,7 +61,6 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-        // Generate tokens
         String accessToken = jwtUtil.generateAccessToken(savedUser.getId(), savedUser.getRole().getName());
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(savedUser);
 
@@ -75,15 +68,17 @@ public class AuthService {
     }
 
     public JwtResponse signIn(SignInRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getUsernameOrEmailOrPhone(),
-                        request.getPassword()));
-
         User user = userRepository.findByEmailOrUsernameOrPhoneNumber(request.getUsernameOrEmailOrPhone())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        // Generate tokens
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+        }
+
+        if ("BANNED".equalsIgnoreCase(user.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account disabled");
+        }
+
         String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getRole().getName());
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
 

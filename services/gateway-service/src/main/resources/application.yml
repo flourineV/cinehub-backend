@@ -6,50 +6,94 @@ spring:
     name: gateway-service
   cloud:
     gateway:
+      default-filter:
+        #Ghi log toàn bộ request/response (debug tạm thời)
+        - name: RequestRateLimiter
+          args:
+            redis-rate-limiter.replenishRate: 50
+            redis-rate-limiter.burstCapacity: 100
       routes:
-        # Auth Service Routes (ĐÃ SỬA URI VÀ THÊM REWRITEPATH)
         - id: auth-service
-          uri: http://auth-service:8081 # SỬA URI: Dùng tên service trong Docker
+          uri: http://auth-service:8081
           predicates:
             - Path=/api/auth/**
           filters:
-            # Thêm RewritePath để đảm bảo đường dẫn được forward nguyên vẹn (vd: /api/auth/signin)
             - RewritePath=/api/auth(?<segment>.*), /api/auth${segment}
             - name: JwtAuthenticationFilter
               args:
-                exclude-paths: /api/auth/signin,/api/auth/signup,/api/auth/refreshtoken
+                exclude-paths: /api/auth/signin,/api/auth/signup,/api/auth/refreshtoken,/v3/api-docs/**,/swagger-ui/**
 
-        # User Profile Service Routes (ĐÃ SỬA URI VÀ THÊM REWRITEPATH)
         - id: user-profile-service
-          uri: http://user-profile-service:8082 # SỬA URI: Dùng tên service
+          uri: http://user-profile-service:8082
           predicates:
             - Path=/api/profiles/**
           filters:
-            # THÊM RewritePath
             - RewritePath=/api/profiles(?<segment>.*), /api/profiles${segment}
             - name: JwtAuthenticationFilter
 
-        # Movie Service Routes (ĐÃ SỬA URI VÀ THÊM REWRITEPATH)
         - id: movie-service
-          uri: http://movie-service:8083 # SỬA URI: Dùng tên service
+          uri: http://movie-service:8083
           predicates:
             - Path=/api/movies/**
           filters:
-            # THÊM RewritePath
             - RewritePath=/api/movies(?<segment>.*), /api/movies${segment}
             - name: JwtAuthenticationFilter
 
-        # Showtime Service Routes (ĐÃ SỬA URI VÀ THÊM REWRITEPATH)
         - id: showtime-service
-          uri: http://showtime-service:8084 # SỬA URI: Dùng tên service
+          uri: http://showtime-service:8084
           predicates:
             - Path=/api/showtimes/**
           filters:
-            # THÊM RewritePath
             - RewritePath=/api/showtimes(?<segment>.*), /api/showtimes${segment}
             - name: JwtAuthenticationFilter
 
-        # ... (Global CORS và JWT config giữ nguyên)
+        - id: booking-service
+          uri: http://booking-service:8085
+          predicates:
+            - Path=/api/bookings/**
+          filters:
+            - RewritePath=/api/bookings(?<segment>.*), /api/bookings${segment}
+            - name: JwtAuthenticationFilter
+
+        - id: payment-service
+          uri: http://payment-service:8086
+          predicates:
+            - Path=/api/payments/**
+          filters:
+            - RewritePath=/api/payments(?<segment>.*), /api/payments${segment}
+            - name: JwtAuthenticationFilter
+
+        - id: pricing-service
+          uri: http://pricing-service:8087
+          predicates:
+            - Path=/api/pricing/**
+          filters:
+            - RewritePath=/api/pricing(?<segment>.*), /api/pricing${segment}
+            - name: JwtAuthenticationFilter
+
+        - id: fnb-service
+          uri: http://fnb-service:8088
+          predicates:
+            - Path=/api/fnb/**
+          filters:
+            - RewritePath=/api/fnb(?<segment>.*), /api/fnb${segment}
+            - name: JwtAuthenticationFilter
+
+        - id: promotion-service
+          uri: http://promotion-service:8089
+          predicates:
+            - Path=/api/promotions/**
+          filters:
+            - RewritePath=/api/promotions(?<segment>.*), /api/promotions${segment}
+            - name: JwtAuthenticationFilter
+
+        - id: notification-service
+          uri: http://notification-service:8090
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - RewritePath=/api/notifications(?<segment>.*), /api/notifications${segment}
+            - name: JwtAuthenticationFilter
 
       globalcors:
         cors-configurations:
@@ -66,9 +110,28 @@ spring:
             allowCredentials: true
             maxAge: 3600
 
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: Auth Service
+        url: /api/auth/v3/api-docs
+      - name: User Profile Service
+        url: /api/profiles/v3/api-docs
+      - name: Movie Service
+        url: /api/movies/v3/api-docs
+      - name: Booking Service
+        url: /api/bookings/v3/api-docs
+      - name: Showtime Service
+        url: /api/showtimes/v3/api-docs
+      - name: Payment Service
+        url: /api/payments/v3/api-docs
+
 # JWT Configuration
 jwt:
-  secret: "cinehub-secret-key-2024-very-long-and-secure-key-for-jwt-signing"
+  secret: ${JWT_SECRET}
   expiration: 86400000 # 24 hours in milliseconds
 
 # Logging

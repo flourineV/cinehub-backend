@@ -6,7 +6,6 @@ import com.cinehub.booking.dto.external.PromotionValidationResponse;
 import com.cinehub.booking.dto.external.FnbCalculationResponse;
 import com.cinehub.booking.dto.request.FinalizeBookingRequest;
 import com.cinehub.booking.dto.response.BookingResponse;
-import com.cinehub.booking.dto.response.BookingSeatResponse;
 import com.cinehub.booking.dto.external.FnbCalculationRequest;
 import com.cinehub.booking.dto.external.MovieTitleResponse;
 import com.cinehub.booking.dto.external.SeatResponse;

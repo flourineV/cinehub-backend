@@ -8,6 +8,8 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - cinehub-net
 
   redis:
     image: redis:7
@@ -15,38 +17,48 @@ services:
     command: ["redis-server", "--notify-keyspace-events", "KEA"]
     ports:
       - "6379:6379"
+    networks:
+      - cinehub-net
 
   auth-service:
     build: ./services/auth-service
     env_file:
       - ./services/auth-service/.env
     container_name: auth-service
-    ports:
-      - "8081:8081"
+    expose:
+      - "8081"
+    networks:
+      - cinehub-net
 
   user-profile-service:
     build: ./services/user-profile-service
     env_file:
       - ./services/user-profile-service/.env
     container_name: user-profile-service
-    ports:
-      - "8082:8082"
+    expose:
+      - "8082"
+    networks:
+      - cinehub-net
 
   movie-service:
     build: ./services/movie-service
     env_file:
       - ./services/movie-service/.env
     container_name: movie-service
-    ports:
-      - "8083:8083"
+    expose:
+      - "8083"
+    networks:
+      - cinehub-net
 
   showtime-service:
     build: ./services/showtime-service
     env_file:
       - ./services/showtime-service/.env
     container_name: showtime-service
-    ports:
-      - "8084:8084"
+    expose:
+      - "8084"
+    networks:
+      - cinehub-net
     depends_on:
       - rabbitmq
       - redis
@@ -56,8 +68,10 @@ services:
     env_file:
       - ./services/booking-service/.env
     container_name: booking-service
-    ports:
-      - "8085:8085"
+    expose:
+      - "8085"
+    networks:
+      - cinehub-net
     depends_on:
       - rabbitmq
       - showtime-service
@@ -71,8 +85,10 @@ services:
     env_file:
       - ./services/payment-service/.env
     container_name: payment-service
-    ports:
-      - "8086:8086"
+    expose:
+      - "8086"
+    networks:
+      - cinehub-net
     depends_on:
       - rabbitmq
 
@@ -81,40 +97,52 @@ services:
     env_file:
       - ./services/pricing-service/.env
     container_name: pricing-service
-    ports:
-      - "8087:8087"
+    expose:
+      - "8087"
+    networks:
+      - cinehub-net
 
   fnb-service:
     build: ./services/fnb-service
     env_file:
       - ./services/fnb-service/.env
     container_name: fnb-service
-    ports:
-      - "8088:8088"
+    expose:
+      - "8088"
+    networks:
+      - cinehub-net
 
   promotion-service:
     build: ./services/promotion-service
     env_file:
       - ./services/promotion-service/.env
     container_name: promotion-service
-    ports:
-      - "8089:8089"
+    expose:
+      - "8089"
+    networks:
+      - cinehub-net
 
   notification-service:
     build: ./services/notification-service
     env_file:
       - ./services/notification-service/.env
     container_name: notification-service
-    ports:
-      - "8090:8090"
+    expose:
+      - "8090"
+    networks:
+      - cinehub-net
     depends_on:
       - rabbitmq
 
   gateway-service:
     build: ./services/gateway-service
+    env_file:
+      - ./services/gateway-service/.env
     container_name: gateway-service
     ports:
       - "8099:8099"
+    networks:
+      - cinehub-net
     depends_on:
       - auth-service
       - user-profile-service
@@ -126,3 +154,7 @@ services:
       - fnb-service
       - promotion-service
       - notification-service
+
+networks:
+  cinehub-net:
+    driver: bridge

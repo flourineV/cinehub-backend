@@ -1,97 +1,100 @@
 package com.cinehub.gateway.filter;
 
 import com.cinehub.gateway.util.JwtUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
 @Component
+@Slf4j
+
 public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAuthenticationFilter.Config> {
-    
-    private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
-    
-    @Autowired
-    private JwtUtil jwtUtil;
-    
-    public JwtAuthenticationFilter() {
+
+    private final JwtUtil jwtUtil;
+
+    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
         super(Config.class);
+        this.jwtUtil = jwtUtil;
     }
-    
+
     @Override
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
             ServerHttpRequest request = exchange.getRequest();
             String path = request.getURI().getPath();
-            
-            // Skip authentication for excluded paths
-            if (config.getExcludePaths() != null && 
-                config.getExcludePaths().stream().anyMatch(path::contains)) {
-                logger.debug("Skipping authentication for path: {}", path);
-                return chain.filter(exchange);
+
+            if (config.excludePaths != null) {
+                for (String exclude : config.excludePaths) {
+                    if (path.startsWith(exclude)) {
+                        return chain.filter(exchange);
+                    }
+                }
             }
-            
-            // Get Authorization header
+
             String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-            
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                logger.warn("Missing or invalid Authorization header for path: {}", path);
-                exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                return exchange.getResponse().setComplete();
+                log.warn("Missing or invalid Authorization header for path {}", path);
+                return unauthorized(exchange, "Missing or invalid Authorization header");
             }
-            
+
             try {
                 // Extract token
                 String token = authHeader.substring(7);
-                
+
                 // Validate token
                 if (!jwtUtil.validateToken(token)) {
-                    logger.warn("Invalid JWT token for path: {}", path);
-                    exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                    return exchange.getResponse().setComplete();
+                    log.warn("Invalid JWT token at path {}", path);
+                    return unauthorized(exchange, "Invalid JWT token");
                 }
-                
+
                 // Extract user info from token
                 UUID userId = jwtUtil.getUserIdFromToken(token);
                 String role = jwtUtil.getRoleFromToken(token);
-                
-                logger.debug("Authenticated user: {} with role: {} for path: {}", userId, role, path);
-                
-                // Add user info to headers for downstream services
+
+                // Gắn info user vào header
                 ServerHttpRequest mutatedRequest = request.mutate()
-                        .header("X-User-Id", userId.toString())
-                        .header("X-User-Role", role)
+                        .header("X-User-Id", userId != null ? userId.toString() : "")
+                        .header("X-User-Role", role != null ? role : "")
                         .header("X-Authenticated", "true")
                         .build();
-                
+
                 return chain.filter(exchange.mutate().request(mutatedRequest).build());
-                
+
             } catch (Exception e) {
-                logger.error("Error processing JWT token for path: {}, error: {}", path, e.getMessage());
-                exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                return exchange.getResponse().setComplete();
+                log.error("Error processing JWT for path {} -> {}", path, e.getMessage());
+                return unauthorized(exchange, "Error verifying JWT");
             }
         };
     }
-    
+
+    private Mono<Void> unauthorized(ServerWebExchange exchange, String message) {
+        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+        log.debug("Unauthorized access: {}", message);
+        return exchange.getResponse().setComplete();
+    }
+
     public static class Config {
+
         private List<String> excludePaths;
-        
+
         public List<String> getExcludePaths() {
             return excludePaths;
         }
-        
+
         public void setExcludePaths(String excludePaths) {
-            this.excludePaths = Arrays.asList(excludePaths.split(","));
+            if (excludePaths != null && !excludePaths.isEmpty()) {
+                this.excludePaths = Arrays.asList(excludePaths.split(","));
+            }
         }
     }
 }
