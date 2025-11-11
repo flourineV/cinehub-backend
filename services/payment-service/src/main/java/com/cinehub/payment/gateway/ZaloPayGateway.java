@@ -1,6 +1,5 @@
 package com.cinehub.payment.gateway;
 
-import com.cinehub.payment.gateway.PaymentGateway;
 import com.cinehub.payment.entity.PaymentStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,7 +8,6 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

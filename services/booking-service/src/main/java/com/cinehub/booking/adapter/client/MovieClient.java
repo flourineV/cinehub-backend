@@ -1,6 +1,5 @@
 package com.cinehub.booking.adapter.client;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -20,7 +19,7 @@ public class MovieClient {
     private final WebClient movieWebClient;
 
     @CircuitBreaker(name = "movieService", fallbackMethod = "fallbackMovie")
-    public MovieTitleResponse getMovieTitleById (UUID movieId){
+    public MovieTitleResponse getMovieTitleById(UUID movieId) {
         return movieWebClient.get()
                 .uri("/api/movies/{id}", movieId)
                 .retrieve()

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.List;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificationExecutor<User> {
@@ -33,4 +34,11 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
     Optional<User> findByEmailOrUsernameOrPhoneNumber(@Param("identifier") String identifier);
 
     long countByRole_NameIgnoreCase(String roleName);
+
+    @Query("SELECT YEAR(u.createdAt) AS year, MONTH(u.createdAt) AS month, COUNT(u.id) AS total " +
+            "FROM User u " +
+            "GROUP BY YEAR(u.createdAt), MONTH(u.createdAt) " +
+            "ORDER BY year ASC, month ASC")
+    List<Object[]> countUserRegistrationsByMonth();
+
 }

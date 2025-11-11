@@ -4,6 +4,10 @@ import com.cinehub.auth.dto.response.StatsOverviewResponse;
 import com.cinehub.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.cinehub.auth.dto.response.UserRegistrationStatsResponse;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,5 +32,17 @@ public class StatsService {
                 .totalAdmins(totalAdmins)
                 .customerRatio(customerRatio)
                 .build();
+    }
+
+    public List<UserRegistrationStatsResponse> getUserRegistrationsByMonth() {
+        List<Object[]> results = userRepository.countUserRegistrationsByMonth();
+
+        return results.stream()
+                .map(r -> new UserRegistrationStatsResponse(
+                        ((Number) r[0]).intValue(), // year
+                        ((Number) r[1]).intValue(), // month
+                        ((Number) r[2]).longValue() // total
+                ))
+                .collect(Collectors.toList());
     }
 }

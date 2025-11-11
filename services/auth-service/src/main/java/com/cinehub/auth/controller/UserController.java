@@ -1,10 +1,10 @@
 package com.cinehub.auth.controller;
 
+import com.cinehub.auth.dto.response.PagedResponse;
 import com.cinehub.auth.dto.response.UserListResponse;
 import com.cinehub.auth.security.AuthChecker;
 import com.cinehub.auth.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,7 +18,7 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping("/users")
-    public ResponseEntity<Page<UserListResponse>> getAllUsers(
+    public ResponseEntity<PagedResponse<UserListResponse>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String role,
@@ -35,14 +35,20 @@ public class UserController {
     }
 
     @PatchMapping("/users/{id}/status")
-    public ResponseEntity<String> updateUserStatus(@PathVariable UUID id, @RequestParam String newStatus) {
+    public ResponseEntity<String> updateUserStatus(
+            @PathVariable UUID id,
+            @RequestParam String newStatus) {
+
         AuthChecker.requireAdmin();
         userService.updateUserStatus(id, newStatus);
         return ResponseEntity.ok("User status updated successfully");
     }
 
     @PatchMapping("/users/{id}/role")
-    public ResponseEntity<String> updateUserRole(@PathVariable UUID id, @RequestParam String newRole) {
+    public ResponseEntity<String> updateUserRole(
+            @PathVariable UUID id,
+            @RequestParam String newRole) {
+
         AuthChecker.requireAdmin();
         userService.updateUserRole(id, newRole);
         return ResponseEntity.ok("User role updated successfully");

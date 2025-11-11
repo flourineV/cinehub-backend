@@ -2,6 +2,7 @@ package com.cinehub.profile.controller;
 
 import com.cinehub.profile.dto.request.RankRequest;
 import com.cinehub.profile.dto.response.RankResponse;
+import com.cinehub.profile.security.AuthChecker;
 import com.cinehub.profile.service.UserRankService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-//@CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
 @RequestMapping("/api/profiles/ranks")
 @RequiredArgsConstructor
@@ -21,6 +21,7 @@ public class UserRankController {
 
     @PostMapping
     public ResponseEntity<RankResponse> createRank(@Valid @RequestBody RankRequest request) {
+        AuthChecker.requireAdmin();
         return ResponseEntity.ok(rankService.createRank(request));
     }
 
@@ -36,6 +37,7 @@ public class UserRankController {
 
     @DeleteMapping("/{rankId}")
     public ResponseEntity<Void> deleteRank(@PathVariable UUID rankId) {
+        AuthChecker.requireAdmin();
         rankService.deleteRank(rankId);
         return ResponseEntity.noContent().build();
     }

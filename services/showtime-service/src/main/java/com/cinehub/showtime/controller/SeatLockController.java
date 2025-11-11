@@ -1,10 +1,10 @@
 package com.cinehub.showtime.controller;
 
-import com.cinehub.showtime.service.SeatLockService;
 import com.cinehub.showtime.dto.request.SeatLockRequest;
-import com.cinehub.showtime.dto.request.SeatReleaseRequest; // ✅ Thêm DTO mới cho Release
+import com.cinehub.showtime.dto.request.SeatReleaseRequest;
 import com.cinehub.showtime.dto.response.SeatLockResponse;
-import com.cinehub.showtime.exception.IllegalSeatLockException;
+import com.cinehub.showtime.security.AuthChecker;
+import com.cinehub.showtime.service.SeatLockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
@@ -22,35 +22,32 @@ public class SeatLockController {
         private final SeatLockService seatLockService;
 
         @PostMapping("/lock")
-        public ResponseEntity<List<SeatLockResponse>> lockSeats(@RequestBody SeatLockRequest req) {
-                log.info("API: Received request to lock {} seats for showtime {}",
-                                req.getSelectedSeats().size(), req.getShowtimeId());
+        public ResponseEntity<List<SeatLockResponse>> lockSeats(
+                        @RequestBody SeatLockRequest req,
+                        @RequestHeader(value = "X-Internal-Secret", required = false) String internalKey) {
 
-                List<SeatLockResponse> responses = seatLockService.lockSeats(req);
-
-                return ResponseEntity.ok(responses);
+                AuthChecker.requireManagerOrAdmin();
+                log.info("API: Locking {} seats for showtime {}", req.getSelectedSeats().size(), req.getShowtimeId());
+                return ResponseEntity.ok(seatLockService.lockSeats(req));
         }
 
         @PostMapping("/release")
-        public ResponseEntity<List<SeatLockResponse>> releaseSeats(@RequestBody SeatReleaseRequest req) {
-                log.info("API: Received request to release {} seats for booking {} (Reason: {}).",
+        public ResponseEntity<List<SeatLockResponse>> releaseSeats(
+                        @RequestBody SeatReleaseRequest req,
+                        @RequestHeader(value = "X-Internal-Secret", required = false) String internalKey) {
+
+                AuthChecker.requireManagerOrAdmin();
+                log.info("API: Releasing {} seats for booking {} (Reason: {})",
                                 req.getSeatIds().size(), req.getBookingId(), req.getReason());
-
-                List<SeatLockResponse> responses = seatLockService.releaseSeats(
-                                req.getShowtimeId(),
-                                req.getSeatIds(),
-                                req.getBookingId(), // Cung cấp bookingId
-                                req.getReason());
-
-                return ResponseEntity.ok(responses);
+                return ResponseEntity.ok(
+                                seatLockService.releaseSeats(req.getShowtimeId(), req.getSeatIds(), req.getBookingId(),
+                                                req.getReason()));
         }
 
         @GetMapping("/status")
         public ResponseEntity<SeatLockResponse> seatStatus(
                         @RequestParam UUID showtimeId,
                         @RequestParam UUID seatId) {
-
-                SeatLockResponse response = seatLockService.seatStatus(showtimeId, seatId);
-                return ResponseEntity.ok(response);
+                return ResponseEntity.ok(seatLockService.seatStatus(showtimeId, seatId));
         }
 }

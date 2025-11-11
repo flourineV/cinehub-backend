@@ -2,6 +2,7 @@ package com.cinehub.movie.controller;
 
 import com.cinehub.movie.dto.MovieDetailResponse;
 import com.cinehub.movie.dto.MovieSummaryResponse;
+import com.cinehub.movie.security.AuthChecker;
 import com.cinehub.movie.service.MovieService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -14,13 +15,13 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/movies")
 @RequiredArgsConstructor
-
 public class MovieController {
 
     private final MovieService movieService;
 
     @PostMapping("/sync")
     public ResponseEntity<String> syncMovies() {
+        AuthChecker.requireManagerOrAdmin();
         movieService.syncMovies();
         return ResponseEntity.ok("Movies synced successfully!");
     }
@@ -38,7 +39,8 @@ public class MovieController {
     }
 
     @GetMapping("/archived")
-    public ResponseEntity<Page<MovieSummaryResponse>> getArchivedMovies(Pageable pageable){
+    public ResponseEntity<Page<MovieSummaryResponse>> getArchivedMovies(Pageable pageable) {
+        AuthChecker.requireManagerOrAdmin();
         Page<MovieSummaryResponse> movies = movieService.getArchivedMovies(pageable);
         return ResponseEntity.ok(movies);
     }
@@ -67,11 +69,13 @@ public class MovieController {
     public ResponseEntity<MovieDetailResponse> updateMovie(
             @PathVariable UUID id,
             @RequestBody MovieDetailResponse request) {
+        AuthChecker.requireManagerOrAdmin();
         return ResponseEntity.ok(movieService.updateMovie(id, request));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteMovie(@PathVariable UUID id) {
+        AuthChecker.requireManagerOrAdmin();
         movieService.deleteMovie(id);
         return ResponseEntity.noContent().build();
     }

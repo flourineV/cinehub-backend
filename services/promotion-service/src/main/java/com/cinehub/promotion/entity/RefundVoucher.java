@@ -34,6 +34,7 @@ public class RefundVoucher {
     private BigDecimal value;
 
     @Column(nullable = false)
+    @Builder.Default
     private Boolean isUsed = false;
 
     @CreationTimestamp
@@ -41,7 +42,6 @@ public class RefundVoucher {
 
     private LocalDateTime expiredAt;
 
-    // --- Helper ---
     public static String generateCode() {
         return "REF-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }

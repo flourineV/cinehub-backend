@@ -1,5 +1,6 @@
 package com.cinehub.auth.service;
 
+import com.cinehub.auth.dto.response.PagedResponse;
 import com.cinehub.auth.dto.response.UserListResponse;
 import com.cinehub.auth.entity.User;
 import com.cinehub.auth.repository.UserRepository;
@@ -16,7 +17,7 @@ public class UserService {
 
     private final UserRepository userRepository;
 
-    public Page<UserListResponse> getUsers(int page, int size, String role, String status) {
+    public PagedResponse<UserListResponse> getUsers(int page, int size, String role, String status) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
         Specification<User> spec = Specification.allOf();
@@ -30,7 +31,14 @@ public class UserService {
         }
 
         Page<User> users = userRepository.findAll(spec, pageable);
-        return users.map(UserListResponse::fromEntity);
+
+        return PagedResponse.<UserListResponse>builder()
+                .data(users.map(UserListResponse::fromEntity).getContent())
+                .page(users.getNumber())
+                .size(users.getSize())
+                .totalElements(users.getTotalElements())
+                .totalPages(users.getTotalPages())
+                .build();
     }
 
     public UserListResponse getUserById(UUID id) {

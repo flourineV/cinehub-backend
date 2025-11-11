@@ -2,6 +2,7 @@ package com.cinehub.showtime.controller;
 
 import com.cinehub.showtime.dto.request.TheaterRequest;
 import com.cinehub.showtime.dto.response.TheaterResponse;
+import com.cinehub.showtime.security.AuthChecker;
 import com.cinehub.showtime.service.TheaterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -14,17 +15,18 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/showtimes/theaters")
 @RequiredArgsConstructor
-
 public class TheaterController {
 
     private final TheaterService theaterService;
 
     @PostMapping
     public ResponseEntity<TheaterResponse> createTheater(@RequestBody TheaterRequest request) {
+        AuthChecker.requireManagerOrAdmin();
         TheaterResponse response = theaterService.createTheater(request);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
+    @GetMapping("/{id}")
     public ResponseEntity<TheaterResponse> getTheaterById(@PathVariable UUID id) {
         TheaterResponse response = theaterService.getTheaterById(id);
         return ResponseEntity.ok(response);
@@ -46,13 +48,14 @@ public class TheaterController {
     public ResponseEntity<TheaterResponse> updateTheater(
             @PathVariable UUID id,
             @RequestBody TheaterRequest request) {
-
+        AuthChecker.requireManagerOrAdmin();
         TheaterResponse response = theaterService.updateTheater(id, request);
         return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTheater(@PathVariable UUID id) {
+        AuthChecker.requireManagerOrAdmin();
         theaterService.deleteTheater(id);
         return ResponseEntity.noContent().build();
     }

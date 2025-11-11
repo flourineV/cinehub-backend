@@ -2,8 +2,6 @@ package com.cinehub.showtime.repository;
 
 import com.cinehub.showtime.dto.response.ShowtimeSeatResponse;
 import com.cinehub.showtime.entity.ShowtimeSeat;
-import com.cinehub.showtime.entity.ShowtimeSeat.SeatStatus;
-
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

@@ -3,7 +3,6 @@ package com.cinehub.showtime.consumer;
 import com.cinehub.showtime.config.RabbitConfig;
 import com.cinehub.showtime.events.BookingStatusUpdatedEvent;
 import com.cinehub.showtime.events.BookingSeatMappedEvent;
-import com.cinehub.showtime.events.SeatUnlockedEvent;
 import com.cinehub.showtime.service.SeatLockService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
