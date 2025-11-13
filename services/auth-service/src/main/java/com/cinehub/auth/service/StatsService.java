@@ -22,15 +22,12 @@ public class StatsService {
         long totalManagers = userRepository.countByRole_NameIgnoreCase("MANAGER");
         long totalAdmins = userRepository.countByRole_NameIgnoreCase("ADMIN");
 
-        double customerRatio = totalUsers == 0 ? 0.0 : (double) totalCustomers / totalUsers * 100;
-
         return StatsOverviewResponse.builder()
                 .totalUsers(totalUsers)
                 .totalCustomers(totalCustomers)
                 .totalStaff(totalStaff)
                 .totalManagers(totalManagers)
                 .totalAdmins(totalAdmins)
-                .customerRatio(customerRatio)
                 .build();
     }
 

@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/showtimes/theaters")
@@ -59,4 +61,11 @@ public class TheaterController {
         theaterService.deleteTheater(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/search-by-name")
+    public ResponseEntity<List<TheaterResponse>> searchTheaters(@RequestParam String keyword) {
+        List<TheaterResponse> responseList = theaterService.searchByName(keyword);
+        return ResponseEntity.ok(responseList);
+    }
+
 }

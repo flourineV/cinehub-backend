@@ -1,11 +1,16 @@
 package com.cinehub.auth.repository;
 
 import com.cinehub.auth.entity.User;
+
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -40,5 +45,8 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
             "GROUP BY YEAR(u.createdAt), MONTH(u.createdAt) " +
             "ORDER BY year ASC, month ASC")
     List<Object[]> countUserRegistrationsByMonth();
+
+    @EntityGraph(attributePaths = { "role" })
+    Page<User> findAll(Specification<User> spec, Pageable pageable);
 
 }

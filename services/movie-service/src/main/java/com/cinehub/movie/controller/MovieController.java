@@ -2,6 +2,8 @@ package com.cinehub.movie.controller;
 
 import com.cinehub.movie.dto.MovieDetailResponse;
 import com.cinehub.movie.dto.MovieSummaryResponse;
+import com.cinehub.movie.dto.response.PagedResponse;
+import com.cinehub.movie.entity.MovieStatus;
 import com.cinehub.movie.security.AuthChecker;
 import com.cinehub.movie.service.MovieService;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/movies")
@@ -46,10 +49,9 @@ public class MovieController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<Page<MovieSummaryResponse>> searchMovies(
-            @RequestParam String title,
-            Pageable pageable) {
-        Page<MovieSummaryResponse> movies = movieService.searchMovies(title, pageable);
+    public ResponseEntity<List<MovieSummaryResponse>> searchMovies(
+            @RequestParam String keyword) {
+        List<MovieSummaryResponse> movies = movieService.searchMovies(keyword);
         return ResponseEntity.ok(movies);
     }
 
@@ -78,5 +80,24 @@ public class MovieController {
         AuthChecker.requireManagerOrAdmin();
         movieService.deleteMovie(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping
+    public ResponseEntity<PagedResponse<MovieSummaryResponse>> list(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) MovieStatus status, Pageable pageable) {
+        AuthChecker.requireManagerOrAdmin();
+        PagedResponse<MovieSummaryResponse> page = movieService.adminSearch(keyword, status, pageable);
+        return ResponseEntity.ok(page);
+    }
+
+    public ResponseEntity<Void> changeStatus(@PathVariable UUID id,
+            @RequestBody ChangeStatusRequest req) {
+        AuthChecker.requireManagerOrAdmin();
+        movieService.changeStatus(id, req.status());
+        return ResponseEntity.noContent().build();
+    }
+
+    public static record ChangeStatusRequest(MovieStatus status) {
     }
 }

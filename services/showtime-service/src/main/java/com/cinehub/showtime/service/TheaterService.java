@@ -9,6 +9,7 @@ import com.cinehub.showtime.repository.TheaterRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.UUID;
@@ -19,6 +20,16 @@ import java.util.stream.Collectors;
 public class TheaterService {
     private final TheaterRepository theaterRepository;
     private final ProvinceRepository provinceRepository;
+
+    public List<TheaterResponse> searchByName(String keyword) {
+        if (!StringUtils.hasText(keyword)) {
+            return getAllTheaters();
+        }
+        return theaterRepository.findByNameContainingIgnoreCase(keyword)
+                .stream()
+                .map(this::mapToTheaterResponse)
+                .collect(Collectors.toList());
+    }
 
     public TheaterResponse createTheater(TheaterRequest request) {
         Province province = provinceRepository.findById(request.getProvinceId())

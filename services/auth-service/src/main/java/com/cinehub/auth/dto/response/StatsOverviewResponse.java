@@ -11,5 +11,4 @@ public class StatsOverviewResponse {
     private long totalStaff;
     private long totalManagers;
     private long totalAdmins;
-    private double customerRatio;
 }

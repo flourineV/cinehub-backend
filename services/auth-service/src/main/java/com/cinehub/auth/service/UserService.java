@@ -4,12 +4,15 @@ import com.cinehub.auth.dto.response.PagedResponse;
 import com.cinehub.auth.dto.response.UserListResponse;
 import com.cinehub.auth.entity.User;
 import com.cinehub.auth.repository.UserRepository;
+
+import jakarta.persistence.criteria.JoinType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -17,24 +20,71 @@ public class UserService {
 
     private final UserRepository userRepository;
 
-    public PagedResponse<UserListResponse> getUsers(int page, int size, String role, String status) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+    public PagedResponse<UserListResponse> getUsers(
+            String keyword,
+            String status,
+            String role,
+            int page,
+            int size,
+            String sortBy,
+            String sortType) {
 
-        Specification<User> spec = Specification.allOf();
+        String sortField = (sortBy != null && !sortBy.isBlank()) ? sortBy : "createdAt";
 
-        if (role != null && !role.isBlank()) {
-            spec = spec.and((root, q, cb) -> cb.equal(cb.lower(root.join("role").get("name")), role.toLowerCase()));
+        List<String> allowedSort = List.of("createdAt", "username", "email", "status");
+        if (!allowedSort.contains(sortField)) {
+            sortField = "createdAt";
         }
 
+        String order = (sortType != null && !sortType.isBlank()) ? sortType : "DESC";
+        Sort.Direction direction;
+        try {
+            direction = Sort.Direction.fromString(order);
+        } catch (IllegalArgumentException ex) {
+            direction = Sort.Direction.DESC;
+        }
+
+        int pageIndex = Math.max(1, page) - 1;
+        Pageable pageable = PageRequest.of(pageIndex, size, Sort.by(direction, sortField));
+
+        Specification<User> spec = (root, query, cb) -> null;
+
+        if (keyword != null && !keyword.isBlank()) {
+            final String kw = "%" + keyword.trim().toLowerCase() + "%";
+            spec = spec.and((root, query, cb) -> {
+                query.distinct(true);
+                return cb.or(
+                        cb.like(cb.lower(root.get("username")), kw),
+                        cb.like(cb.lower(root.get("email")), kw),
+                        cb.like(cb.lower(root.get("phoneNumber")), kw));
+            });
+        }
+
+        // --- role filter (DB stores role lowercase in your case) ---
+        if (role != null && !role.isBlank()) {
+            final String roleNormalized = role.trim().toLowerCase();
+            spec = spec.and((root, query, cb) -> {
+                // fetch role to avoid N+1 and use LEFT JOIN
+                root.fetch("role", JoinType.LEFT);
+                query.distinct(true);
+                return cb.equal(cb.lower(root.join("role", JoinType.LEFT).get("name")), roleNormalized);
+            });
+        }
+
+        // --- status filter ---
         if (status != null && !status.isBlank()) {
-            spec = spec.and((root, q, cb) -> cb.equal(cb.lower(root.get("status")), status.toLowerCase()));
+            final String statusNormalized = status.trim().toLowerCase();
+            spec = spec.and((root, query, cb) -> {
+                query.distinct(true);
+                return cb.equal(cb.lower(root.get("status")), statusNormalized);
+            });
         }
 
         Page<User> users = userRepository.findAll(spec, pageable);
 
         return PagedResponse.<UserListResponse>builder()
                 .data(users.map(UserListResponse::fromEntity).getContent())
-                .page(users.getNumber())
+                .page(users.getNumber() + 1) // trả về page 1-based cho client
                 .size(users.getSize())
                 .totalElements(users.getTotalElements())
                 .totalPages(users.getTotalPages())

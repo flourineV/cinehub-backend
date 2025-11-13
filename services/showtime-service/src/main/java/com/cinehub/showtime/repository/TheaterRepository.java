@@ -10,4 +10,7 @@ import java.util.UUID;
 @Repository
 public interface TheaterRepository extends JpaRepository<Theater, UUID> {
     List<Theater> findByProvinceId(UUID provinceId);
+
+    List<Theater> findByNameContainingIgnoreCase(String name);
+
 }

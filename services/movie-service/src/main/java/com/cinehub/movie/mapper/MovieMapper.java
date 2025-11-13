@@ -27,7 +27,7 @@ public class MovieMapper {
                 entity.getAge(),
                 entity.getStatus(),
                 entity.getTime(),
-                entity.getSpokenLanguages(), 
+                entity.getSpokenLanguages(),
                 entity.getGenres(),
                 entity.getTrailer());
     }
@@ -38,6 +38,10 @@ public class MovieMapper {
                 .collect(Collectors.toList());
 
         return new PageImpl<>(dtos, entityPage.getPageable(), entityPage.getTotalElements());
+    }
+
+    public List<MovieSummaryResponse> toSummaryResponseList(List<MovieSummary> list) {
+        return list.stream().map(this::toSummaryResponse).toList();
     }
 
     public MovieDetailResponse toDetailResponse(MovieDetail entity) {
@@ -55,7 +59,7 @@ public class MovieMapper {
                 entity.getGenres(),
                 entity.getTime(),
                 entity.getCountry(),
-                entity.getSpokenLanguages(), 
+                entity.getSpokenLanguages(),
                 entity.getCrew(),
                 entity.getCast(),
                 entity.getReleaseDate(),

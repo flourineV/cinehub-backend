@@ -139,3 +139,10 @@ logging:
   level:
     com.cinehub.gateway: DEBUG
     org.springframework.cloud.gateway: DEBUG
+
+# thêm dưới phần hiện tại
+services:
+  movie:
+    base-url: http://movie-service:8083
+  theater:
+    base-url: http://showtime-service:8084

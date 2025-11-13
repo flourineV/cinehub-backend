@@ -18,18 +18,18 @@ public class PasswordResetController {
     @PostMapping("/send-otp")
     public ResponseEntity<String> sendOtp(@Valid @RequestBody ForgotPasswordRequest request) {
         passwordResetService.sendOtp(request.getEmail());
-        return ResponseEntity.ok("✅ OTP has been sent to your email!");
+        return ResponseEntity.ok("OTP has been sent to your email!");
     }
 
     @PostMapping("/resend-otp")
     public ResponseEntity<String> resendOtp(@Valid @RequestBody ForgotPasswordRequest request) {
         passwordResetService.resendOtp(request.getEmail());
-        return ResponseEntity.ok("✅ A new OTP has been sent to your email!");
+        return ResponseEntity.ok("A new OTP has been sent to your email!");
     }
 
     @PostMapping("/reset-password")
     public ResponseEntity<String> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         passwordResetService.resetPassword(request);
-        return ResponseEntity.ok("✅ Password reset successfully!");
+        return ResponseEntity.ok("Password reset successfully!");
     }
 }

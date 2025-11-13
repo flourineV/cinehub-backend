@@ -20,12 +20,6 @@ public class PricingController {
 
     private final PricingService pricingService;
 
-    // --- 1. API Tra cứu (giữ nguyên) ---
-
-    /**
-     * GET /api/pricing/seat-price?seatType=VIP&ticketType=ADULT (Booking Service
-     * Call)
-     */
     @GetMapping("/seat-price")
     public ResponseEntity<SeatPriceResponse> getSeatPrice(
             @RequestParam @NotBlank String seatType,

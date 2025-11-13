@@ -19,13 +19,20 @@ public class UserController {
 
     @GetMapping("/users")
     public ResponseEntity<PagedResponse<UserListResponse>> getAllUsers(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
             @RequestParam(required = false) String role,
-            @RequestParam(required = false) String status) {
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortType) {
 
         AuthChecker.requireAdmin();
-        return ResponseEntity.ok(userService.getUsers(page, size, role, status));
+
+        PagedResponse<UserListResponse> users = userService.getUsers(
+                keyword, status, role, page, size, sortBy, sortType);
+
+        return ResponseEntity.ok(users);
     }
 
     @GetMapping("/users/{id}")
