@@ -16,11 +16,13 @@ import com.cinehub.movie.repository.MovieSummaryRepository;
 import com.cinehub.movie.service.client.TMDbClient;
 import com.cinehub.movie.util.AgeRatingNormalizer;
 import com.cinehub.movie.util.RegexUtil;
+import org.springframework.data.domain.Sort;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -306,34 +308,59 @@ public class MovieServiceImplement implements MovieService {
     }
 
     @Override
-    public PagedResponse<MovieSummaryResponse> adminSearch(String q, MovieStatus status, Pageable pageable) {
+    public PagedResponse<MovieSummaryResponse> adminSearch(String keyword,
+            MovieStatus status,
+            int page,
+            int size,
+            String sortBy,
+            String sortType) {
+
+        String sortField = (sortBy != null && !sortBy.isBlank()) ? sortBy : "createdAt";
+        List<String> allowedSort = List.of("createdAt", "title", "status");
+        if (!allowedSort.contains(sortField)) {
+            sortField = "createdAt";
+        }
+
+        String order = (sortType != null && !sortType.isBlank()) ? sortType : "DESC";
+        Sort.Direction direction;
+        try {
+            direction = Sort.Direction.fromString(order);
+        } catch (IllegalArgumentException ex) {
+            direction = Sort.Direction.DESC;
+        }
+
+        int pageIndex = Math.max(1, page) - 1;
+        int safeSize = Math.max(1, size);
+        Pageable pageable = PageRequest.of(pageIndex, safeSize, Sort.by(direction, sortField));
+
+        // --- build query ---
         Query query = new Query();
 
-        if (q != null && !q.isBlank()) {
-            query.addCriteria(Criteria.where("title").regex(".*" + RegexUtil.escape(q.trim()) + ".*", "i"));
+        if (keyword != null && !keyword.isBlank()) {
+            String escaped = RegexUtil.escape(keyword.trim());
+            query.addCriteria(Criteria.where("title").regex(".*" + escaped + ".*", "i"));
         }
 
         if (status != null) {
             query.addCriteria(Criteria.where("status").is(status));
         }
 
-        // total count for the query (before paging)
+        // --- total count (before paging) ---
         long total = mongoTemplate.count(query, MovieSummary.class);
 
-        // apply paging & sort to the query
+        // --- apply paging & sort then fetch ---
         query.with(pageable);
-
-        // fetch paged content
         List<MovieSummary> list = mongoTemplate.find(query, MovieSummary.class);
+
         Page<MovieSummary> entityPage = new PageImpl<>(list, pageable, total);
 
-        // convert to DTO page (reuse your mapper)
+        // --- convert to DTO page ---
         Page<MovieSummaryResponse> dtoPage = movieMapper.toSummaryResponsePage(entityPage);
 
-        // build and return PagedResponse
+        // --- return PagedResponse with 1-based page ---
         return PagedResponse.<MovieSummaryResponse>builder()
                 .data(dtoPage.getContent())
-                .page(dtoPage.getNumber())
+                .page(dtoPage.getNumber() + 1)
                 .size(dtoPage.getSize())
                 .totalElements(dtoPage.getTotalElements())
                 .totalPages(dtoPage.getTotalPages())

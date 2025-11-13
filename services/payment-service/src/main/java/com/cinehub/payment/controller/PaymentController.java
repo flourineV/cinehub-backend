@@ -32,11 +32,11 @@ public class PaymentController {
 
         } catch (PaymentProcessingException e) {
 
-            log.warn("❌ Callback failed due to business logic: {}", e.getMessage());
+            log.warn("Callback failed due to business logic: {}", e.getMessage());
             throw e;
         } catch (Exception e) {
             // Xử lý lỗi hệ thống bất ngờ (Lỗi DB, lỗi mạng, etc.)
-            log.error("❌ Unexpected error during success callback for bookingId {}: {}", bookingId, e.getMessage(), e);
+            log.error("Unexpected error during success callback for bookingId {}: {}", bookingId, e.getMessage(), e);
             return ResponseEntity.internalServerError().body("Internal Server Error.");
         }
     }

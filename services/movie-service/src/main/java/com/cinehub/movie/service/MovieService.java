@@ -28,7 +28,8 @@ public interface MovieService {
 
     MovieDetailResponse updateMovie(UUID id, MovieDetailResponse request);
 
-    PagedResponse<MovieSummaryResponse> adminSearch(String q, MovieStatus status, Pageable pageable);
+    PagedResponse<MovieSummaryResponse> adminSearch(String keyword, MovieStatus status, int page, int size,
+            String sortBy, String sortType);
 
     void deleteMovie(UUID id);
 

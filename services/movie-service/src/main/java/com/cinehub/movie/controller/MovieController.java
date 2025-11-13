@@ -85,10 +85,15 @@ public class MovieController {
     @GetMapping
     public ResponseEntity<PagedResponse<MovieSummaryResponse>> list(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) MovieStatus status, Pageable pageable) {
+            @RequestParam(required = false) MovieStatus status,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortType) {
         AuthChecker.requireManagerOrAdmin();
-        PagedResponse<MovieSummaryResponse> page = movieService.adminSearch(keyword, status, pageable);
-        return ResponseEntity.ok(page);
+        PagedResponse<MovieSummaryResponse> pages = movieService.adminSearch(keyword, status, page, size, sortBy,
+                sortType);
+        return ResponseEntity.ok(pages);
     }
 
     public ResponseEntity<Void> changeStatus(@PathVariable UUID id,

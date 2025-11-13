@@ -3,9 +3,12 @@ package com.cinehub.auth.service;
 import com.cinehub.auth.dto.response.PagedResponse;
 import com.cinehub.auth.dto.response.UserListResponse;
 import com.cinehub.auth.entity.User;
+import com.cinehub.auth.entity.Role;
 import com.cinehub.auth.repository.UserRepository;
+import com.cinehub.auth.repository.RoleRepository;
 
 import jakarta.persistence.criteria.JoinType;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
@@ -19,6 +22,7 @@ import java.util.List;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
 
     public PagedResponse<UserListResponse> getUsers(
             String keyword,
@@ -104,10 +108,26 @@ public class UserService {
         userRepository.save(user);
     }
 
+    @Transactional
     public void updateUserRole(UUID id, String newRole) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        user.getRole().setName(newRole.toUpperCase());
+
+        if (user.getRole() != null
+                && "admin".equalsIgnoreCase(user.getRole().getName())) {
+            throw new RuntimeException("Cannot modify role of an admin user");
+        }
+
+        if (newRole == null || newRole.isBlank()) {
+            throw new IllegalArgumentException("newRole is required");
+        }
+
+        String normalized = newRole.trim().toLowerCase();
+
+        Role role = roleRepository.findByName(normalized)
+                .orElseThrow(() -> new RuntimeException("Role not found: " + normalized));
+
+        user.setRole(role);
         userRepository.save(user);
     }
 
