@@ -1,6 +1,7 @@
 package com.cinehub.showtime.controller;
 
 import com.cinehub.showtime.dto.response.ShowtimeSeatResponse;
+import com.cinehub.showtime.dto.response.ShowtimeSeatsLayoutResponse;
 import com.cinehub.showtime.dto.request.UpdateSeatStatusRequest;
 import com.cinehub.showtime.security.AuthChecker;
 import com.cinehub.showtime.security.InternalAuthChecker;
@@ -10,7 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -23,8 +23,8 @@ public class ShowtimeSeatController {
     private final InternalAuthChecker internalAuthChecker;
 
     @GetMapping("/{showtimeId}/seats")
-    public ResponseEntity<List<ShowtimeSeatResponse>> getSeatsByShowtime(@PathVariable UUID showtimeId) {
-        List<ShowtimeSeatResponse> response = showtimeSeatService.getSeatsByShowtime(showtimeId);
+    public ResponseEntity<ShowtimeSeatsLayoutResponse> getSeatsByShowtime(@PathVariable UUID showtimeId) {
+        ShowtimeSeatsLayoutResponse response = showtimeSeatService.getSeatsByShowtime(showtimeId);
         return ResponseEntity.ok(response);
     }
 

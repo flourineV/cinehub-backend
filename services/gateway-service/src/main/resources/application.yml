@@ -21,7 +21,7 @@ spring:
             - RewritePath=/api/auth(?<segment>.*), /api/auth${segment}
             - name: JwtAuthenticationFilter
               args:
-                exclude-paths: /api/auth/signin,/api/auth/signup,/api/auth/refreshtoken,/v3/api-docs/**,/swagger-ui/**
+                excludePaths: /api/auth/signin,/api/auth/signup,/api/auth/refreshtoken,/v3/api-docs/**,/swagger-ui/**
 
         - id: user-profile-service
           uri: http://user-profile-service:8082
@@ -38,6 +38,8 @@ spring:
           filters:
             - RewritePath=/api/movies(?<segment>.*), /api/movies${segment}
             - name: JwtAuthenticationFilter
+              args:
+                excludePaths: /api/movies/now-playing,/api/movies/upcoming,/api/movies/search,/api/movies/tmdb/**,/api/movies/*,/v3/api-docs/**,/swagger-ui/**
 
         - id: showtime-service
           uri: http://showtime-service:8084
@@ -46,6 +48,8 @@ spring:
           filters:
             - RewritePath=/api/showtimes(?<segment>.*), /api/showtimes${segment}
             - name: JwtAuthenticationFilter
+              args:
+                excludePaths: /api/showtimes,/api/showtimes/by-movie/**,/api/showtimes/by-theater,/api/showtimes/{id},/v3/api-docs/**,/swagger-ui/**
 
         - id: booking-service
           uri: http://booking-service:8085
@@ -70,6 +74,8 @@ spring:
           filters:
             - RewritePath=/api/pricing(?<segment>.*), /api/pricing${segment}
             - name: JwtAuthenticationFilter
+              args:
+                excludePaths: /api/pricing/calculate,/v3/api-docs/**,/swagger-ui/**
 
         - id: fnb-service
           uri: http://fnb-service:8088
@@ -78,6 +84,8 @@ spring:
           filters:
             - RewritePath=/api/fnb(?<segment>.*), /api/fnb${segment}
             - name: JwtAuthenticationFilter
+              args:
+                excludePaths: /api/fnb,/api/fnb/items,/api/fnb/items/{id},/v3/api-docs/**,/swagger-ui/**
 
         - id: promotion-service
           uri: http://promotion-service:8089
@@ -86,6 +94,8 @@ spring:
           filters:
             - RewritePath=/api/promotions(?<segment>.*), /api/promotions${segment}
             - name: JwtAuthenticationFilter
+              args:
+                excludePaths: /api/promotions,/api/promotions/{id},/v3/api-docs/**,/swagger-ui/**
 
         - id: notification-service
           uri: http://notification-service:8090
@@ -94,6 +104,16 @@ spring:
           filters:
             - RewritePath=/api/notifications(?<segment>.*), /api/notifications${segment}
             - name: JwtAuthenticationFilter
+
+        - id: analytics-service
+          uri: http://analytics-service:8091
+          predicates:
+            - Path=/api/analytics/**
+          filters:
+            - RewritePath=/api/analytics(?<segment>.*), /api/analytics${segment}
+            - name: JwtAuthenticationFilter
+              args:
+                excludePaths: /api/analytics/track,/v3/api-docs/**,/swagger-ui/**
 
       globalcors:
         cors-configurations:

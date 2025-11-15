@@ -33,12 +33,19 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
             ServerHttpRequest request = exchange.getRequest();
             String path = request.getURI().getPath();
 
+            log.info("JwtFilter checking path: {}", path);
+
             if (config.excludePaths != null) {
+                log.info("Exclude paths configured: {}", config.excludePaths);
                 for (String exclude : config.excludePaths) {
-                    if (path.startsWith(exclude)) {
+                    if (matchesPath(path, exclude)) {
+                        log.info("Path {} matched exclude pattern: {}, skipping auth", path, exclude);
                         return chain.filter(exchange);
                     }
                 }
+                log.info("Path {} did not match any exclude patterns", path);
+            } else {
+                log.warn("No exclude paths configured for this route");
             }
 
             String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
@@ -77,6 +84,39 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
         };
     }
 
+    private boolean matchesPath(String path, String pattern) {
+        // Exact match
+        if (path.equals(pattern)) {
+            log.debug("Exact match: {} == {}", path, pattern);
+            return true;
+        }
+
+        // Wildcard pattern matching
+        if (pattern.endsWith("/**")) {
+            String prefix = pattern.substring(0, pattern.length() - 3);
+            boolean matches = path.startsWith(prefix);
+            log.debug("Pattern /** - prefix: '{}', path: '{}', matches: {}", prefix, path, matches);
+            return matches;
+        }
+
+        if (pattern.endsWith("/*")) {
+            String prefix = pattern.substring(0, pattern.length() - 1); // Keep the trailing /
+            if (path.startsWith(prefix) && path.length() > prefix.length()) {
+                String remaining = path.substring(prefix.length());
+                // No additional slashes after the single-level match
+                boolean matches = !remaining.contains("/");
+                log.debug("Pattern /* - prefix: '{}', remaining: '{}', matches: {}", prefix, remaining, matches);
+                return matches;
+            }
+            return false;
+        }
+
+        // Simple startsWith for backward compatibility
+        boolean matches = path.startsWith(pattern);
+        log.debug("StartsWith - pattern: '{}', path: '{}', matches: {}", pattern, path, matches);
+        return matches;
+    }
+
     private Mono<Void> unauthorized(ServerWebExchange exchange, String message) {
         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
         log.debug("Unauthorized access: {}", message);
@@ -94,7 +134,13 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
         public void setExcludePaths(String excludePaths) {
             if (excludePaths != null && !excludePaths.isEmpty()) {
                 this.excludePaths = Arrays.asList(excludePaths.split(","));
+                log.info("Parsed exclude paths from String: {}", this.excludePaths);
             }
+        }
+
+        public void setExcludePaths(List<String> excludePaths) {
+            this.excludePaths = excludePaths;
+            log.info("Set exclude paths from List: {}", this.excludePaths);
         }
     }
 }

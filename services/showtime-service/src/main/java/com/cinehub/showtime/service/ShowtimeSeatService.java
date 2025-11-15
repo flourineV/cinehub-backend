@@ -1,6 +1,7 @@
 package com.cinehub.showtime.service;
 
 import com.cinehub.showtime.dto.response.ShowtimeSeatResponse;
+import com.cinehub.showtime.dto.response.ShowtimeSeatsLayoutResponse;
 import com.cinehub.showtime.dto.request.UpdateSeatStatusRequest;
 import com.cinehub.showtime.entity.Seat;
 import com.cinehub.showtime.entity.Showtime;
@@ -25,8 +26,32 @@ public class ShowtimeSeatService {
         private final ShowtimeRepository showtimeRepository;
         private final SeatRepository seatRepository;
 
-        public List<ShowtimeSeatResponse> getSeatsByShowtime(UUID showtimeId) {
-                return showtimeSeatRepository.findSeatResponsesByShowtimeId(showtimeId);
+        public ShowtimeSeatsLayoutResponse getSeatsByShowtime(UUID showtimeId) {
+                List<ShowtimeSeatResponse> seats = showtimeSeatRepository.findSeatResponsesByShowtimeId(showtimeId);
+
+                // Calculate layout metadata from seatNumber (format: A1, B5, etc.)
+                int totalSeats = seats.size();
+                int maxRow = seats.stream()
+                                .map(ShowtimeSeatResponse::getSeatNumber)
+                                .filter(sn -> sn != null && !sn.isEmpty())
+                                .map(sn -> sn.charAt(0)) // Get row letter
+                                .mapToInt(c -> c - 'A' + 1)
+                                .max()
+                                .orElse(0);
+                int maxColumn = seats.stream()
+                                .map(ShowtimeSeatResponse::getSeatNumber)
+                                .filter(sn -> sn != null && sn.length() > 1)
+                                .map(sn -> sn.substring(1)) // Get column number
+                                .mapToInt(Integer::parseInt)
+                                .max()
+                                .orElse(0);
+
+                return ShowtimeSeatsLayoutResponse.builder()
+                                .totalSeats(totalSeats)
+                                .totalRows(maxRow)
+                                .totalColumns(maxColumn)
+                                .seats(seats)
+                                .build();
         }
 
         @Transactional

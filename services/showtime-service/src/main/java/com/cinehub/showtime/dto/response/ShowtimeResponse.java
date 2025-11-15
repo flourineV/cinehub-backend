@@ -19,8 +19,8 @@ public class ShowtimeResponse {
     private UUID id;
     private UUID movieId;
     private String theaterName;
+    private UUID roomId;
     private String roomName;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
-    private BigDecimal price;
 }

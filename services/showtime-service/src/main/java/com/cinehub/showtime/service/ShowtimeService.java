@@ -2,6 +2,7 @@ package com.cinehub.showtime.service;
 
 import com.cinehub.showtime.dto.request.ShowtimeRequest;
 import com.cinehub.showtime.dto.response.ShowtimeResponse;
+import com.cinehub.showtime.dto.response.ShowtimesByMovieResponse;
 import com.cinehub.showtime.entity.Showtime;
 import com.cinehub.showtime.entity.Theater;
 import com.cinehub.showtime.entity.Room;
@@ -13,8 +14,10 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -75,6 +78,30 @@ public class ShowtimeService {
                 .collect(Collectors.toList());
     }
 
+    public ShowtimesByMovieResponse getShowtimesByMovieGrouped(UUID movieId) {
+        List<Showtime> showtimes = showtimeRepository.findByMovieId(movieId);
+
+        // Map to response
+        List<ShowtimeResponse> showtimeResponses = showtimes.stream()
+                .map(this::mapToShowtimeResponse)
+                .collect(Collectors.toList());
+
+        // Group by date
+        Map<LocalDate, List<ShowtimeResponse>> showtimesByDate = showtimeResponses.stream()
+                .collect(Collectors.groupingBy(
+                        st -> st.getStartTime().toLocalDate()));
+
+        // Extract available dates and sort
+        List<LocalDate> availableDates = showtimesByDate.keySet().stream()
+                .sorted()
+                .collect(Collectors.toList());
+
+        return ShowtimesByMovieResponse.builder()
+                .availableDates(availableDates)
+                .showtimesByDate(showtimesByDate)
+                .build();
+    }
+
     public ShowtimeResponse updateShowtime(UUID id, ShowtimeRequest request) {
         Showtime showtime = showtimeRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Showtime with ID " + id + " not found"));
@@ -113,6 +140,7 @@ public class ShowtimeService {
                 .id(showtime.getId())
                 .movieId(showtime.getMovieId())
                 .theaterName(showtime.getTheater().getName()) // Lấy tên Theater
+                .roomId(showtime.getRoom().getId()) // Lấy ID Room
                 .roomName(showtime.getRoom().getName()) // Lấy tên Room
                 .startTime(showtime.getStartTime())
                 .endTime(showtime.getEndTime())

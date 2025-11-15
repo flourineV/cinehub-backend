@@ -2,6 +2,7 @@ package com.cinehub.showtime.controller;
 
 import com.cinehub.showtime.dto.request.ShowtimeRequest;
 import com.cinehub.showtime.dto.response.ShowtimeResponse;
+import com.cinehub.showtime.dto.response.ShowtimesByMovieResponse;
 import com.cinehub.showtime.security.AuthChecker;
 import com.cinehub.showtime.service.ShowtimeService;
 import lombok.RequiredArgsConstructor;
@@ -38,8 +39,8 @@ public class ShowtimeController {
     }
 
     @GetMapping("/by-movie/{movieId}")
-    public ResponseEntity<List<ShowtimeResponse>> getShowtimesByMovie(@PathVariable UUID movieId) {
-        return ResponseEntity.ok(showtimeService.getShowtimesByMovie(movieId));
+    public ResponseEntity<ShowtimesByMovieResponse> getShowtimesByMovie(@PathVariable UUID movieId) {
+        return ResponseEntity.ok(showtimeService.getShowtimesByMovieGrouped(movieId));
     }
 
     @GetMapping("/by-theater")
