@@ -29,7 +29,10 @@ public class MovieMapper {
                 entity.getTime(),
                 entity.getSpokenLanguages(),
                 entity.getGenres(),
-                entity.getTrailer());
+                entity.getTrailer(),
+                entity.getStartDate(),
+                entity.getEndDate(),
+                entity.getPopularity());
     }
 
     public Page<MovieSummaryResponse> toSummaryResponsePage(Page<MovieSummary> entityPage) {
@@ -64,6 +67,9 @@ public class MovieMapper {
                 entity.getCast(),
                 entity.getReleaseDate(),
                 entity.getOverview(),
-                entity.getTrailer());
+                entity.getTrailer(),
+                entity.getStartDate(),
+                entity.getEndDate(),
+                entity.getPopularity());
     }
 }

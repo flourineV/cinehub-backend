@@ -39,7 +39,7 @@ spring:
             - RewritePath=/api/movies(?<segment>.*), /api/movies${segment}
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: /api/movies/now-playing,/api/movies/upcoming,/api/movies/search,/api/movies/tmdb/**,/api/movies/*,/v3/api-docs/**,/swagger-ui/**
+                excludePaths: /api/movies/now-playing,/api/movies/upcoming,/api/movies/search,/api/movies/tmdb/**,/api/movies/{uuid},/v3/api-docs/**,/swagger-ui/**
 
         - id: showtime-service
           uri: http://showtime-service:8084
@@ -49,7 +49,7 @@ spring:
             - RewritePath=/api/showtimes(?<segment>.*), /api/showtimes${segment}
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: /api/showtimes,/api/showtimes/by-movie/**,/api/showtimes/by-theater,/api/showtimes/{id},/v3/api-docs/**,/swagger-ui/**
+                excludePaths: /api/showtimes,/api/showtimes/by-movie/**,/api/showtimes/by-theater,/api/showtimes/{uuid},/api/showtimes/{uuid}/seats,/v3/api-docs/**,/swagger-ui/**
 
         - id: booking-service
           uri: http://booking-service:8085

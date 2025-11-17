@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface SeatRepository extends JpaRepository<Seat, UUID> {
     List<Seat> findByRoomId(UUID roomId);
+
+    int countByRoomId(UUID roomId);
 }

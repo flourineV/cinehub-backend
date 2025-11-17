@@ -38,6 +38,12 @@ public class RoomController {
         return ResponseEntity.ok(responseList);
     }
 
+    @GetMapping("/by-theater/{theaterId}")
+    public ResponseEntity<List<RoomResponse>> getRoomsByTheaterId(@PathVariable UUID theaterId) {
+        List<RoomResponse> responseList = roomService.getRoomsByTheaterId(theaterId);
+        return ResponseEntity.ok(responseList);
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<RoomResponse> updateRoom(
             @PathVariable UUID id,

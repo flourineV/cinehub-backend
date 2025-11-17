@@ -1,6 +1,7 @@
 package com.cinehub.movie.dto;
 
 import com.cinehub.movie.entity.MovieStatus;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,12 +22,15 @@ public class MovieDetailResponse {
     private MovieStatus status;
     private String posterUrl;
     private List<String> genres;
-    private Integer time; 
+    private Integer time;
     private String country;
     private List<String> spokenLanguages;
     private List<String> crew;
-    private List<String> cast; 
-    private String releaseDate; 
+    private List<String> cast;
+    private String releaseDate;
     private String overview;
-    private String trailer; 
+    private String trailer;
+    private LocalDate startDate;
+    private LocalDate endDate;
+    private Double popularity;
 }

@@ -1,5 +1,6 @@
 package com.cinehub.movie.service;
 
+import com.cinehub.movie.dto.AddMovieFromTmdbRequest;
 import com.cinehub.movie.dto.MovieDetailResponse;
 import com.cinehub.movie.dto.MovieSummaryResponse;
 import com.cinehub.movie.dto.response.PagedResponse;
@@ -7,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import com.cinehub.movie.entity.MovieStatus;
 
+import java.time.LocalDate;
 import java.util.UUID;
 import java.util.List;
 
@@ -34,4 +36,8 @@ public interface MovieService {
     void deleteMovie(UUID id);
 
     void changeStatus(UUID id, MovieStatus status);
+
+    MovieDetailResponse addMovieFromTmdb(AddMovieFromTmdbRequest request);
+
+    List<MovieSummaryResponse> getAvailableMoviesForDateRange(LocalDate startDate, LocalDate endDate);
 }

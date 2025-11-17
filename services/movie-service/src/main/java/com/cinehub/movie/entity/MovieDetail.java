@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,4 +31,7 @@ public class MovieDetail {
     private String releaseDate;
     private String overview;
     private String trailer;
+    private LocalDate startDate;
+    private LocalDate endDate;
+    private Double popularity;
 }

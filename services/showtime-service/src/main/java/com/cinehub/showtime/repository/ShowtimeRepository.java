@@ -1,7 +1,11 @@
 package com.cinehub.showtime.repository;
 
 import com.cinehub.showtime.entity.Showtime;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -10,12 +14,33 @@ import java.util.UUID;
 
 @Repository
 public interface ShowtimeRepository extends JpaRepository<Showtime, UUID> {
-    List<Showtime> findByTheaterIdAndStartTimeBetween(
-            UUID theaterId, LocalDateTime start, LocalDateTime end);
+        List<Showtime> findByTheaterIdAndStartTimeBetween(
+                        UUID theaterId, LocalDateTime start, LocalDateTime end);
 
-    List<Showtime> findByMovieId(UUID movieId);
+        List<Showtime> findByMovieId(UUID movieId);
 
-    // PHƯƠNG THỨC MỚI: Tìm suất chiếu trùng lịch trong cùng một Room
-    List<Showtime> findByRoomIdAndEndTimeAfterAndStartTimeBefore(
-            UUID roomId, LocalDateTime startTime, LocalDateTime endTime);
+        // PHƯƠNG THỨC MỚI: Tìm suất chiếu trùng lịch trong cùng một Room
+        List<Showtime> findByRoomIdAndEndTimeAfterAndStartTimeBefore(
+                        UUID roomId, LocalDateTime startTime, LocalDateTime endTime);
+
+        /**
+         * Advanced search with filters and pagination
+         */
+        @Query("""
+                        SELECT s FROM Showtime s
+                        WHERE s.startTime > :now
+                        AND (:provinceId IS NULL OR s.theater.province.id = :provinceId)
+                        AND (:theaterId IS NULL OR s.theater.id = :theaterId)
+                        AND (:roomId IS NULL OR s.room.id = :roomId)
+                        AND (:movieId IS NULL OR s.movieId = :movieId)
+                        AND (:showtimeId IS NULL OR s.id = :showtimeId)
+                        """)
+        Page<Showtime> findAvailableShowtimesWithFilters(
+                        @Param("now") LocalDateTime now,
+                        @Param("provinceId") UUID provinceId,
+                        @Param("theaterId") UUID theaterId,
+                        @Param("roomId") UUID roomId,
+                        @Param("movieId") UUID movieId,
+                        @Param("showtimeId") UUID showtimeId,
+                        Pageable pageable);
 }

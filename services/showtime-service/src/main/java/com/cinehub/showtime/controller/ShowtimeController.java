@@ -1,6 +1,13 @@
 package com.cinehub.showtime.controller;
 
+import com.cinehub.showtime.dto.request.BatchShowtimeRequest;
 import com.cinehub.showtime.dto.request.ShowtimeRequest;
+import com.cinehub.showtime.dto.request.ValidateShowtimeRequest;
+import com.cinehub.showtime.dto.response.AutoGenerateShowtimesResponse;
+import com.cinehub.showtime.dto.response.BatchShowtimeResponse;
+import com.cinehub.showtime.dto.response.PagedResponse;
+import com.cinehub.showtime.dto.response.ShowtimeConflictResponse;
+import com.cinehub.showtime.dto.response.ShowtimeDetailResponse;
 import com.cinehub.showtime.dto.response.ShowtimeResponse;
 import com.cinehub.showtime.dto.response.ShowtimesByMovieResponse;
 import com.cinehub.showtime.security.AuthChecker;
@@ -25,6 +32,17 @@ public class ShowtimeController {
     public ResponseEntity<ShowtimeResponse> createShowtime(@RequestBody ShowtimeRequest request) {
         AuthChecker.requireManagerOrAdmin();
         ShowtimeResponse response = showtimeService.createShowtime(request);
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
+    }
+
+    /**
+     * Create multiple showtimes at once
+     * For admin bulk scheduling
+     */
+    @PostMapping("/batch")
+    public ResponseEntity<BatchShowtimeResponse> createShowtimesBatch(@RequestBody BatchShowtimeRequest request) {
+        AuthChecker.requireManagerOrAdmin();
+        BatchShowtimeResponse response = showtimeService.createShowtimesBatch(request);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
@@ -63,5 +81,54 @@ public class ShowtimeController {
         AuthChecker.requireManagerOrAdmin();
         showtimeService.deleteShowtime(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Get all available showtimes with pagination and filters
+     * For ADMIN/MANAGER management table with booking statistics
+     * Can filter by showtimeId to highlight specific showtime (useful for conflict
+     * checking)
+     */
+    @GetMapping("/available")
+    public ResponseEntity<PagedResponse<ShowtimeDetailResponse>> getAllAvailableShowtimes(
+            @RequestParam(required = false) UUID provinceId,
+            @RequestParam(required = false) UUID theaterId,
+            @RequestParam(required = false) UUID roomId,
+            @RequestParam(required = false) UUID movieId,
+            @RequestParam(required = false) UUID showtimeId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortType) {
+        AuthChecker.requireManagerOrAdmin();
+        PagedResponse<ShowtimeDetailResponse> response = showtimeService.getAllAvailableShowtimes(
+                provinceId, theaterId, roomId, movieId, showtimeId, page, size, sortBy, sortType);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/validate")
+    public ResponseEntity<ShowtimeConflictResponse> validateShowtime(@RequestBody ValidateShowtimeRequest request) {
+        AuthChecker.requireManagerOrAdmin();
+        return ResponseEntity.ok(showtimeService.validateShowtime(request));
+    }
+
+    @GetMapping("/by-room")
+    public ResponseEntity<List<ShowtimeResponse>> getShowtimesByRoomAndDateRange(
+            @RequestParam UUID roomId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
+        AuthChecker.requireManagerOrAdmin();
+        return ResponseEntity.ok(showtimeService.getShowtimesByRoomAndDateRange(roomId, start, end));
+    }
+
+    /**
+     * Auto-generate showtimes for all available movies for next 3 days
+     * Development trigger - will be cron job in production
+     */
+    @PostMapping("/auto-generate")
+    public ResponseEntity<AutoGenerateShowtimesResponse> autoGenerateShowtimes() {
+        AuthChecker.requireManagerOrAdmin();
+        AutoGenerateShowtimesResponse response = showtimeService.autoGenerateShowtimes();
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

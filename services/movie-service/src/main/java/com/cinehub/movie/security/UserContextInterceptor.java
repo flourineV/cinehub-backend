@@ -19,7 +19,7 @@ public class UserContextInterceptor implements HandlerInterceptor {
                 role,
                 "true".equalsIgnoreCase(authenticated)));
 
-        System.out.printf("[AuthService] Request from user=%s, role=%s, authenticated=%s%n",
+        System.out.printf("[MovieService] Request from user=%s, role=%s, authenticated=%s%n",
                 userId, role, authenticated);
 
         return true;

@@ -1,6 +1,7 @@
 package com.cinehub.movie.service.impl;
 
 import com.cinehub.movie.service.MovieService;
+import com.cinehub.movie.dto.AddMovieFromTmdbRequest;
 import com.cinehub.movie.dto.MovieDetailResponse;
 import com.cinehub.movie.dto.MovieSummaryResponse;
 import com.cinehub.movie.dto.TMDb.TMDbCreditsResponse;
@@ -32,6 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -123,6 +125,7 @@ public class MovieServiceImplement implements MovieService {
         summary.setGenres(movie.getGenres().stream().map(TMDbMovieResponse.Genre::getName).toList());
         summary.setAge(age);
         summary.setTrailer(trailer);
+        summary.setPopularity(movie.getPopularity());
 
         movieSummaryRepository.save(summary);
 
@@ -153,6 +156,7 @@ public class MovieServiceImplement implements MovieService {
         detail.setAge(age);
         detail.setTrailer(trailer);
         detail.setPosterUrl(movie.getPosterPath());
+        detail.setPopularity(movie.getPopularity());
 
         movieDetailRepository.save(detail);
 
@@ -392,5 +396,144 @@ public class MovieServiceImplement implements MovieService {
         movieSummaryRepository.delete(existingSummary);
 
         log.info("Deleted movie manually: {}", existingDetail.getTitle());
+    }
+
+    @Override
+    @Transactional
+    public MovieDetailResponse addMovieFromTmdb(AddMovieFromTmdbRequest request) {
+        log.info("Adding movie from TMDB: tmdbId={}, startDate={}, endDate={}",
+                request.getTmdbId(), request.getStartDate(), request.getEndDate());
+
+        // Check if movie already exists
+        if (movieSummaryRepository.existsByTmdbId(request.getTmdbId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Movie with TMDb ID " + request.getTmdbId() + " already exists");
+        }
+
+        // Fetch movie data from TMDB
+        TMDbMovieResponse movieResponse = tmdbClient.fetchMovieDetail(request.getTmdbId());
+        if (movieResponse == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "Movie not found in TMDB with ID: " + request.getTmdbId());
+        }
+
+        TMDbCreditsResponse credits = tmdbClient.fetchCredits(request.getTmdbId());
+        TMDbReleaseDatesResponse releaseDates = tmdbClient.fetchReleaseDates(request.getTmdbId());
+        String trailer = tmdbClient.fetchTrailerKey(request.getTmdbId());
+        String age = AgeRatingNormalizer.normalize(extractAgeRating(releaseDates));
+
+        // Determine status based on startDate
+        LocalDate today = LocalDate.now();
+        MovieStatus status;
+        if (request.getStartDate().isAfter(today)) {
+            status = MovieStatus.UPCOMING;
+        } else if (request.getEndDate() == null || !request.getEndDate().isBefore(today)) {
+            status = MovieStatus.NOW_PLAYING;
+        } else {
+            status = MovieStatus.ARCHIVED;
+        }
+
+        UUID sharedId = UUID.randomUUID();
+
+        // Create MovieSummary
+        MovieSummary summary = new MovieSummary();
+        summary.setId(sharedId);
+        summary.setTmdbId(movieResponse.getId());
+        summary.setTitle(movieResponse.getTitle());
+        summary.setPosterUrl(movieResponse.getPosterPath());
+        summary.setStatus(status);
+        summary.setSpokenLanguages(
+                movieResponse.getSpokenLanguages().stream()
+                        .map(TMDbMovieResponse.SpokenLanguage::getIso6391)
+                        .toList());
+        summary.setCountry(
+                movieResponse.getProductionCountries().isEmpty() ? null
+                        : movieResponse.getProductionCountries().get(0).getName());
+        summary.setTime(movieResponse.getRuntime());
+        summary.setGenres(movieResponse.getGenres().stream()
+                .map(TMDbMovieResponse.Genre::getName).toList());
+        summary.setAge(age);
+        summary.setTrailer(trailer);
+        summary.setStartDate(request.getStartDate());
+        summary.setEndDate(request.getEndDate());
+        summary.setPopularity(movieResponse.getPopularity());
+
+        movieSummaryRepository.save(summary);
+
+        // Create MovieDetail
+        MovieDetail detail = new MovieDetail();
+        detail.setId(sharedId);
+        detail.setTmdbId(movieResponse.getId());
+        detail.setTitle(movieResponse.getTitle());
+        detail.setOverview(movieResponse.getOverview());
+        detail.setTime(movieResponse.getRuntime());
+        detail.setSpokenLanguages(
+                movieResponse.getSpokenLanguages().stream()
+                        .map(TMDbMovieResponse.SpokenLanguage::getEnglishName)
+                        .toList());
+        detail.setCountry(
+                movieResponse.getProductionCountries().isEmpty() ? null
+                        : movieResponse.getProductionCountries().get(0).getName());
+        detail.setReleaseDate(movieResponse.getReleaseDate());
+        detail.setGenres(movieResponse.getGenres().stream()
+                .map(TMDbMovieResponse.Genre::getName).toList());
+        detail.setCast(
+                credits.getCast().stream()
+                        .map(TMDbCreditsResponse.Cast::getName).limit(10).toList());
+        detail.setCrew(
+                credits.getCrew().stream()
+                        .filter(c -> "Director".equalsIgnoreCase(c.getJob()))
+                        .map(TMDbCreditsResponse.Crew::getName)
+                        .toList());
+        detail.setAge(age);
+        detail.setTrailer(trailer);
+        detail.setPosterUrl(movieResponse.getPosterPath());
+        detail.setStatus(status);
+        detail.setStartDate(request.getStartDate());
+        detail.setEndDate(request.getEndDate());
+        detail.setPopularity(movieResponse.getPopularity());
+
+        movieDetailRepository.save(detail);
+
+        log.info("Added movie from TMDB: {} ({}), status={}", movieResponse.getTitle(),
+                movieResponse.getId(), status);
+
+        return movieMapper.toDetailResponse(detail);
+    }
+
+    @Override
+    public List<MovieSummaryResponse> getAvailableMoviesForDateRange(LocalDate startDate, LocalDate endDate) {
+        log.info("Getting available movies for date range: {} to {}", startDate, endDate);
+
+        List<MovieSummary> allMovies = movieSummaryRepository.findAll();
+
+        return allMovies.stream()
+                .filter(movie -> isMovieAvailableInRange(movie, startDate, endDate))
+                .map(movieMapper::toSummaryResponse)
+                .toList();
+    }
+
+    /**
+     * Check if a movie is available (NOW_PLAYING) at any point during the date
+     * range
+     */
+    private boolean isMovieAvailableInRange(MovieSummary movie, LocalDate rangeStart, LocalDate rangeEnd) {
+        // Movie must have a start date
+        if (movie.getStartDate() == null) {
+            return false;
+        }
+
+        // Check if movie starts before or during the range
+        if (movie.getStartDate().isAfter(rangeEnd)) {
+            return false; // Movie hasn't started yet during this range
+        }
+
+        // If movie has endDate, check if it ends before the range starts
+        if (movie.getEndDate() != null && movie.getEndDate().isBefore(rangeStart)) {
+            return false; // Movie already ended before this range
+        }
+
+        // Movie overlaps with the range
+        return true;
     }
 }

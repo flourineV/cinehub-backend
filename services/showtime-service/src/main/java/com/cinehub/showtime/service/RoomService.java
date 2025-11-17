@@ -51,6 +51,12 @@ public class RoomService {
                 .collect(Collectors.toList());
     }
 
+    public List<RoomResponse> getRoomsByTheaterId(UUID theaterId) {
+        return roomRepository.findByTheaterId(theaterId).stream()
+                .map(this::mapToRoomResponse)
+                .collect(Collectors.toList());
+    }
+
     public RoomResponse updateRoom(UUID id, RoomRequest request) {
         Room room = roomRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Room with ID " + id + " not found"));

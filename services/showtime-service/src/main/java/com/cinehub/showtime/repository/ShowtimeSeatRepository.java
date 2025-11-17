@@ -53,4 +53,15 @@ public interface ShowtimeSeatRepository extends JpaRepository<ShowtimeSeat, UUID
             @Param("status") ShowtimeSeat.SeatStatus status,
             @Param("now") LocalDateTime now);
 
+    /**
+     * Count booked seats for a showtime
+     */
+    @Query("""
+                SELECT COUNT(s)
+                FROM ShowtimeSeat s
+                WHERE s.showtime.id = :showtimeId
+                AND s.status IN ('BOOKED', 'RESERVED')
+            """)
+    long countBookedSeatsByShowtimeId(@Param("showtimeId") UUID showtimeId);
+
 }

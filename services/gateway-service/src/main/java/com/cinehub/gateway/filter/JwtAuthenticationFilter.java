@@ -111,10 +111,22 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
             return false;
         }
 
-        // Simple startsWith for backward compatibility
-        boolean matches = path.startsWith(pattern);
-        log.debug("StartsWith - pattern: '{}', path: '{}', matches: {}", pattern, path, matches);
-        return matches;
+        // Special pattern: /{uuid} - matches UUID paths only
+        if (pattern.endsWith("/{uuid}")) {
+            String prefix = pattern.substring(0, pattern.length() - 7); // Remove /{uuid}
+            if (path.startsWith(prefix + "/") && path.length() > prefix.length() + 1) {
+                String remaining = path.substring(prefix.length() + 1);
+                // Check if remaining part is a UUID (8-4-4-4-12 format with hyphens)
+                boolean matches = remaining.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
+                log.debug("Pattern /{uuid} - prefix: '{}', remaining: '{}', matches: {}", prefix, remaining, matches);
+                return matches;
+            }
+            return false;
+        }
+
+        // No match
+        log.debug("No match - pattern: '{}', path: '{}'", pattern, path);
+        return false;
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange, String message) {

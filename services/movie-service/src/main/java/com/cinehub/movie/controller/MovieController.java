@@ -1,17 +1,22 @@
 package com.cinehub.movie.controller;
 
+import com.cinehub.movie.dto.AddMovieFromTmdbRequest;
 import com.cinehub.movie.dto.MovieDetailResponse;
 import com.cinehub.movie.dto.MovieSummaryResponse;
 import com.cinehub.movie.dto.response.PagedResponse;
 import com.cinehub.movie.entity.MovieStatus;
 import com.cinehub.movie.security.AuthChecker;
 import com.cinehub.movie.service.MovieService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.UUID;
 import java.util.List;
 
@@ -22,11 +27,19 @@ public class MovieController {
 
     private final MovieService movieService;
 
-    @PostMapping("/sync")
+    @PostMapping("/admin/sync")
     public ResponseEntity<String> syncMovies() {
         AuthChecker.requireManagerOrAdmin();
         movieService.syncMovies();
         return ResponseEntity.ok("Movies synced successfully!");
+    }
+
+    @PostMapping("/from-tmdb")
+    public ResponseEntity<MovieDetailResponse> addMovieFromTmdb(
+            @Valid @RequestBody AddMovieFromTmdbRequest request) {
+        AuthChecker.requireManagerOrAdmin();
+        MovieDetailResponse response = movieService.addMovieFromTmdb(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/now-playing")
@@ -101,6 +114,14 @@ public class MovieController {
         AuthChecker.requireManagerOrAdmin();
         movieService.changeStatus(id, req.status());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/available-for-range")
+    public ResponseEntity<List<MovieSummaryResponse>> getAvailableMoviesForDateRange(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        List<MovieSummaryResponse> movies = movieService.getAvailableMoviesForDateRange(startDate, endDate);
+        return ResponseEntity.ok(movies);
     }
 
     public static record ChangeStatusRequest(MovieStatus status) {
