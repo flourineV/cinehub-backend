@@ -32,10 +32,6 @@ public class MovieServiceClient {
         }
     }
 
-    /**
-     * Get all movies that are available (NOW_PLAYING) within the date range
-     * Used for auto-generating showtimes
-     */
     public List<MovieSummaryResponse> getAvailableMoviesForDateRange(LocalDate startDate, LocalDate endDate) {
         try {
             String url = MOVIE_SERVICE_URL + "/available-for-range?startDate=" + startDate + "&endDate=" + endDate;

@@ -18,6 +18,7 @@ import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -83,12 +84,6 @@ public class ShowtimeController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Get all available showtimes with pagination and filters
-     * For ADMIN/MANAGER management table with booking statistics
-     * Can filter by showtimeId to highlight specific showtime (useful for conflict
-     * checking)
-     */
     @GetMapping("/available")
     public ResponseEntity<PagedResponse<ShowtimeDetailResponse>> getAllAvailableShowtimes(
             @RequestParam(required = false) UUID provinceId,
@@ -121,14 +116,11 @@ public class ShowtimeController {
         return ResponseEntity.ok(showtimeService.getShowtimesByRoomAndDateRange(roomId, start, end));
     }
 
-    /**
-     * Auto-generate showtimes for all available movies for next 3 days
-     * Development trigger - will be cron job in production
-     */
     @PostMapping("/auto-generate")
-    public ResponseEntity<AutoGenerateShowtimesResponse> autoGenerateShowtimes() {
+    public ResponseEntity<AutoGenerateShowtimesResponse> autoGenerateShowtimes(@RequestParam LocalDate startDate,
+            @RequestParam LocalDate endDate) {
         AuthChecker.requireManagerOrAdmin();
-        AutoGenerateShowtimesResponse response = showtimeService.autoGenerateShowtimes();
+        AutoGenerateShowtimesResponse response = showtimeService.autoGenerateShowtimes(startDate, endDate);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

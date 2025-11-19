@@ -2,6 +2,8 @@ package com.cinehub.movie.service.impl;
 
 import com.cinehub.movie.service.MovieService;
 import com.cinehub.movie.dto.AddMovieFromTmdbRequest;
+import com.cinehub.movie.dto.BulkAddMoviesRequest;
+import com.cinehub.movie.dto.BulkAddMoviesResponse;
 import com.cinehub.movie.dto.MovieDetailResponse;
 import com.cinehub.movie.dto.MovieSummaryResponse;
 import com.cinehub.movie.dto.TMDb.TMDbCreditsResponse;
@@ -36,6 +38,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -499,6 +502,53 @@ public class MovieServiceImplement implements MovieService {
                 movieResponse.getId(), status);
 
         return movieMapper.toDetailResponse(detail);
+    }
+
+    @Override
+    public BulkAddMoviesResponse bulkAddMoviesFromTmdb(BulkAddMoviesRequest request) {
+        log.info("Bulk adding {} movies from TMDB", request.getMovies().size());
+
+        int totalRequested = request.getMovies().size();
+        int successCount = 0;
+        int failedCount = 0;
+        List<BulkAddMoviesResponse.MovieAddResult> results = new ArrayList<>();
+
+        for (AddMovieFromTmdbRequest movieRequest : request.getMovies()) {
+            try {
+                MovieDetailResponse movieDetail = addMovieFromTmdb(movieRequest);
+
+                results.add(BulkAddMoviesResponse.MovieAddResult.builder()
+                        .tmdbId(movieRequest.getTmdbId())
+                        .success(true)
+                        .message("Successfully added")
+                        .movieDetail(movieDetail)
+                        .build());
+
+                successCount++;
+            } catch (Exception e) {
+                log.error("Failed to add movie with TMDb ID {}: {}",
+                        movieRequest.getTmdbId(), e.getMessage());
+
+                results.add(BulkAddMoviesResponse.MovieAddResult.builder()
+                        .tmdbId(movieRequest.getTmdbId())
+                        .success(false)
+                        .message(e.getMessage())
+                        .movieDetail(null)
+                        .build());
+
+                failedCount++;
+            }
+        }
+
+        log.info("Bulk add completed: {} success, {} failed out of {} total",
+                successCount, failedCount, totalRequested);
+
+        return BulkAddMoviesResponse.builder()
+                .totalRequested(totalRequested)
+                .successCount(successCount)
+                .failedCount(failedCount)
+                .results(results)
+                .build();
     }
 
     @Override

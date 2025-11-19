@@ -1,6 +1,8 @@
 package com.cinehub.movie.service;
 
 import com.cinehub.movie.dto.AddMovieFromTmdbRequest;
+import com.cinehub.movie.dto.BulkAddMoviesRequest;
+import com.cinehub.movie.dto.BulkAddMoviesResponse;
 import com.cinehub.movie.dto.MovieDetailResponse;
 import com.cinehub.movie.dto.MovieSummaryResponse;
 import com.cinehub.movie.dto.response.PagedResponse;
@@ -38,6 +40,8 @@ public interface MovieService {
     void changeStatus(UUID id, MovieStatus status);
 
     MovieDetailResponse addMovieFromTmdb(AddMovieFromTmdbRequest request);
+
+    BulkAddMoviesResponse bulkAddMoviesFromTmdb(BulkAddMoviesRequest request);
 
     List<MovieSummaryResponse> getAvailableMoviesForDateRange(LocalDate startDate, LocalDate endDate);
 }

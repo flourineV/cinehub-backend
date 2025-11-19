@@ -2,6 +2,7 @@ package com.cinehub.showtime.service;
 
 import com.cinehub.showtime.client.MovieServiceClient;
 import com.cinehub.showtime.client.MovieSummaryResponse;
+import com.cinehub.showtime.config.ShowtimeAutoGenerateConfig;
 import com.cinehub.showtime.dto.request.BatchShowtimeRequest;
 import com.cinehub.showtime.dto.request.ShowtimeRequest;
 import com.cinehub.showtime.dto.request.ValidateShowtimeRequest;
@@ -49,6 +50,7 @@ public class ShowtimeService {
         private final SeatRepository seatRepository;
         private final ShowtimeSeatRepository showtimeSeatRepository;
         private final MovieServiceClient movieServiceClient;
+        private final ShowtimeAutoGenerateConfig autoGenerateConfig;
 
         public ShowtimeResponse createShowtime(ShowtimeRequest request) {
                 Theater theater = theaterRepository.findById(request.getTheaterId())
@@ -433,200 +435,291 @@ public class ShowtimeService {
                 }
         }
 
-        /**
-         * Check if two time ranges overlap
-         */
         private boolean overlaps(LocalDateTime start1, LocalDateTime end1, LocalDateTime start2, LocalDateTime end2) {
                 return start1.isBefore(end2) && end1.isAfter(start2);
         }
 
-        /**
-         * Auto-generate showtimes for all available movies for the next 3 days
-         * Only generates for movies that will be NOW_PLAYING during these days
-         * Schedules from 5:00 AM to 12:00 AM with 20-minute cleaning gap between
-         * showtimes
-         * Uses weighted distribution based on movie popularity
-         */
-        public AutoGenerateShowtimesResponse autoGenerateShowtimes() {
-                log.info("Starting auto-generation of showtimes for next 3 days");
-
-                LocalDate today = LocalDate.now();
-                LocalDate endDate = today.plusDays(3);
+        public AutoGenerateShowtimesResponse autoGenerateShowtimes(LocalDate startDate, LocalDate endDate) {
+                log.info("Starting auto-generation of showtimes from {} to {}", startDate, endDate);
 
                 // Get all available movies from movie-service
                 List<MovieSummaryResponse> availableMovies = movieServiceClient
-                                .getAvailableMoviesForDateRange(today, endDate);
+                                .getAvailableMoviesForDateRange(startDate, endDate);
 
                 if (availableMovies.isEmpty()) {
-                        return AutoGenerateShowtimesResponse.builder()
-                                        .totalGenerated(0)
-                                        .totalSkipped(0)
-                                        .generatedMovies(List.of())
-                                        .skippedMovies(List.of())
-                                        .errors(List.of())
-                                        .message("No available movies found for the next 3 days")
-                                        .build();
+                        return buildEmptyResponse("No available movies found for the date range");
                 }
 
-                log.info("Found {} available movies for next 3 days", availableMovies.size());
+                log.info("Found {} available movies in date range", availableMovies.size());
 
-                // Get all theaters and their rooms
+                // Get all theaters
                 List<Theater> theaters = theaterRepository.findAll();
+                if (theaters.isEmpty()) {
+                        return buildEmptyResponse("No theaters found in system");
+                }
 
+                // Track statistics
+                GenerationStats stats = new GenerationStats();
+
+                // Calculate number of days
+                long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate) + 1;
+
+                // Generate for each day in range
+                for (long dayOffset = 0; dayOffset < daysBetween; dayOffset++) {
+                        LocalDate targetDate = startDate.plusDays(dayOffset);
+                        generateShowtimesForDate(targetDate, availableMovies, theaters, stats);
+                }
+
+                return buildSuccessResponse(stats, theaters.size(), daysBetween);
+        }
+
+        private void generateShowtimesForDate(LocalDate targetDate, List<MovieSummaryResponse> availableMovies,
+                        List<Theater> theaters, GenerationStats stats) {
+
+                // Filter movies available on this specific date
+                List<MovieSummaryResponse> todayMovies = availableMovies.stream()
+                                .filter(m -> isMovieAvailableOnDate(m, targetDate))
+                                .toList();
+
+                if (todayMovies.isEmpty()) {
+                        log.debug("No movies available for date: {}", targetDate);
+                        return;
+                }
+
+                // Create weighted movie pool based on popularity
+                List<MovieSummaryResponse> weightedMoviePool = createWeightedMoviePool(todayMovies);
+
+                // Generate for each theater
+                for (Theater theater : theaters) {
+                        generateShowtimesForTheater(targetDate, theater, weightedMoviePool, stats);
+                }
+        }
+
+        private void generateShowtimesForTheater(LocalDate targetDate, Theater theater,
+                        List<MovieSummaryResponse> weightedMoviePool, GenerationStats stats) {
+
+                List<Room> rooms = roomRepository.findByTheaterId(theater.getId());
+
+                if (rooms.isEmpty()) {
+                        log.debug("No rooms found for theater: {}", theater.getName());
+                        return;
+                }
+
+                // Generate for each room
+                for (Room room : rooms) {
+                        fillRoomWithShowtimes(targetDate, theater, room, weightedMoviePool, stats);
+                }
+        }
+
+        private void fillRoomWithShowtimes(LocalDate targetDate, Theater theater, Room room,
+                        List<MovieSummaryResponse> weightedMoviePool, GenerationStats stats) {
+
+                LocalDateTime currentSlot = targetDate.atTime(autoGenerateConfig.getStartHour(), 0);
+                // Handle endHour = 24 as midnight next day
+                LocalDateTime dayEnd = autoGenerateConfig.getEndHour() == 24
+                                ? targetDate.plusDays(1).atTime(0, 0)
+                                : targetDate.atTime(autoGenerateConfig.getEndHour(), 0);
+
+                // PHASE 1: Guarantee each movie at least one showtime
+                List<MovieSummaryResponse> uniqueMovies = weightedMoviePool.stream()
+                                .distinct()
+                                .collect(java.util.stream.Collectors.toList());
+                java.util.Collections.shuffle(uniqueMovies); // Random order for fairness
+
+                for (MovieSummaryResponse movie : uniqueMovies) {
+                        if (currentSlot.isBefore(dayEnd)) {
+                                int duration = movie.getTime() != null ? movie.getTime() : 120;
+                                LocalDateTime endTime = currentSlot.plusMinutes(duration);
+
+                                if (endTime.isAfter(dayEnd)) {
+                                        break; // No more time
+                                }
+
+                                boolean created = tryCreateShowtime(movie, theater, room, currentSlot, endTime, stats);
+                                if (created) {
+                                        currentSlot = endTime.plusMinutes(autoGenerateConfig.getCleaningGapMinutes());
+                                }
+                        }
+                }
+
+                // PHASE 2: Fill remaining slots with weighted distribution
+                int poolIndex = 0;
+                while (currentSlot.isBefore(dayEnd) && !weightedMoviePool.isEmpty()) {
+                        MovieSummaryResponse movie = weightedMoviePool.get(poolIndex % weightedMoviePool.size());
+
+                        int duration = movie.getTime() != null ? movie.getTime() : 120;
+                        LocalDateTime endTime = currentSlot.plusMinutes(duration);
+
+                        if (endTime.isAfter(dayEnd)) {
+                                break;
+                        }
+
+                        boolean created = tryCreateShowtime(movie, theater, room, currentSlot, endTime, stats);
+
+                        if (created) {
+                                currentSlot = endTime.plusMinutes(autoGenerateConfig.getCleaningGapMinutes());
+                        } else {
+                                currentSlot = currentSlot.plusMinutes(30);
+                                stats.totalSkipped++;
+                        }
+
+                        poolIndex++;
+                }
+        }
+
+        private boolean tryCreateShowtime(MovieSummaryResponse movie, Theater theater, Room room,
+                        LocalDateTime startTime, LocalDateTime endTime, GenerationStats stats) {
+                try {
+                        // Check for conflicts
+                        List<Showtime> conflicts = showtimeRepository
+                                        .findByRoomIdAndEndTimeAfterAndStartTimeBefore(room.getId(), startTime,
+                                                        endTime);
+
+                        if (!conflicts.isEmpty()) {
+                                return false; // Conflict exists, skip
+                        }
+
+                        // Create and save showtime
+                        Showtime showtime = Showtime.builder()
+                                        .movieId(movie.getId())
+                                        .theater(theater)
+                                        .room(room)
+                                        .startTime(startTime)
+                                        .endTime(endTime)
+                                        .build();
+
+                        showtimeRepository.save(showtime);
+                        stats.totalGenerated++;
+
+                        // Track unique movie titles
+                        if (!stats.generatedMovies.contains(movie.getTitle())) {
+                                stats.generatedMovies.add(movie.getTitle());
+                        }
+
+                        return true;
+
+                } catch (Exception e) {
+                        stats.errors.add(String.format(
+                                        "Failed to generate showtime for movie %s at %s: %s",
+                                        movie.getTitle(), startTime, e.getMessage()));
+                        log.error("Error generating showtime for movie {} at {}", movie.getTitle(), startTime, e);
+                        return false;
+                }
+        }
+
+        private static class GenerationStats {
                 int totalGenerated = 0;
                 int totalSkipped = 0;
                 List<String> generatedMovies = new ArrayList<>();
-                List<String> skippedMovies = new ArrayList<>();
                 List<String> errors = new ArrayList<>();
+        }
 
-                // Operating hours: 5:00 AM to 12:00 AM (midnight)
-                int startHour = 5;
-                int endHour = 24;
-                int cleaningGapMinutes = 20;
+        // --- Response Builders ---
 
-                // Generate for each day
-                for (int dayOffset = 0; dayOffset < 3; dayOffset++) {
-                        LocalDate targetDate = today.plusDays(dayOffset);
-
-                        // Filter movies available on this day
-                        List<MovieSummaryResponse> todayMovies = availableMovies.stream()
-                                        .filter(m -> isMovieAvailableOnDate(m, targetDate))
-                                        .toList();
-
-                        if (todayMovies.isEmpty()) {
-                                continue;
-                        }
-
-                        // Create weighted movie pool based on popularity
-                        List<MovieSummaryResponse> weightedMoviePool = createWeightedMoviePool(todayMovies);
-
-                        // For each theater
-                        for (Theater theater : theaters) {
-                                List<Room> rooms = roomRepository.findByTheaterId(theater.getId());
-
-                                if (rooms.isEmpty()) {
-                                        continue;
-                                }
-
-                                // For each room, schedule movies throughout the day
-                                for (Room room : rooms) {
-                                        LocalDateTime currentSlot = targetDate.atTime(startHour, 0);
-                                        LocalDateTime dayEnd = targetDate.atTime(endHour, 0);
-
-                                        int poolIndex = 0;
-
-                                        // Fill the day with movies from weighted pool
-                                        while (currentSlot.isBefore(dayEnd) && poolIndex < weightedMoviePool.size()) {
-                                                MovieSummaryResponse movie = weightedMoviePool.get(poolIndex);
-
-                                                // Calculate showtime duration
-                                                int duration = movie.getTime() != null ? movie.getTime() : 120;
-                                                LocalDateTime endTime = currentSlot.plusMinutes(duration);
-
-                                                // Check if showtime fits before day end
-                                                if (endTime.isAfter(dayEnd)) {
-                                                        break; // No more time left today for this room
-                                                }
-
-                                                try {
-                                                        // Check for conflicts
-                                                        List<Showtime> conflicts = showtimeRepository
-                                                                        .findByRoomIdAndEndTimeAfterAndStartTimeBefore(
-                                                                                        room.getId(), currentSlot,
-                                                                                        endTime);
-
-                                                        if (conflicts.isEmpty()) {
-                                                                Showtime showtime = Showtime.builder()
-                                                                                .movieId(movie.getId())
-                                                                                .theater(theater)
-                                                                                .room(room)
-                                                                                .startTime(currentSlot)
-                                                                                .endTime(endTime)
-                                                                                .build();
-
-                                                                showtimeRepository.save(showtime);
-                                                                totalGenerated++;
-
-                                                                if (!generatedMovies.contains(movie.getTitle())) {
-                                                                        generatedMovies.add(movie.getTitle());
-                                                                }
-
-                                                                // Move to next slot with cleaning gap
-                                                                currentSlot = endTime.plusMinutes(cleaningGapMinutes);
-                                                        } else {
-                                                                totalSkipped++;
-                                                                // Move past the conflict
-                                                                currentSlot = currentSlot.plusMinutes(30);
-                                                        }
-                                                } catch (Exception e) {
-                                                        errors.add(String.format(
-                                                                        "Failed to generate showtime for movie %s at %s: %s",
-                                                                        movie.getTitle(), currentSlot, e.getMessage()));
-                                                        log.error("Error generating showtime", e);
-                                                        currentSlot = currentSlot.plusMinutes(30);
-                                                }
-
-                                                poolIndex++;
-                                                // Loop back to start of pool if we run out
-                                                if (poolIndex >= weightedMoviePool.size()
-                                                                && currentSlot.isBefore(dayEnd)) {
-                                                        poolIndex = 0;
-                                                }
-                                        }
-                                }
-                        }
-                }
-
-                String message = String.format("Generated %d showtimes for %d movies across %d theaters over 3 days",
-                                totalGenerated, generatedMovies.size(), theaters.size());
-
+        private AutoGenerateShowtimesResponse buildEmptyResponse(String message) {
                 return AutoGenerateShowtimesResponse.builder()
-                                .totalGenerated(totalGenerated)
-                                .totalSkipped(totalSkipped)
-                                .generatedMovies(generatedMovies)
-                                .skippedMovies(skippedMovies)
-                                .errors(errors)
+                                .totalGenerated(0)
+                                .totalSkipped(0)
+                                .generatedMovies(List.of())
+                                .skippedMovies(List.of())
+                                .errors(List.of())
                                 .message(message)
                                 .build();
         }
 
+        private AutoGenerateShowtimesResponse buildSuccessResponse(GenerationStats stats, int theaterCount,
+                        long dayCount) {
+                String message = String.format(
+                                "Generated %d showtimes for %d movies across %d theaters over %d days",
+                                stats.totalGenerated, stats.generatedMovies.size(), theaterCount, dayCount);
+
+                return AutoGenerateShowtimesResponse.builder()
+                                .totalGenerated(stats.totalGenerated)
+                                .totalSkipped(stats.totalSkipped)
+                                .generatedMovies(stats.generatedMovies)
+                                .skippedMovies(List.of()) // Not used in current implementation
+                                .errors(stats.errors)
+                                .message(message)
+                                .build();
+        }
+
+        // --- Algorithm Helpers ---
+
+        // --- Algorithm Helpers ---
+
         /**
-         * Create a weighted pool of movies based on popularity
-         * Higher popularity = more entries in the pool = more showtimes
-         * 
-         * Weight formula:
-         * - Low popularity (0-50): 1 entry
-         * - Medium popularity (50-100): 2 entries
-         * - High popularity (100-500): 3 entries
-         * - Very high popularity (500+): 5 entries
+         * Create weighted movie pool based on popularity
+         * Higher popularity movies appear multiple times in the pool
+         * This ensures they get more showtimes during scheduling
          */
         private List<MovieSummaryResponse> createWeightedMoviePool(List<MovieSummaryResponse> movies) {
+                if (movies.isEmpty()) {
+                        return new ArrayList<>();
+                }
+
+                // Calculate min/max popularity for normalization
+                double minPopularity = movies.stream()
+                                .map(m -> m.getPopularity() != null ? m.getPopularity() : 0.0)
+                                .min(Double::compare)
+                                .orElse(0.0);
+
+                double maxPopularity = movies.stream()
+                                .map(m -> m.getPopularity() != null ? m.getPopularity() : 0.0)
+                                .max(Double::compare)
+                                .orElse(100.0);
+
                 List<MovieSummaryResponse> weightedPool = new ArrayList<>();
 
                 for (MovieSummaryResponse movie : movies) {
                         double popularity = movie.getPopularity() != null ? movie.getPopularity() : 0.0;
-                        int weight;
 
-                        if (popularity >= 500) {
-                                weight = 5; // Blockbuster movies
-                        } else if (popularity >= 100) {
-                                weight = 3; // Popular movies
-                        } else if (popularity >= 50) {
-                                weight = 2; // Medium popularity
-                        } else {
-                                weight = 1; // Low popularity
-                        }
+                        // Normalize to 0-100 scale
+                        double normalizedPopularity = normalizePopularity(popularity, minPopularity, maxPopularity);
+                        int weight = calculateWeight(normalizedPopularity);
 
-                        // Add movie multiple times based on weight
+                        log.debug("Movie: {}, Raw popularity: {}, Normalized: {}, Weight: {}",
+                                        movie.getTitle(), popularity, normalizedPopularity, weight);
+
+                        // Add movie to pool 'weight' times
                         for (int i = 0; i < weight; i++) {
                                 weightedPool.add(movie);
                         }
                 }
 
-                log.info("Created weighted pool: {} movies expanded to {} entries",
-                                movies.size(), weightedPool.size());
+                log.info("Created weighted pool: {} movies expanded to {} entries (popularity range: {} - {})",
+                                movies.size(), weightedPool.size(), minPopularity, maxPopularity);
 
                 return weightedPool;
+        }
+
+        /**
+         * Normalize popularity to 0-100 scale based on current movie pool
+         */
+        private double normalizePopularity(double popularity, double min, double max) {
+                if (max == min) {
+                        return 50.0; // All movies have same popularity, give them middle weight
+                }
+                return ((popularity - min) / (max - min)) * 100.0;
+        }
+
+        /**
+         * Calculate weight based on normalized popularity score (0-100)
+         * Weight determines how many times a movie appears in the pool
+         */
+        private int calculateWeight(double normalizedPopularity) {
+                if (normalizedPopularity >= 90) {
+                        return 8; // Top 10%: 8x showtimes
+                } else if (normalizedPopularity >= 75) {
+                        return 6; // Top 25%: 6x showtimes
+                } else if (normalizedPopularity >= 60) {
+                        return 4; // Top 40%: 4x showtimes
+                } else if (normalizedPopularity >= 40) {
+                        return 3; // Top 60%: 3x showtimes
+                } else if (normalizedPopularity >= 20) {
+                        return 2; // Top 80%: 2x showtimes
+                } else {
+                        return 1; // Bottom 20%: 1x showtime
+                }
         }
 
         /**

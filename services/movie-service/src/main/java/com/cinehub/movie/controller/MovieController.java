@@ -1,10 +1,13 @@
 package com.cinehub.movie.controller;
 
 import com.cinehub.movie.dto.AddMovieFromTmdbRequest;
+import com.cinehub.movie.dto.BulkAddMoviesRequest;
+import com.cinehub.movie.dto.BulkAddMoviesResponse;
 import com.cinehub.movie.dto.MovieDetailResponse;
 import com.cinehub.movie.dto.MovieSummaryResponse;
 import com.cinehub.movie.dto.response.PagedResponse;
 import com.cinehub.movie.entity.MovieStatus;
+import com.cinehub.movie.scheduler.MovieStatusScheduler;
 import com.cinehub.movie.security.AuthChecker;
 import com.cinehub.movie.service.MovieService;
 import jakarta.validation.Valid;
@@ -26,6 +29,7 @@ import java.util.List;
 public class MovieController {
 
     private final MovieService movieService;
+    private final MovieStatusScheduler movieStatusScheduler;
 
     @PostMapping("/admin/sync")
     public ResponseEntity<String> syncMovies() {
@@ -39,6 +43,14 @@ public class MovieController {
             @Valid @RequestBody AddMovieFromTmdbRequest request) {
         AuthChecker.requireManagerOrAdmin();
         MovieDetailResponse response = movieService.addMovieFromTmdb(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/bulk-from-tmdb")
+    public ResponseEntity<BulkAddMoviesResponse> bulkAddMoviesFromTmdb(
+            @Valid @RequestBody BulkAddMoviesRequest request) {
+        AuthChecker.requireManagerOrAdmin();
+        BulkAddMoviesResponse response = movieService.bulkAddMoviesFromTmdb(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -124,6 +136,22 @@ public class MovieController {
         return ResponseEntity.ok(movies);
     }
 
+    @PostMapping("/update-status")
+    public ResponseEntity<UpdateStatusResponse> updateMovieStatuses() {
+        AuthChecker.requireManagerOrAdmin();
+        MovieStatusScheduler.UpdateStatusResult result = movieStatusScheduler.updateAllMovieStatuses();
+        return ResponseEntity.ok(new UpdateStatusResponse(
+                result.getUpcomingToNowPlaying(),
+                result.getNowPlayingToArchived(),
+                "Movie statuses updated successfully"));
+    }
+
     public static record ChangeStatusRequest(MovieStatus status) {
+    }
+
+    public static record UpdateStatusResponse(
+            int upcomingToNowPlaying,
+            int nowPlayingToArchived,
+            String message) {
     }
 }

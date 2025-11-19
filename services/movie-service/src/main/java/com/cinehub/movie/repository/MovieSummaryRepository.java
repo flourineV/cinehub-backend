@@ -25,6 +25,8 @@ public interface MovieSummaryRepository extends MongoRepository<MovieSummary, UU
 
     Optional<MovieSummary> findByTmdbId(Integer tmdbId);
 
+    List<MovieSummary> findByStatus(MovieStatus status);
+
     boolean existsByTmdbId(Integer tmdbId);
 
     void deleteByTmdbId(Integer tmdbId);

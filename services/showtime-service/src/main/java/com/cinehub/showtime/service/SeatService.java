@@ -28,14 +28,12 @@ public class SeatService {
                                                 "Room with ID " + request.getRoomId() + " not found"));
 
                 Seat seat = Seat.builder()
-                                .id(UUID.randomUUID())
                                 .seatNumber(request.getSeatNumber())
                                 .rowLabel(request.getRowLabel())
                                 .columnIndex(request.getColumnIndex())
                                 .type(request.getType())
                                 .room(room)
                                 .build();
-
                 Seat savedSeat = seatRepository.save(seat);
                 return mapToSeatResponse(savedSeat);
         }
@@ -57,16 +55,13 @@ public class SeatService {
                 // Chuyển đổi List<SeatRequest> sang List<Seat> (Entity)
                 List<Seat> seatsToSave = requests.stream()
                                 .map(request -> Seat.builder()
-                                                .id(UUID.randomUUID())
                                                 .seatNumber(request.getSeatNumber())
                                                 .rowLabel(request.getRowLabel())
                                                 .columnIndex(request.getColumnIndex())
                                                 .type(request.getType())
                                                 .room(room) // Gán đối tượng Room đã tìm được
                                                 .build())
-                                .collect(Collectors.toList());
-
-                // Lưu tất cả entity bằng một lệnh (tối ưu database)
+                                .collect(Collectors.toList()); // Lưu tất cả entity bằng một lệnh (tối ưu database)
                 List<Seat> savedSeats = seatRepository.saveAll(seatsToSave);
 
                 // Chuyển đổi List<Seat> (Entity) sang List<SeatResponse>
