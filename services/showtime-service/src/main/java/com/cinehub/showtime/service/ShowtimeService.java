@@ -537,7 +537,10 @@ public class ShowtimeService {
 
                                 boolean created = tryCreateShowtime(movie, theater, room, currentSlot, endTime, stats);
                                 if (created) {
-                                        currentSlot = endTime.plusMinutes(autoGenerateConfig.getCleaningGapMinutes());
+                                        // Round up next slot to nearest 5 minutes
+                                        currentSlot = roundUpToNearestInterval(
+                                                        endTime.plusMinutes(autoGenerateConfig.getCleaningGapMinutes()),
+                                                        5);
                                 }
                         }
                 }
@@ -557,7 +560,9 @@ public class ShowtimeService {
                         boolean created = tryCreateShowtime(movie, theater, room, currentSlot, endTime, stats);
 
                         if (created) {
-                                currentSlot = endTime.plusMinutes(autoGenerateConfig.getCleaningGapMinutes());
+                                // Round up next slot to nearest 5 minutes
+                                currentSlot = roundUpToNearestInterval(
+                                                endTime.plusMinutes(autoGenerateConfig.getCleaningGapMinutes()), 5);
                         } else {
                                 currentSlot = currentSlot.plusMinutes(30);
                                 stats.totalSkipped++;
@@ -594,6 +599,8 @@ public class ShowtimeService {
                         // Track unique movie titles
                         if (!stats.generatedMovies.contains(movie.getTitle())) {
                                 stats.generatedMovies.add(movie.getTitle());
+                                // Update movie status to NOW_PLAYING when first showtime is created
+                                movieServiceClient.updateMovieToNowPlaying(movie.getId());
                         }
 
                         return true;
@@ -741,5 +748,22 @@ public class ShowtimeService {
                 }
 
                 return true;
+        }
+
+        /**
+         * Round up time to nearest interval (5 or 10 minutes)
+         * Example: 14:23 with interval 5 → 14:25, 14:27 with interval 10 → 14:30
+         */
+        private LocalDateTime roundUpToNearestInterval(LocalDateTime time, int intervalMinutes) {
+                int currentMinute = time.getMinute();
+                int remainder = currentMinute % intervalMinutes;
+
+                if (remainder == 0) {
+                        return time; // Already aligned
+                }
+
+                // Round up to next interval
+                int minutesToAdd = intervalMinutes - remainder;
+                return time.plusMinutes(minutesToAdd);
         }
 }

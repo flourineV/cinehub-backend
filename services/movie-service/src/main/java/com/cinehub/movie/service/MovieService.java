@@ -44,4 +44,6 @@ public interface MovieService {
     BulkAddMoviesResponse bulkAddMoviesFromTmdb(BulkAddMoviesRequest request);
 
     List<MovieSummaryResponse> getAvailableMoviesForDateRange(LocalDate startDate, LocalDate endDate);
+
+    void setMovieNowPlaying(UUID id);
 }

@@ -47,4 +47,17 @@ public class MovieServiceClient {
             return Collections.emptyList();
         }
     }
+
+    /**
+     * Update movie status to NOW_PLAYING when showtime is created
+     */
+    public void updateMovieToNowPlaying(UUID movieId) {
+        try {
+            String url = MOVIE_SERVICE_URL + "/" + movieId + "/set-now-playing";
+            restTemplate.postForObject(url, null, Void.class);
+            log.info("Updated movie {} status to NOW_PLAYING", movieId);
+        } catch (Exception e) {
+            log.error("Failed to update movie {} status to NOW_PLAYING", movieId, e);
+        }
+    }
 }

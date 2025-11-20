@@ -67,10 +67,22 @@ public class ShowtimeSeatService {
                 return toResponse(saved);
         }
 
-        /**
-         * Hàm khởi tạo trạng thái ghế khi tạo showtime mới
-         * (tất cả ghế AVAILABLE)
-         */
+        @Transactional
+        public int batchInitializeSeats(List<UUID> showtimeIds) {
+                int count = 0;
+                for (UUID showtimeId : showtimeIds) {
+                        try {
+                                initializeSeatsForShowtime(showtimeId);
+                                count++;
+                        } catch (Exception e) {
+                                // Log error nhưng tiếp tục với các showtime khác
+                                System.err.println("Failed to initialize seats for showtime " + showtimeId + ": "
+                                                + e.getMessage());
+                        }
+                }
+                return count;
+        }
+
         @Transactional
         public void initializeSeatsForShowtime(UUID showtimeId) {
                 Showtime showtime = showtimeRepository.findById(showtimeId)

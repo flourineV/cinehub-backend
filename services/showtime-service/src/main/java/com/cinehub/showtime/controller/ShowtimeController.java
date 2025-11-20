@@ -36,10 +36,6 @@ public class ShowtimeController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    /**
-     * Create multiple showtimes at once
-     * For admin bulk scheduling
-     */
     @PostMapping("/batch")
     public ResponseEntity<BatchShowtimeResponse> createShowtimesBatch(@RequestBody BatchShowtimeRequest request) {
         AuthChecker.requireManagerOrAdmin();

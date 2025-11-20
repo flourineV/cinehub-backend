@@ -3,6 +3,7 @@ package com.cinehub.showtime.controller;
 import com.cinehub.showtime.dto.response.ShowtimeSeatResponse;
 import com.cinehub.showtime.dto.response.ShowtimeSeatsLayoutResponse;
 import com.cinehub.showtime.dto.request.UpdateSeatStatusRequest;
+import com.cinehub.showtime.dto.request.BatchInitializeSeatsRequest;
 import com.cinehub.showtime.security.AuthChecker;
 import com.cinehub.showtime.security.InternalAuthChecker;
 import com.cinehub.showtime.service.ShowtimeSeatService;
@@ -47,10 +48,10 @@ public class ShowtimeSeatController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/{showtimeId}/initialize-seats")
-    public ResponseEntity<String> initializeSeats(@PathVariable UUID showtimeId) {
+    @PostMapping("/initialize-seats")
+    public ResponseEntity<String> initializeSeats(@RequestBody BatchInitializeSeatsRequest request) {
         AuthChecker.requireManagerOrAdmin();
-        showtimeSeatService.initializeSeatsForShowtime(showtimeId);
-        return ResponseEntity.ok("Seats initialized successfully for showtime " + showtimeId);
+        int count = showtimeSeatService.batchInitializeSeats(request.getShowtimeIds());
+        return ResponseEntity.ok("Seats initialized successfully for " + count + " showtimes");
     }
 }

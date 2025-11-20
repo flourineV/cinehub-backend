@@ -20,7 +20,8 @@ public class MovieStatusScheduler {
     private final MovieSummaryRepository movieSummaryRepository;
 
     /**
-     * Scheduled task to update movie status based on startDate and endDate
+     * Scheduled task to update movie status based on endDate only
+     * startDate logic is handled when showtimes are created
      * Runs every day at 00:05 AM
      */
     @Scheduled(cron = "0 5 0 * * *")
@@ -29,37 +30,21 @@ public class MovieStatusScheduler {
 
         UpdateStatusResult result = updateAllMovieStatuses();
 
-        log.info("Scheduled movie status update completed: {} UPCOMING→NOW_PLAYING, {} NOW_PLAYING→ARCHIVED",
-                result.getUpcomingToNowPlaying(), result.getNowPlayingToArchived());
+        log.info("Scheduled movie status update completed: {} NOW_PLAYING→ARCHIVED",
+                result.getNowPlayingToArchived());
     }
 
     /**
      * Public method to manually trigger status update (can be called from API)
+     * Only handles NOW_PLAYING → ARCHIVED transition
+     * UPCOMING → NOW_PLAYING is handled when showtimes are created
      * 
      * @return UpdateStatusResult with counts of status changes
      */
     public UpdateStatusResult updateAllMovieStatuses() {
         LocalDate today = LocalDate.now();
 
-        AtomicInteger upcomingToNowPlaying = new AtomicInteger(0);
         AtomicInteger nowPlayingToArchived = new AtomicInteger(0);
-
-        // Update UPCOMING → NOW_PLAYING (when startDate <= today)
-        List<MovieSummary> upcomingMovies = movieSummaryRepository.findByStatus(MovieStatus.UPCOMING);
-        upcomingMovies.forEach(movie -> {
-            if (movie.getStartDate() != null && !movie.getStartDate().isAfter(today)) {
-                // Check if should go directly to ARCHIVED
-                if (movie.getEndDate() != null && movie.getEndDate().isBefore(today)) {
-                    movie.setStatus(MovieStatus.ARCHIVED);
-                    log.debug("Movie {} changed from UPCOMING to ARCHIVED", movie.getTitle());
-                } else {
-                    movie.setStatus(MovieStatus.NOW_PLAYING);
-                    upcomingToNowPlaying.incrementAndGet();
-                    log.debug("Movie {} changed from UPCOMING to NOW_PLAYING", movie.getTitle());
-                }
-                movieSummaryRepository.save(movie);
-            }
-        });
 
         // Update NOW_PLAYING → ARCHIVED (when endDate < today)
         List<MovieSummary> nowPlayingMovies = movieSummaryRepository.findByStatus(MovieStatus.NOW_PLAYING);
@@ -72,7 +57,7 @@ public class MovieStatusScheduler {
             }
         });
 
-        return new UpdateStatusResult(upcomingToNowPlaying.get(), nowPlayingToArchived.get());
+        return new UpdateStatusResult(0, nowPlayingToArchived.get());
     }
 
     public static class UpdateStatusResult {

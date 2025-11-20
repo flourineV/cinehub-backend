@@ -146,6 +146,13 @@ public class MovieController {
                 "Movie statuses updated successfully"));
     }
 
+    @PostMapping("/{id}/set-now-playing")
+    public ResponseEntity<Void> setMovieNowPlaying(@PathVariable UUID id) {
+        // Internal endpoint - no auth required (called by showtime-service)
+        movieService.setMovieNowPlaying(id);
+        return ResponseEntity.ok().build();
+    }
+
     public static record ChangeStatusRequest(MovieStatus status) {
     }
 

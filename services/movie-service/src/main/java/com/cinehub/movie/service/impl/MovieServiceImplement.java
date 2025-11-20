@@ -586,4 +586,28 @@ public class MovieServiceImplement implements MovieService {
         // Movie overlaps with the range
         return true;
     }
+
+    @Override
+    public void setMovieNowPlaying(UUID id) {
+        log.info("Setting movie {} to NOW_PLAYING status", id);
+
+        // Update MovieSummary
+        MovieSummary summary = movieSummaryRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Movie not found with ID: " + id));
+
+        if (summary.getStatus() != MovieStatus.NOW_PLAYING) {
+            summary.setStatus(MovieStatus.NOW_PLAYING);
+            movieSummaryRepository.save(summary);
+        }
+
+        // Update MovieDetail
+        MovieDetail detail = movieDetailRepository.findById(id).orElse(null);
+        if (detail != null && detail.getStatus() != MovieStatus.NOW_PLAYING) {
+            detail.setStatus(MovieStatus.NOW_PLAYING);
+            movieDetailRepository.save(detail);
+        }
+
+        log.info("Movie {} status updated to NOW_PLAYING", id);
+    }
 }
