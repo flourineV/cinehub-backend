@@ -12,5 +12,6 @@ import java.util.UUID;
 public class ShowtimeSeatResponse {
     private UUID seatId;
     private String seatNumber;
+    private String type; // NORMAL, VIP, COUPLE
     private SeatStatus status;
 }

@@ -27,6 +27,7 @@ public interface ShowtimeSeatRepository extends JpaRepository<ShowtimeSeat, UUID
                 SELECT new com.cinehub.showtime.dto.response.ShowtimeSeatResponse(
                     seat.id,
                     seat.seatNumber,
+                    seat.type,
                     s.status
                 )
                 FROM ShowtimeSeat s

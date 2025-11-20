@@ -43,4 +43,19 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, UUID> {
                         @Param("movieId") UUID movieId,
                         @Param("showtimeId") UUID showtimeId,
                         Pageable pageable);
+
+        /**
+         * Find showtimes by movie and province
+         */
+        @Query("""
+                        SELECT s FROM Showtime s
+                        WHERE s.movieId = :movieId
+                        AND s.theater.province.id = :provinceId
+                        AND s.startTime >= :now
+                        ORDER BY s.theater.name, s.startTime
+                        """)
+        List<Showtime> findByMovieAndProvince(
+                        @Param("movieId") UUID movieId,
+                        @Param("provinceId") UUID provinceId,
+                        @Param("now") LocalDateTime now);
 }

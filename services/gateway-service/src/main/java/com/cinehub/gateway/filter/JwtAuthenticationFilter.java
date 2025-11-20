@@ -99,6 +99,23 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
             return matches;
         }
 
+        // Pattern with */something - matches UUID/something
+        if (pattern.contains("/*/")) {
+            String[] patternParts = pattern.split("/\\*/");
+            if (patternParts.length == 2) {
+                String prefix = patternParts[0];
+                String suffix = patternParts[1];
+                if (path.startsWith(prefix + "/") && path.endsWith("/" + suffix)) {
+                    String middle = path.substring(prefix.length() + 1, path.length() - suffix.length() - 1);
+                    // Check if middle part is a single segment (no slashes) and looks like UUID
+                    boolean matches = !middle.contains("/") && middle.matches("[0-9a-f-]+");
+                    log.debug("Pattern /*/ - prefix: '{}', suffix: '{}', middle: '{}', matches: {}", prefix, suffix, middle, matches);
+                    return matches;
+                }
+            }
+            return false;
+        }
+
         if (pattern.endsWith("/*")) {
             String prefix = pattern.substring(0, pattern.length() - 1); // Keep the trailing /
             if (path.startsWith(prefix) && path.length() > prefix.length()) {

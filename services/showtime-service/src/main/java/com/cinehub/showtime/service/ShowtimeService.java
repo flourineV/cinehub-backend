@@ -13,6 +13,7 @@ import com.cinehub.showtime.dto.response.ShowtimeConflictResponse;
 import com.cinehub.showtime.dto.response.ShowtimeDetailResponse;
 import com.cinehub.showtime.dto.response.ShowtimeResponse;
 import com.cinehub.showtime.dto.response.ShowtimesByMovieResponse;
+import com.cinehub.showtime.dto.response.TheaterShowtimesResponse;
 import com.cinehub.showtime.entity.Showtime;
 import com.cinehub.showtime.entity.Theater;
 import com.cinehub.showtime.entity.Room;
@@ -34,6 +35,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -765,5 +767,54 @@ public class ShowtimeService {
                 // Round up to next interval
                 int minutesToAdd = intervalMinutes - remainder;
                 return time.plusMinutes(minutesToAdd);
+        }
+
+        /**
+         * Get theaters with their showtimes for a specific movie in a province
+         */
+        public List<TheaterShowtimesResponse> getTheaterShowtimesByMovieAndProvince(
+                        UUID movieId, UUID provinceId) {
+                LocalDateTime now = LocalDateTime.now();
+
+                // Query all showtimes for the movie and province
+                List<Showtime> showtimes = showtimeRepository.findByMovieAndProvince(movieId, provinceId, now);
+
+                // Group by theater
+                Map<UUID, List<Showtime>> showtimesByTheater = showtimes.stream()
+                                .collect(Collectors.groupingBy(s -> s.getTheater().getId()));
+
+                // Build response for each theater
+                return showtimesByTheater.entrySet().stream()
+                                .map(entry -> {
+                                        UUID theaterId = entry.getKey();
+                                        List<Showtime> theaterShowtimes = entry.getValue();
+                                        Theater theater = theaterShowtimes.get(0).getTheater();
+
+                                        // Map showtimes to ShowtimeInfo
+                                        List<TheaterShowtimesResponse.ShowtimeInfo> showtimeInfos = theaterShowtimes
+                                                        .stream()
+                                                        .sorted(Comparator.comparing(Showtime::getStartTime))
+                                                        .map(this::mapToShowtimeInfo)
+                                                        .collect(Collectors.toList());
+
+                                        return TheaterShowtimesResponse.builder()
+                                                        .theaterId(theaterId)
+                                                        .theaterName(theater.getName())
+                                                        .theaterAddress(theater.getAddress())
+                                                        .showtimes(showtimeInfos)
+                                                        .build();
+                                })
+                                .collect(Collectors.toList());
+        }
+
+        /**
+         * Map Showtime entity to ShowtimeInfo DTO
+         */
+        private TheaterShowtimesResponse.ShowtimeInfo mapToShowtimeInfo(Showtime showtime) {
+                return TheaterShowtimesResponse.ShowtimeInfo.builder()
+                                .showtimeId(showtime.getId())
+                                .startTime(showtime.getStartTime())
+                                .endTime(showtime.getEndTime())
+                                .build();
         }
 }

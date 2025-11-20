@@ -107,6 +107,7 @@ public class ShowtimeSeatService {
                 return ShowtimeSeatResponse.builder()
                                 .seatId(seat.getSeat().getId())
                                 .seatNumber(seat.getSeat().getSeatNumber())
+                                .type(seat.getSeat().getType())
                                 .status(seat.getStatus())
                                 .build();
         }

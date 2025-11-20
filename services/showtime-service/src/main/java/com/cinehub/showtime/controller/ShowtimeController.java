@@ -10,6 +10,7 @@ import com.cinehub.showtime.dto.response.ShowtimeConflictResponse;
 import com.cinehub.showtime.dto.response.ShowtimeDetailResponse;
 import com.cinehub.showtime.dto.response.ShowtimeResponse;
 import com.cinehub.showtime.dto.response.ShowtimesByMovieResponse;
+import com.cinehub.showtime.dto.response.TheaterShowtimesResponse;
 import com.cinehub.showtime.security.AuthChecker;
 import com.cinehub.showtime.service.ShowtimeService;
 import lombok.RequiredArgsConstructor;
@@ -118,5 +119,14 @@ public class ShowtimeController {
         AuthChecker.requireManagerOrAdmin();
         AutoGenerateShowtimesResponse response = showtimeService.autoGenerateShowtimes(startDate, endDate);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/by-movie-and-province")
+    public ResponseEntity<List<TheaterShowtimesResponse>> getTheaterShowtimesByMovieAndProvince(
+            @RequestParam UUID movieId,
+            @RequestParam UUID provinceId) {
+        List<TheaterShowtimesResponse> response = showtimeService
+                .getTheaterShowtimesByMovieAndProvince(movieId, provinceId);
+        return ResponseEntity.ok(response);
     }
 }

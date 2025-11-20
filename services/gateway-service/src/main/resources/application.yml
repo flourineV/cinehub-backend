@@ -49,7 +49,7 @@ spring:
             - RewritePath=/api/showtimes(?<segment>.*), /api/showtimes${segment}
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: /api/showtimes,/api/showtimes/by-movie/**,/api/showtimes/by-theater,/api/showtimes/[0-9a-f-]+,/api/showtimes/[0-9a-f-]+/seats,/api/showtimes/provinces,/api/showtimes/provinces/**,/api/showtimes/theaters,/api/showtimes/theaters/**,/v3/api-docs/**,/swagger-ui/**
+                excludePaths: /api/showtimes,/api/showtimes/by-movie/**,/api/showtimes/by-theater,/api/showtimes/by-movie-and-province,/api/showtimes/*,/api/showtimes/*/seats,/api/showtimes/provinces,/api/showtimes/provinces/**,/api/showtimes/theaters,/api/showtimes/theaters/**,/v3/api-docs/**,/swagger-ui/**
 
         - id: booking-service
           uri: http://booking-service:8085
@@ -75,7 +75,7 @@ spring:
             - RewritePath=/api/pricing(?<segment>.*), /api/pricing${segment}
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: /api/pricing/calculate,/v3/api-docs/**,/swagger-ui/**
+                excludePaths: /api/pricing/seat-price,/api/pricing,/v3/api-docs/**,/swagger-ui/**
 
         - id: fnb-service
           uri: http://fnb-service:8088
@@ -85,7 +85,7 @@ spring:
             - RewritePath=/api/fnb(?<segment>.*), /api/fnb${segment}
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: /api/fnb,/api/fnb/items,/api/fnb/items/{id},/v3/api-docs/**,/swagger-ui/**
+                excludePaths: /api/fnb,/api/fnb/calculate,/api/fnb/*,/v3/api-docs/**,/swagger-ui/**
 
         - id: promotion-service
           uri: http://promotion-service:8089
@@ -95,7 +95,7 @@ spring:
             - RewritePath=/api/promotions(?<segment>.*), /api/promotions${segment}
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: /api/promotions,/api/promotions/{id},/v3/api-docs/**,/swagger-ui/**
+                excludePaths: /api/promotions,/api/promotions/validate,/api/promotions/*,/v3/api-docs/**,/swagger-ui/**
 
         - id: notification-service
           uri: http://notification-service:8090
