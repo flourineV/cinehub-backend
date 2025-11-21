@@ -38,6 +38,22 @@ public interface ShowtimeSeatRepository extends JpaRepository<ShowtimeSeat, UUID
     List<ShowtimeSeatResponse> findSeatResponsesByShowtimeId(@Param("showtimeId") UUID showtimeId);
 
     /**
+     * Cập nhật trạng thái 1 ghế cụ thể trong suất chiếu.
+     */
+    @Modifying(clearAutomatically = true)
+    @Transactional
+    @Query("""
+                UPDATE ShowtimeSeat s
+                SET s.status = :status, s.updatedAt = :now
+                WHERE s.showtime.id = :showtimeId
+                AND s.seat.id = :seatId
+            """)
+    int updateSingleSeatStatus(@Param("showtimeId") UUID showtimeId,
+            @Param("seatId") UUID seatId,
+            @Param("status") ShowtimeSeat.SeatStatus status,
+            @Param("now") LocalDateTime now);
+
+    /**
      * Cập nhật trạng thái hàng loạt cho các ghế cụ thể trong một suất chiếu.
      * Sử dụng s.seat.id (ID ghế rạp) làm điều kiện.
      */

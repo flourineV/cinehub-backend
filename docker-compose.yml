@@ -55,8 +55,8 @@ services:
     env_file:
       - ./services/showtime-service/.env
     container_name: showtime-service
-    expose:
-      - "8084"
+    ports:
+      - "8084:8084" # Expose for WebSocket direct connection
     networks:
       - cinehub-net
     depends_on:

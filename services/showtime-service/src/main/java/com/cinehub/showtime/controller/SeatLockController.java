@@ -2,6 +2,7 @@ package com.cinehub.showtime.controller;
 
 import com.cinehub.showtime.dto.request.SeatLockRequest;
 import com.cinehub.showtime.dto.request.SeatReleaseRequest;
+import com.cinehub.showtime.dto.request.SingleSeatLockRequest;
 import com.cinehub.showtime.dto.response.SeatLockResponse;
 import com.cinehub.showtime.security.AuthChecker;
 import com.cinehub.showtime.service.SeatLockService;
@@ -21,12 +22,30 @@ public class SeatLockController {
 
         private final SeatLockService seatLockService;
 
+        @PostMapping("/lock-single")
+        public ResponseEntity<SeatLockResponse> lockSingleSeat(@RequestBody SingleSeatLockRequest req) {
+                log.info("API: Locking single seat {} for showtime {}", req.getSelectedSeat().getSeatId(),
+                                req.getShowtimeId());
+                SeatLockResponse response = seatLockService.lockSingleSeat(req);
+                return ResponseEntity.ok(response);
+        }
+
+        @PostMapping("/unlock-single")
+        public ResponseEntity<SeatLockResponse> unlockSingleSeat(
+                        @RequestParam UUID showtimeId,
+                        @RequestParam UUID seatId,
+                        @RequestParam(required = false) UUID userId,
+                        @RequestParam(required = false) UUID guestSessionId) {
+                log.info("API: Unlocking single seat {} for showtime {}", seatId, showtimeId);
+                SeatLockResponse response = seatLockService.unlockSingleSeat(showtimeId, seatId, userId,
+                                guestSessionId);
+                return ResponseEntity.ok(response);
+        }
+
         @PostMapping("/lock")
         public ResponseEntity<List<SeatLockResponse>> lockSeats(
-                        @RequestBody SeatLockRequest req,
-                        @RequestHeader(value = "X-Internal-Secret", required = false) String internalKey) {
+                        @RequestBody SeatLockRequest req) {
 
-                AuthChecker.requireManagerOrAdmin();
                 log.info("API: Locking {} seats for showtime {}", req.getSelectedSeats().size(), req.getShowtimeId());
                 return ResponseEntity.ok(seatLockService.lockSeats(req));
         }

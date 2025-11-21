@@ -1,30 +1,22 @@
 package com.cinehub.showtime.config;
 
+import com.cinehub.showtime.websocket.SeatLockWebSocketHandler;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.messaging.simp.config.MessageBrokerRegistry;
-import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
-import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
-import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.EnableWebSocket;
+import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 
 @Configuration
-@EnableWebSocketMessageBroker
+@EnableWebSocket
+@RequiredArgsConstructor
+public class WebSocketConfig implements WebSocketConfigurer {
 
-public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
-
-    @Override
-    public void configureMessageBroker(MessageBrokerRegistry config) {
-        // Nơi FE sẽ "subscribe"
-        config.enableSimpleBroker("/topic");
-
-        // Nơi FE gửi request
-        config.setApplicationDestinationPrefixes("/app");
-    }
+    private final SeatLockWebSocketHandler seatLockWebSocketHandler;
 
     @Override
-    public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // Fe sẽ connect tới endpoint này
-        registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
-                .withSockJS(); // Giúp fallback nếu browser không hỗ trợ native websocket.
+    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+        registry.addHandler(seatLockWebSocketHandler, "/ws/showtime/{showtimeId}")
+                .setAllowedOriginPatterns("*");
     }
 }

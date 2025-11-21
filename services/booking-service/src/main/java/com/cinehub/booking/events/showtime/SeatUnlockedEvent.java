@@ -4,8 +4,8 @@ import java.util.List;
 import java.util.UUID;
 
 public record SeatUnlockedEvent(
-                UUID showtimeId,
-                UUID bookingId,
-                List<UUID> seatIds,
-                String reason) {
+        UUID showtimeId,
+        UUID bookingId,
+        List<UUID> seatIds,
+        String reason) {
 }

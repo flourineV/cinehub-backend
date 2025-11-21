@@ -6,15 +6,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.UUID;
-import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SeatLockRequest {
+public class SingleSeatLockRequest {
     private UUID userId;
     private UUID guestSessionId;
     private UUID showtimeId;
-    private List<SeatSelectionDetail> selectedSeats;
+    private SeatSelectionDetail selectedSeat;
 }

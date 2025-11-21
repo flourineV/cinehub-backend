@@ -49,7 +49,15 @@ spring:
             - RewritePath=/api/showtimes(?<segment>.*), /api/showtimes${segment}
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: /api/showtimes,/api/showtimes/by-movie/**,/api/showtimes/by-theater,/api/showtimes/by-movie-and-province,/api/showtimes/*,/api/showtimes/*/seats,/api/showtimes/provinces,/api/showtimes/provinces/**,/api/showtimes/theaters,/api/showtimes/theaters/**,/v3/api-docs/**,/swagger-ui/**
+                excludePaths: /api/showtimes,/api/showtimes/by-movie/**,/api/showtimes/by-theater,/api/showtimes/by-movie-and-province,/api/showtimes/*,/api/showtimes/*/seats,/api/showtimes/seat-lock/lock-single,/api/showtimes/seat-lock/unlock-single,/api/showtimes/seat-lock/status,/api/showtimes/provinces,/api/showtimes/provinces/**,/api/showtimes/theaters,/api/showtimes/theaters/**,/v3/api-docs/**,/swagger-ui/**
+
+        # WebSocket route for seat lock updates
+        - id: showtime-websocket
+          uri: ws://showtime-service:8084
+          predicates:
+            - Path=/ws/**
+          filters:
+            - RewritePath=/ws(?<segment>.*), /ws${segment}
 
         - id: booking-service
           uri: http://booking-service:8085
@@ -114,21 +122,6 @@ spring:
             - name: JwtAuthenticationFilter
               args:
                 excludePaths: /api/analytics/track,/v3/api-docs/**,/swagger-ui/**
-
-      globalcors:
-        cors-configurations:
-          "[/**]":
-            allowedOrigins: "http://localhost:5173"
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - DELETE
-              - PATCH
-              - OPTIONS
-            allowedHeaders: "*"
-            allowCredentials: true
-            maxAge: 3600
 
 springdoc:
   api-docs:

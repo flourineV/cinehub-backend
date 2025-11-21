@@ -11,6 +11,7 @@ import com.cinehub.showtime.events.SeatLockedEvent;
 import com.cinehub.showtime.events.SeatUnlockedEvent;
 import com.cinehub.showtime.exception.IllegalSeatLockException;
 import com.cinehub.showtime.producer.ShowtimeProducer;
+import com.cinehub.showtime.websocket.SeatLockWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,7 +34,8 @@ public class SeatLockService {
 
     private final StringRedisTemplate redisTemplate;
     private final ShowtimeProducer showtimeProducer;
-    private final ShowtimeSeatRepository showtimeSeatRepository; // Repository DB
+    private final ShowtimeSeatRepository showtimeSeatRepository;
+    private final SeatLockWebSocketHandler webSocketHandler;
 
     @Value("${lock.timeout:200}")
     private int lockTimeout;
@@ -50,6 +52,123 @@ public class SeatLockService {
 
     private final DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>(UPDATE_LOCK_WITH_TTL_SCRIPT,
             Long.class);
+
+    @Transactional
+    public SeatLockResponse lockSingleSeat(com.cinehub.showtime.dto.request.SingleSeatLockRequest req) {
+        UUID seatId = req.getSelectedSeat().getSeatId();
+
+        // Validate showtime-seat combination exists
+        ShowtimeSeat showtimeSeat = showtimeSeatRepository.findByShowtime_IdAndSeat_Id(
+                req.getShowtimeId(), seatId)
+                .orElseThrow(() -> new IllegalSeatLockException(
+                        "Showtime or seat not found: showtimeId=" + req.getShowtimeId() + ", seatId=" + seatId));
+
+        String key = key(req.getShowtimeId(), seatId);
+        long expireAt = System.currentTimeMillis() + lockTimeout * 1000L;
+
+        String ownerType;
+        String ownerIdentifier;
+
+        if (req.getUserId() != null) {
+            ownerType = "USER";
+            ownerIdentifier = req.getUserId().toString();
+        } else {
+            ownerType = "GUEST";
+            ownerIdentifier = req.getGuestSessionId().toString();
+        }
+
+        String value = ownerType + "|" + ownerIdentifier + "|" + expireAt;
+
+        Boolean success = redisTemplate.opsForValue().setIfAbsent(key, value, lockTimeout, TimeUnit.SECONDS);
+
+        if (Boolean.FALSE.equals(success)) {
+            throw new IllegalSeatLockException("Seat " + seatId + " is already locked by another user.");
+        }
+
+        // Update DB
+        int updatedCount = showtimeSeatRepository.updateSingleSeatStatus(
+                req.getShowtimeId(),
+                seatId,
+                ShowtimeSeat.SeatStatus.LOCKED,
+                LocalDateTime.now());
+
+        log.info("Seat {} locked (Redis+DB) for showtime {} by {}. DB updated: {}",
+                seatId, req.getShowtimeId(),
+                req.getUserId() != null ? "user " + req.getUserId() : "guest " + req.getGuestSessionId(),
+                updatedCount);
+
+        SeatLockResponse response = buildLockResponse(req.getShowtimeId(), seatId, "LOCKED", lockTimeout);
+
+        // Push WebSocket update
+        webSocketHandler.broadcastToShowtime(req.getShowtimeId(), response);
+
+        // Publish event to Kafka
+        SeatLockedEvent event = new SeatLockedEvent(
+                req.getUserId(),
+                req.getGuestSessionId(),
+                req.getShowtimeId(),
+                Collections.singletonList(req.getSelectedSeat()),
+                lockTimeout);
+        showtimeProducer.sendSeatLockedEvent(event);
+        log.info("Published SeatLockedEvent for seat {} in showtime {}", seatId, req.getShowtimeId());
+
+        return response;
+    }
+
+    @Transactional
+    public SeatLockResponse unlockSingleSeat(UUID showtimeId, UUID seatId, UUID userId, UUID guestSessionId) {
+        String key = key(showtimeId, seatId);
+
+        // Verify ownership before unlock
+        String currentValue = redisTemplate.opsForValue().get(key);
+        if (currentValue != null) {
+            String[] parts = currentValue.split("\\|");
+            if (parts.length >= 2) {
+                String ownerType = parts[0];
+                String ownerIdentifier = parts[1];
+
+                boolean isOwner = false;
+                if ("USER".equals(ownerType) && userId != null) {
+                    isOwner = ownerIdentifier.equals(userId.toString());
+                } else if ("GUEST".equals(ownerType) && guestSessionId != null) {
+                    isOwner = ownerIdentifier.equals(guestSessionId.toString());
+                }
+
+                if (!isOwner) {
+                    throw new IllegalSeatLockException("You don't own this seat lock");
+                }
+            }
+        }
+
+        // Delete Redis lock
+        redisTemplate.delete(key);
+
+        // Update DB
+        int updatedCount = showtimeSeatRepository.updateSingleSeatStatus(
+                showtimeId,
+                seatId,
+                ShowtimeSeat.SeatStatus.AVAILABLE,
+                LocalDateTime.now());
+
+        log.info("Seat {} unlocked (Redis+DB) for showtime {}. DB updated: {}",
+                seatId, showtimeId, updatedCount);
+
+        SeatLockResponse response = buildLockResponse(showtimeId, seatId, "AVAILABLE", 0);
+
+        // Push WebSocket update
+        webSocketHandler.broadcastToShowtime(showtimeId, response);
+
+        // Publish event to Kafka
+        SeatUnlockedEvent event = new SeatUnlockedEvent(
+                null, // no bookingId for manual unlock
+                showtimeId,
+                Collections.singletonList(seatId),
+                "Manual unlock by user");
+        showtimeProducer.sendSeatUnlockedEvent(event);
+        log.info("Published SeatUnlockedEvent for seat {} in showtime {}", seatId, showtimeId);
+
+        return response;
+    }
 
     @Transactional
     public List<SeatLockResponse> lockSeats(SeatLockRequest req) {
@@ -71,7 +190,7 @@ public class SeatLockService {
                 ownerIdentifier = req.getUserId().toString();
             } else {
                 ownerType = "GUEST";
-                ownerIdentifier = req.getGuestEmail() + ":" + UUID.randomUUID();
+                ownerIdentifier = req.getGuestSessionId().toString();
             }
 
             // USER|<UUID>|<expireAt> hoặc GUEST|<name> + <email>|<expireAt>
@@ -99,14 +218,13 @@ public class SeatLockService {
                 ShowtimeSeat.SeatStatus.LOCKED,
                 LocalDateTime.now());
 
+        // Publish event
         SeatLockedEvent event = new SeatLockedEvent(
                 req.getUserId(),
-                req.getGuestName(),
-                req.getGuestEmail(),
+                req.getGuestSessionId(),
                 req.getShowtimeId(),
                 req.getSelectedSeats(),
                 lockTimeout);
-
         showtimeProducer.sendSeatLockedEvent(event);
 
         if (req.getUserId() != null) {
@@ -116,8 +234,7 @@ public class SeatLockService {
             log.info("All {} seats locked (Redis+DB) for showtime {} by guest [{} - {}]. DB updated: {}",
                     seatIds.size(),
                     req.getShowtimeId(),
-                    req.getGuestName(),
-                    req.getGuestEmail(),
+                    req.getGuestSessionId(),
                     updatedCount);
         }
 
@@ -157,9 +274,9 @@ public class SeatLockService {
 
                         // Key mapping chỉ cần giữ bookingId
                         // Set TTL dài hơn 5 giây để chắc chắn nó tồn tại khi lockKey hết hạn.
-                        redisTemplate.opsForValue().set(mappingKey, newBookingId, currentTTL + 5, TimeUnit.SECONDS);
+                        redisTemplate.opsForValue().set(mappingKey, newBookingId, currentTTL + 60, TimeUnit.SECONDS);
                         log.debug("MAPPING: Created dedicated mapping key {} with TTL {}s.", mappingKey,
-                                currentTTL + 5);
+                                currentTTL + 60);
                     }
                     log.debug("MAPPING: Successfully mapped booking {} to lock {}.", newBookingId, lockKey);
                 } else {
@@ -273,9 +390,8 @@ public class SeatLockService {
                 SeatUnlockedEvent event = new SeatUnlockedEvent(
                         bookingId,
                         showtimeId,
-                        Collections.singletonList(seatId), // Chỉ giải phóng 1 ghế
-                        "SEAT_LOCK_EXPIRED" // Lý do hết hạn
-                );
+                        Collections.singletonList(seatId),
+                        "SEAT_LOCK_EXPIRED");
 
                 showtimeProducer.sendSeatUnlockedEvent(event);
 

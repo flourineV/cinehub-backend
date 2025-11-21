@@ -7,9 +7,9 @@ import com.cinehub.showtime.dto.request.BatchInitializeSeatsRequest;
 import com.cinehub.showtime.security.AuthChecker;
 import com.cinehub.showtime.security.InternalAuthChecker;
 import com.cinehub.showtime.service.ShowtimeSeatService;
+import com.cinehub.showtime.websocket.SeatLockWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -20,7 +20,7 @@ import java.util.UUID;
 public class ShowtimeSeatController {
 
     private final ShowtimeSeatService showtimeSeatService;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final SeatLockWebSocketHandler webSocketHandler;
     private final InternalAuthChecker internalAuthChecker;
 
     @GetMapping("/{showtimeId}/seats")
@@ -43,7 +43,8 @@ public class ShowtimeSeatController {
 
         ShowtimeSeatResponse response = showtimeSeatService.updateSeatStatus(request);
 
-        messagingTemplate.convertAndSend("/topic/showtime/" + showtimeId + "/seats", response);
+        // Push WebSocket update
+        webSocketHandler.broadcastToShowtime(showtimeId, response);
 
         return ResponseEntity.ok(response);
     }
