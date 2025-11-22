@@ -15,4 +15,5 @@ public class SeatResponse {
     private UUID id;
     private String seatNumber;
     private String roomName;
+    private String seatType;
 }

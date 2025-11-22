@@ -93,7 +93,6 @@ public class ShowtimeController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortType) {
-        // Public endpoint - no authentication required
         PagedResponse<ShowtimeDetailResponse> response = showtimeService.getAllAvailableShowtimes(
                 provinceId, theaterId, null, movieId, null, showDate, showTime, page, size, sortBy, sortType);
         return ResponseEntity.ok(response);

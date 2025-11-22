@@ -20,15 +20,12 @@ public class RedisEventConfig {
 
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
-
         container.addMessageListener(listenerAdapter, new ChannelTopic(KEY_EXPIRED_CHANNEL));
-
         return container;
     }
 
     @Bean
     public MessageListenerAdapter listenerAdapter(RedisKeyExpirationListener listener) {
-        // 'handleExpiredKey' là phương thức sẽ được gọi trong Listener class
         return new MessageListenerAdapter(listener, "handleExpiredKey");
     }
 }

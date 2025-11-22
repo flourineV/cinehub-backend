@@ -1,5 +1,6 @@
 package com.cinehub.booking.controller;
 
+import com.cinehub.booking.dto.request.CreateBookingRequest;
 import com.cinehub.booking.dto.request.FinalizeBookingRequest;
 import com.cinehub.booking.dto.response.BookingResponse;
 import com.cinehub.booking.service.BookingService;
@@ -19,6 +20,12 @@ import java.util.UUID;
 public class BookingController {
 
     private final BookingService bookingService;
+
+    @PostMapping
+    public ResponseEntity<BookingResponse> createBooking(@RequestBody CreateBookingRequest request) {
+        BookingResponse booking = bookingService.createBooking(request);
+        return ResponseEntity.ok(booking);
+    }
 
     @GetMapping("/{id}")
     public ResponseEntity<BookingResponse> getBookingById(@PathVariable UUID id) {

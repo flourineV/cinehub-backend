@@ -16,7 +16,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(seatLockWebSocketHandler, "/ws/showtime/{showtimeId}")
+        registry.addHandler(seatLockWebSocketHandler, "/ws/showtime/**")
                 .setAllowedOriginPatterns("*");
     }
 }

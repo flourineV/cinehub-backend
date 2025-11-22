@@ -1,4 +1,4 @@
-package com.cinehub.showtime.dto.request;
+package com.cinehub.booking.dto.request;
 
 import lombok.Data;
 import java.util.UUID;

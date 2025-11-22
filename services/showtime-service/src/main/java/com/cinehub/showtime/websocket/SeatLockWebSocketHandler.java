@@ -21,29 +21,21 @@ public class SeatLockWebSocketHandler extends TextWebSocketHandler {
 
     private final ObjectMapper objectMapper;
 
-    // Map: showtimeId -> Set of WebSocket sessions
     private final Map<UUID, CopyOnWriteArraySet<WebSocketSession>> showtimeSessions = new ConcurrentHashMap<>();
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        String uri = session.getUri().toString();
-        UUID showtimeId = extractShowtimeId(uri);
+        String path = session.getUri().getPath();
+        UUID showtimeId = extractShowtimeId(path);
 
         if (showtimeId != null) {
             showtimeSessions.computeIfAbsent(showtimeId, k -> new CopyOnWriteArraySet<>()).add(session);
             session.getAttributes().put("showtimeId", showtimeId);
             log.info("WebSocket connected: session={}, showtimeId={}", session.getId(), showtimeId);
         } else {
-            log.warn("WebSocket connection without showtimeId: {}", uri);
+            log.warn("Invalid WebSocket path: {}", path);
             session.close(CloseStatus.BAD_DATA);
         }
-    }
-
-    @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-        // Handle incoming messages if needed (currently read-only for seat lock
-        // updates)
-        log.debug("Received message from session {}: {}", session.getId(), message.getPayload());
     }
 
     @Override
@@ -67,9 +59,6 @@ public class SeatLockWebSocketHandler extends TextWebSocketHandler {
         session.close(CloseStatus.SERVER_ERROR);
     }
 
-    /**
-     * Broadcast message to all sessions subscribed to a showtime
-     */
     public void broadcastToShowtime(UUID showtimeId, Object message) {
         CopyOnWriteArraySet<WebSocketSession> sessions = showtimeSessions.get(showtimeId);
         if (sessions != null && !sessions.isEmpty()) {
@@ -89,19 +78,15 @@ public class SeatLockWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    /**
-     * Extract showtimeId from WebSocket URI: /ws/showtime/{showtimeId}
-     */
-    private UUID extractShowtimeId(String uri) {
+    private UUID extractShowtimeId(String path) {
         try {
-            String[] parts = uri.split("/");
-            for (int i = 0; i < parts.length - 1; i++) {
-                if ("showtime".equals(parts[i])) {
-                    return UUID.fromString(parts[i + 1]);
-                }
+            String[] parts = path.split("/");
+            if (parts.length > 0) {
+                String idPart = parts[parts.length - 1];
+                return UUID.fromString(idPart);
             }
-        } catch (Exception e) {
-            log.error("Failed to extract showtimeId from URI: {}", uri, e);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid UUID in path: {}", path);
         }
         return null;
     }

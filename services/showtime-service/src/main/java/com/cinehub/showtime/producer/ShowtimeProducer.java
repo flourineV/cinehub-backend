@@ -11,21 +11,8 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 public class ShowtimeProducer {
+
         private final RabbitTemplate rabbitTemplate;
-
-        public <T> void sendSeatLockedEvent(T data) {
-                var msg = new EventMessage<>(
-                                UUID.randomUUID().toString(),
-                                "SeatLocked",
-                                "v1",
-                                Instant.now(),
-                                data);
-
-                rabbitTemplate.convertAndSend(
-                                RabbitConfig.SHOWTIME_EXCHANGE,
-                                RabbitConfig.SEAT_LOCK_ROUTING_KEY,
-                                msg);
-        }
 
         public <T> void sendSeatUnlockedEvent(T data) {
                 var msg = new EventMessage<>(
@@ -35,7 +22,6 @@ public class ShowtimeProducer {
                                 Instant.now(),
                                 data);
 
-                // Gửi SeatUnlockedEvent
                 rabbitTemplate.convertAndSend(
                                 RabbitConfig.SHOWTIME_EXCHANGE,
                                 RabbitConfig.SEAT_UNLOCK_ROUTING_KEY,

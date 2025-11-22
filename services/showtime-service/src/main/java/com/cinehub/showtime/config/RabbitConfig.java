@@ -16,7 +16,6 @@ public class RabbitConfig {
     // showtime exchange
     public static final String SHOWTIME_EXCHANGE = "showtime.exchange";
 
-    public static final String SEAT_LOCK_ROUTING_KEY = "seat.locked";
     public static final String SEAT_UNLOCK_ROUTING_KEY = "seat.unlocked";
 
     public static final String SHOWTIME_QUEUE = "showtime.queue";

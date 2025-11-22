@@ -81,6 +81,8 @@ spring:
             - Path=/api/bookings/**
           filters:
             - name: JwtAuthenticationFilter
+              args:
+                excludePaths: /api/bookings,/v3/api-docs/**,/swagger-ui/**
 
         - id: payment-service
           uri: http://payment-service:8086

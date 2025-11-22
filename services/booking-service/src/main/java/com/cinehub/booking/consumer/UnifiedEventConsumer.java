@@ -3,7 +3,6 @@ package com.cinehub.booking.consumer;
 import com.cinehub.booking.config.RabbitConfig;
 import com.cinehub.booking.events.payment.PaymentSuccessEvent;
 import com.cinehub.booking.events.payment.PaymentFailedEvent;
-import com.cinehub.booking.events.showtime.SeatLockedEvent;
 import com.cinehub.booking.events.showtime.SeatUnlockedEvent;
 import com.cinehub.booking.service.impl.BookingServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,11 +38,6 @@ public class UnifiedEventConsumer {
 
         try {
             switch (routingKey) {
-                case RabbitConfig.SEAT_LOCK_ROUTING_KEY -> {
-                    SeatLockedEvent data = objectMapper.convertValue(dataObj, SeatLockedEvent.class);
-                    log.info("Seatlocked received: {}", data);
-                    bookingService.handleSeatLocked(data); // TẠO BOOKING PENDING
-                }
                 case RabbitConfig.SEAT_UNLOCK_ROUTING_KEY -> {
                     SeatUnlockedEvent data = objectMapper.convertValue(dataObj, SeatUnlockedEvent.class);
                     log.info("SeatUnlocked received: {}", data);

@@ -16,7 +16,4 @@ public class WebConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(userContextInterceptor);
     }
-
-    // CORS handled by gateway, not needed here for HTTP requests
-    // But WebSocket needs CORS in WebSocketConfig
 }

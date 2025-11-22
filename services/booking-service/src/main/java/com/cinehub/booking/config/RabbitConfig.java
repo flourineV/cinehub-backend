@@ -14,7 +14,6 @@ public class RabbitConfig {
     public static final String SHOWTIME_EXCHANGE = "showtime.exchange";
 
     // routing key from booking queue to connect showtime exchange
-    public static final String SEAT_LOCK_ROUTING_KEY = "seat.locked";
     public static final String SEAT_UNLOCK_ROUTING_KEY = "seat.unlocked";
 
     // payment exchange
@@ -66,13 +65,6 @@ public class RabbitConfig {
     @Bean
     public DirectExchange notificationExchange() {
         return new DirectExchange(NOTIFICATION_EXCHANGE, true, false);
-    }
-
-    @Bean
-    public Binding seatLockedBinding(Queue bookingQueue, DirectExchange showtimeExchange) {
-        return BindingBuilder.bind(bookingQueue)
-                .to(showtimeExchange)
-                .with(SEAT_LOCK_ROUTING_KEY);
     }
 
     @Bean

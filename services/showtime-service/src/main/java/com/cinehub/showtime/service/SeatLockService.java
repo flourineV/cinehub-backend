@@ -7,14 +7,14 @@ import com.cinehub.showtime.dto.response.SeatLockResponse;
 import com.cinehub.showtime.dto.request.SeatLockRequest;
 import com.cinehub.showtime.events.BookingStatusUpdatedEvent;
 import com.cinehub.showtime.events.BookingSeatMappedEvent;
-import com.cinehub.showtime.events.SeatLockedEvent;
 import com.cinehub.showtime.events.SeatUnlockedEvent;
 import com.cinehub.showtime.exception.IllegalSeatLockException;
 import com.cinehub.showtime.producer.ShowtimeProducer;
 import com.cinehub.showtime.websocket.SeatLockWebSocketHandler;
+import com.cinehub.showtime.dto.request.SingleSeatLockRequest;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -54,11 +54,12 @@ public class SeatLockService {
             Long.class);
 
     @Transactional
-    public SeatLockResponse lockSingleSeat(com.cinehub.showtime.dto.request.SingleSeatLockRequest req) {
+    public SeatLockResponse lockSingleSeat(SingleSeatLockRequest req) {
+
         UUID seatId = req.getSelectedSeat().getSeatId();
 
         // Validate showtime-seat combination exists
-        ShowtimeSeat showtimeSeat = showtimeSeatRepository.findByShowtime_IdAndSeat_Id(
+        showtimeSeatRepository.findByShowtime_IdAndSeat_Id(
                 req.getShowtimeId(), seatId)
                 .orElseThrow(() -> new IllegalSeatLockException(
                         "Showtime or seat not found: showtimeId=" + req.getShowtimeId() + ", seatId=" + seatId));
@@ -85,7 +86,6 @@ public class SeatLockService {
             throw new IllegalSeatLockException("Seat " + seatId + " is already locked by another user.");
         }
 
-        // Update DB
         int updatedCount = showtimeSeatRepository.updateSingleSeatStatus(
                 req.getShowtimeId(),
                 seatId,
@@ -102,16 +102,6 @@ public class SeatLockService {
         // Push WebSocket update
         webSocketHandler.broadcastToShowtime(req.getShowtimeId(), response);
 
-        // Publish event to Kafka
-        SeatLockedEvent event = new SeatLockedEvent(
-                req.getUserId(),
-                req.getGuestSessionId(),
-                req.getShowtimeId(),
-                Collections.singletonList(req.getSelectedSeat()),
-                lockTimeout);
-        showtimeProducer.sendSeatLockedEvent(event);
-        log.info("Published SeatLockedEvent for seat {} in showtime {}", seatId, req.getShowtimeId());
-
         return response;
     }
 
@@ -119,7 +109,6 @@ public class SeatLockService {
     public SeatLockResponse unlockSingleSeat(UUID showtimeId, UUID seatId, UUID userId, UUID guestSessionId) {
         String key = key(showtimeId, seatId);
 
-        // Verify ownership before unlock
         String currentValue = redisTemplate.opsForValue().get(key);
         if (currentValue != null) {
             String[] parts = currentValue.split("\\|");
@@ -158,7 +147,6 @@ public class SeatLockService {
         // Push WebSocket update
         webSocketHandler.broadcastToShowtime(showtimeId, response);
 
-        // Publish event to Kafka
         SeatUnlockedEvent event = new SeatUnlockedEvent(
                 null, // no bookingId for manual unlock
                 showtimeId,
@@ -193,7 +181,6 @@ public class SeatLockService {
                 ownerIdentifier = req.getGuestSessionId().toString();
             }
 
-            // USER|<UUID>|<expireAt> hoặc GUEST|<name> + <email>|<expireAt>
             String value = ownerType + "|" + ownerIdentifier + "|" + expireAt;
 
             Boolean success = redisTemplate.opsForValue().setIfAbsent(key, value, lockTimeout, TimeUnit.SECONDS);
@@ -211,21 +198,11 @@ public class SeatLockService {
             }
         }
 
-        // Nếu khóa thành công TẤT CẢ (Redis OK) -> Cập nhật DB
         int updatedCount = showtimeSeatRepository.bulkUpdateSeatStatus(
                 req.getShowtimeId(),
                 seatIds,
                 ShowtimeSeat.SeatStatus.LOCKED,
                 LocalDateTime.now());
-
-        // Publish event
-        SeatLockedEvent event = new SeatLockedEvent(
-                req.getUserId(),
-                req.getGuestSessionId(),
-                req.getShowtimeId(),
-                req.getSelectedSeats(),
-                lockTimeout);
-        showtimeProducer.sendSeatLockedEvent(event);
 
         if (req.getUserId() != null) {
             log.info("All {} seats locked (Redis+DB) for showtime {} by user {}. DB updated: {}",
@@ -236,6 +213,11 @@ public class SeatLockService {
                     req.getShowtimeId(),
                     req.getGuestSessionId(),
                     updatedCount);
+        }
+
+        for (UUID seatId : successfullyLockedSeats) {
+            SeatLockResponse response = buildLockResponse(req.getShowtimeId(), seatId, "LOCKED", lockTimeout);
+            webSocketHandler.broadcastToShowtime(req.getShowtimeId(), response);
         }
 
         return responses;
@@ -264,16 +246,12 @@ public class SeatLockService {
                         newValue);
 
                 if (result == 1) {
-                    // LẤY TTL HIỆN TẠI (ĐÃ ĐƯỢC BẢO TOÀN BỞI LUA SCRIPT)
                     Long currentTTL = redisTemplate.getExpire(lockKey, TimeUnit.SECONDS);
-
-                    // *BỔ SUNG LOGIC TẠO KEY MAPPING RIÊNG Ở ĐÂY**
                     if (currentTTL != null && currentTTL > 0) {
                         String mappingKey = BOOKING_MAPPING_KEY_PREFIX + event.showtimeId().toString() + ":"
                                 + seatId.toString();
 
                         // Key mapping chỉ cần giữ bookingId
-                        // Set TTL dài hơn 5 giây để chắc chắn nó tồn tại khi lockKey hết hạn.
                         redisTemplate.opsForValue().set(mappingKey, newBookingId, currentTTL + 60, TimeUnit.SECONDS);
                         log.debug("MAPPING: Created dedicated mapping key {} with TTL {}s.", mappingKey,
                                 currentTTL + 60);

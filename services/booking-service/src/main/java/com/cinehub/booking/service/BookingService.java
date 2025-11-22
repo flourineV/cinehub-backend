@@ -8,12 +8,11 @@ import com.cinehub.booking.dto.response.BookingResponse;
 import com.cinehub.booking.entity.BookingStatus;
 import com.cinehub.booking.events.payment.PaymentFailedEvent;
 import com.cinehub.booking.events.payment.PaymentSuccessEvent;
-import com.cinehub.booking.events.showtime.SeatLockedEvent;
 import com.cinehub.booking.events.showtime.SeatUnlockedEvent;
 
 public interface BookingService {
 
-    void handleSeatLocked(SeatLockedEvent data);
+    BookingResponse createBooking(com.cinehub.booking.dto.request.CreateBookingRequest request);
 
     void handleSeatUnlocked(SeatUnlockedEvent data);
 

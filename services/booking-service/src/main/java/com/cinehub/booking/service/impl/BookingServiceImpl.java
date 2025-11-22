@@ -5,12 +5,14 @@ import com.cinehub.booking.dto.external.ShowtimeResponse;
 import com.cinehub.booking.dto.external.PromotionValidationResponse;
 import com.cinehub.booking.dto.external.FnbCalculationResponse;
 import com.cinehub.booking.dto.request.FinalizeBookingRequest;
+import com.cinehub.booking.dto.request.SeatSelectionDetail;
 import com.cinehub.booking.dto.response.BookingResponse;
 import com.cinehub.booking.dto.external.FnbCalculationRequest;
 import com.cinehub.booking.dto.external.MovieTitleResponse;
 import com.cinehub.booking.dto.external.SeatResponse;
 import com.cinehub.booking.dto.external.FnbItemResponse;
 import com.cinehub.booking.dto.external.RankAndDiscountResponse;
+import com.cinehub.booking.dto.request.CreateBookingRequest;
 
 import com.cinehub.booking.entity.*;
 import com.cinehub.booking.events.booking.*;
@@ -23,6 +25,7 @@ import com.cinehub.booking.producer.BookingProducer;
 import com.cinehub.booking.repository.*;
 import com.cinehub.booking.adapter.client.*;
 import com.cinehub.booking.service.BookingService;
+import com.cinehub.booking.service.SeatLockRedisService;
 import com.cinehub.booking.mapper.BookingMapper;
 
 import lombok.RequiredArgsConstructor;
@@ -55,49 +58,73 @@ public class BookingServiceImpl implements BookingService {
         private final UserProfileClient userProfileClient;
         private final BookingMapper bookingMapper;
         private final BookingProducer bookingProducer;
+        private final SeatLockRedisService seatLockRedisService;
 
         @Transactional
-        public void handleSeatLocked(SeatLockedEvent data) {
+        public BookingResponse createBooking(CreateBookingRequest request) {
 
-                if (data.userId() != null) {
-                        log.info("Received SeatLocked event: showtime={}, seats={}, user={}",
-                                        data.showtimeId(), data.selectedSeats().size(), data.userId());
+                // ======== 0. VALIDATE REQUEST ========
+                if (request.getSelectedSeats() == null || request.getSelectedSeats().isEmpty()) {
+                        throw new BookingException("At least one seat must be selected");
+                }
+
+                log.info("Creating booking: showtime={}, seats={}, user={}, guest={}",
+                                request.getShowtimeId(), request.getSelectedSeats().size(),
+                                request.getUserId(), request.getGuestSessionId());
+
+                // ======== 1. VALIDATE OWNERSHIP ========
+                if (request.getUserId() == null && request.getGuestSessionId() == null) {
+                        throw new BookingException("Either userId or guestSessionId must be provided");
+                }
+
+                if (request.getUserId() != null && request.getGuestSessionId() != null) {
+                        throw new BookingException("Cannot provide both userId and guestSessionId");
+                }
+
+                List<UUID> seatIds = request.getSelectedSeats().stream()
+                                .map(SeatSelectionDetail::getSeatId)
+                                .toList();
+
+                boolean ownsSeats;
+                if (request.getGuestSessionId() != null) {
+                        ownsSeats = seatLockRedisService.validateGuestSessionOwnsSeats(
+                                        request.getShowtimeId(),
+                                        seatIds,
+                                        request.getGuestSessionId());
+                        if (!ownsSeats) {
+                                throw new BookingException("Guest session does not own the selected seats");
+                        }
                 } else {
-                        log.info("Received SeatLocked event: showtime={}, seats={}, guestName={}, guestEmail={}",
-                                        data.showtimeId(), data.selectedSeats().size(), data.guestName(),
-                                        data.guestEmail());
+                        ownsSeats = seatLockRedisService.validateUserOwnsSeats(
+                                        request.getShowtimeId(),
+                                        seatIds,
+                                        request.getUserId());
+                        if (!ownsSeats) {
+                                throw new BookingException("User does not own the selected seats");
+                        }
                 }
 
                 Booking booking = Booking.builder()
-                                .userId(data.userId())
-                                .showtimeId(data.showtimeId())
+                                .userId(request.getUserId())
+                                .showtimeId(request.getShowtimeId())
                                 .status(BookingStatus.PENDING)
                                 .totalPrice(BigDecimal.ZERO)
                                 .discountAmount(BigDecimal.ZERO)
                                 .finalPrice(BigDecimal.ZERO)
-                                .guestName(data.guestName())
-                                .guestEmail(data.guestEmail())
+                                .guestName(request.getGuestName())
+                                .guestEmail(request.getGuestEmail())
                                 .build();
-
-                List<SeatPriceResponse> seatPrices = data.selectedSeats().stream()
-                                .map(seatDetail -> pricingClient.getSeatPrice(
-                                                seatDetail.getSeatType(),
-                                                seatDetail.getTicketType()))
-                                .toList();
-
-                if (seatPrices == null || seatPrices.size() != data.selectedSeats().size()) {
-                        throw new BookingException("Lỗi trong quá trình lấy giá ghế. Không đủ dữ liệu.");
-                }
 
                 List<BookingSeat> seats = new ArrayList<>();
                 BigDecimal totalSeatPrice = BigDecimal.ZERO;
 
-                for (int i = 0; i < data.selectedSeats().size(); i++) {
-                        var seatDetail = data.selectedSeats().get(i);
-                        SeatPriceResponse seatPrice = seatPrices.get(i);
+                for (SeatSelectionDetail seatDetail : request.getSelectedSeats()) {
+                        SeatPriceResponse seatPrice = pricingClient.getSeatPrice(
+                                        seatDetail.getSeatType(),
+                                        seatDetail.getTicketType());
 
                         if (seatPrice == null || seatPrice.getBasePrice() == null) {
-                                throw new BookingException("Không tìm thấy mức giá cho loại ghế/vé này.");
+                                throw new BookingException("Cannot get price for seat: " + seatDetail.getSeatId());
                         }
 
                         BigDecimal price = seatPrice.getBasePrice();
@@ -116,11 +143,14 @@ public class BookingServiceImpl implements BookingService {
                 booking.setSeats(seats);
                 booking.setTotalPrice(totalSeatPrice);
                 booking.setFinalPrice(totalSeatPrice);
+
+                // ======== 4. SAVE BOOKING ========
                 bookingRepository.save(booking);
 
                 log.info("Booking created: {} | total={} | seats={}",
                                 booking.getId(), totalSeatPrice, seats.size());
 
+                // ======== 5. PUBLISH EVENTS ========
                 bookingProducer.sendBookingCreatedEvent(
                                 new BookingCreatedEvent(
                                                 booking.getId(),
@@ -128,17 +158,19 @@ public class BookingServiceImpl implements BookingService {
                                                 booking.getGuestName(),
                                                 booking.getGuestEmail(),
                                                 booking.getShowtimeId(),
-                                                booking.getSeats().stream().map(BookingSeat::getSeatId).toList(),
+                                                seatIds,
                                                 booking.getTotalPrice()));
 
                 bookingProducer.sendBookingSeatMappedEvent(
                                 new BookingSeatMappedEvent(
                                                 booking.getId(),
                                                 booking.getShowtimeId(),
-                                                booking.getSeats().stream().map(BookingSeat::getSeatId).toList(),
+                                                seatIds,
                                                 booking.getUserId(),
                                                 booking.getGuestName(),
                                                 booking.getGuestEmail()));
+
+                return bookingMapper.toBookingResponse(booking);
         }
 
         @Transactional
