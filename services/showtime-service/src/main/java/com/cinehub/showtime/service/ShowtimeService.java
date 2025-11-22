@@ -813,6 +813,8 @@ public class ShowtimeService {
         private TheaterShowtimesResponse.ShowtimeInfo mapToShowtimeInfo(Showtime showtime) {
                 return TheaterShowtimesResponse.ShowtimeInfo.builder()
                                 .showtimeId(showtime.getId())
+                                .roomId(showtime.getRoom().getId().toString())
+                                .roomName(showtime.getRoom().getName())
                                 .startTime(showtime.getStartTime())
                                 .endTime(showtime.getEndTime())
                                 .build();

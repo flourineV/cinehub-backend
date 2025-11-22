@@ -25,6 +25,8 @@ public class TheaterShowtimesResponse {
     @Builder
     public static class ShowtimeInfo {
         private UUID showtimeId;
+        private String roomId;
+        private String roomName;
         private LocalDateTime startTime;
         private LocalDateTime endTime;
     }
