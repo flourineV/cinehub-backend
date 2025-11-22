@@ -8,7 +8,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,6 +36,8 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, UUID> {
                         AND (:roomId IS NULL OR s.room.id = :roomId)
                         AND (:movieId IS NULL OR s.movieId = :movieId)
                         AND (:showtimeId IS NULL OR s.id = :showtimeId)
+                        AND (:showDate IS NULL OR DATE(s.startTime) = :showDate)
+                        AND (:showTime IS NULL OR function('time', s.startTime) = :showTime)
                         """)
         Page<Showtime> findAvailableShowtimesWithFilters(
                         @Param("now") LocalDateTime now,
@@ -42,6 +46,8 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, UUID> {
                         @Param("roomId") UUID roomId,
                         @Param("movieId") UUID movieId,
                         @Param("showtimeId") UUID showtimeId,
+                        @Param("showDate") LocalDate showDate,
+                        @Param("showTime") LocalTime showTime,
                         Pageable pageable);
 
         /**

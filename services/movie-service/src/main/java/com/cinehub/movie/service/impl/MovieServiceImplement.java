@@ -317,6 +317,7 @@ public class MovieServiceImplement implements MovieService {
     @Override
     public PagedResponse<MovieSummaryResponse> adminSearch(String keyword,
             MovieStatus status,
+            String genres,
             int page,
             int size,
             String sortBy,
@@ -350,6 +351,11 @@ public class MovieServiceImplement implements MovieService {
 
         if (status != null) {
             query.addCriteria(Criteria.where("status").is(status));
+        }
+
+        if (genres != null && !genres.isBlank()) {
+            // Spring auto-decodes URL, no need for URLDecoder
+            query.addCriteria(Criteria.where("genres").in(genres));
         }
 
         // --- total count (before paging) ---

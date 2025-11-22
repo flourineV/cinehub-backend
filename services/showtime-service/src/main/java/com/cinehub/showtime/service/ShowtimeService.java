@@ -34,6 +34,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -281,6 +282,8 @@ public class ShowtimeService {
                         UUID roomId,
                         UUID movieId,
                         UUID showtimeId,
+                        LocalDate showDate,
+                        LocalTime showTime,
                         int page,
                         int size,
                         String sortBy,
@@ -303,7 +306,7 @@ public class ShowtimeService {
                 Pageable pageable = PageRequest.of(page - 1, size, sort);
 
                 Page<Showtime> showtimePage = showtimeRepository.findAvailableShowtimesWithFilters(
-                                now, provinceId, theaterId, roomId, movieId, showtimeId, pageable);
+                                now, provinceId, theaterId, roomId, movieId, showtimeId, showDate, showTime, pageable);
 
                 // Map to detailed response with booking counts
                 List<ShowtimeDetailResponse> content = showtimePage.getContent().stream()

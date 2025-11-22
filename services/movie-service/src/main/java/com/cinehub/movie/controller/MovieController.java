@@ -111,12 +111,14 @@ public class MovieController {
     public ResponseEntity<PagedResponse<MovieSummaryResponse>> list(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) MovieStatus status,
+            @RequestParam(required = false) String genres,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortType) {
         AuthChecker.requireManagerOrAdmin();
-        PagedResponse<MovieSummaryResponse> pages = movieService.adminSearch(keyword, status, page, size, sortBy,
+        PagedResponse<MovieSummaryResponse> pages = movieService.adminSearch(keyword, status, genres, page, size,
+                sortBy,
                 sortType);
         return ResponseEntity.ok(pages);
     }

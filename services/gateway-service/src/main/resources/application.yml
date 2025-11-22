@@ -1,5 +1,5 @@
 server:
-  port: 8099 # Sử dụng cổng đã đổi
+  port: 8099
 
 spring:
   application:
@@ -7,7 +7,7 @@ spring:
   cloud:
     gateway:
       default-filter:
-        #Ghi log toàn bộ request/response (debug tạm thời)
+        # Ghi log toàn bộ request/response (debug tạm thời)
         - name: RequestRateLimiter
           args:
             redis-rate-limiter.replenishRate: 50
@@ -18,17 +18,18 @@ spring:
           predicates:
             - Path=/api/auth/**
           filters:
-            - RewritePath=/api/auth(?<segment>.*), /api/auth${segment}
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: /api/auth/signin,/api/auth/signup,/api/auth/refreshtoken,/v3/api-docs/**,/swagger-ui/**
+                excludePaths: >
+                  /api/auth/signin,
+                  /api/auth/signup,
+                  /api/auth/refreshtoken
 
         - id: user-profile-service
           uri: http://user-profile-service:8082
           predicates:
             - Path=/api/profiles/**
           filters:
-            - RewritePath=/api/profiles(?<segment>.*), /api/profiles${segment}
             - name: JwtAuthenticationFilter
 
         - id: movie-service
@@ -36,35 +37,49 @@ spring:
           predicates:
             - Path=/api/movies/**
           filters:
-            - RewritePath=/api/movies(?<segment>.*), /api/movies${segment}
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: /api/movies/now-playing,/api/movies/upcoming,/api/movies/search,/api/movies/tmdb/**,/api/movies/{uuid},/v3/api-docs/**,/swagger-ui/**
+                excludePaths: >
+                  /api/movies/now-playing,
+                  /api/movies/upcoming,
+                  /api/movies/search,
+                  /api/movies/tmdb/**,
+                  /api/movies/{uuid},
 
         - id: showtime-service
           uri: http://showtime-service:8084
           predicates:
             - Path=/api/showtimes/**
           filters:
-            - RewritePath=/api/showtimes(?<segment>.*), /api/showtimes${segment}
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: /api/showtimes,/api/showtimes/by-movie/**,/api/showtimes/by-theater,/api/showtimes/by-movie-and-province,/api/showtimes/*,/api/showtimes/*/seats,/api/showtimes/seat-lock/lock-single,/api/showtimes/seat-lock/unlock-single,/api/showtimes/seat-lock/status,/api/showtimes/provinces,/api/showtimes/provinces/**,/api/showtimes/theaters,/api/showtimes/theaters/**,/v3/api-docs/**,/swagger-ui/**
+                excludePaths: >
+                  /api/showtimes,
+                  /api/showtimes/by-movie/**,
+                  /api/showtimes/by-theater,
+                  /api/showtimes/by-movie-and-province,
+                  /api/showtimes/*,
+                  /api/showtimes/*/seats,
+                  /api/showtimes/seat-lock/lock-single,
+                  /api/showtimes/seat-lock/unlock-single,
+                  /api/showtimes/seat-lock/status,
+                  /api/showtimes/provinces,
+                  /api/showtimes/provinces/**,
+                  /api/showtimes/theaters,
+                  /api/showtimes/theaters/**,
 
         # WebSocket route for seat lock updates
         - id: showtime-websocket
           uri: ws://showtime-service:8084
           predicates:
             - Path=/ws/**
-          filters:
-            - RewritePath=/ws(?<segment>.*), /ws${segment}
+          filters: []
 
         - id: booking-service
           uri: http://booking-service:8085
           predicates:
             - Path=/api/bookings/**
           filters:
-            - RewritePath=/api/bookings(?<segment>.*), /api/bookings${segment}
             - name: JwtAuthenticationFilter
 
         - id: payment-service
@@ -72,7 +87,6 @@ spring:
           predicates:
             - Path=/api/payments/**
           filters:
-            - RewritePath=/api/payments(?<segment>.*), /api/payments${segment}
             - name: JwtAuthenticationFilter
 
         - id: pricing-service
@@ -80,37 +94,41 @@ spring:
           predicates:
             - Path=/api/pricing/**
           filters:
-            - RewritePath=/api/pricing(?<segment>.*), /api/pricing${segment}
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: /api/pricing/seat-price,/api/pricing,/v3/api-docs/**,/swagger-ui/**
+                excludePaths: >
+                  /api/pricing/seat-price,
+                  /api/pricing,
 
         - id: fnb-service
           uri: http://fnb-service:8088
           predicates:
             - Path=/api/fnb/**
           filters:
-            - RewritePath=/api/fnb(?<segment>.*), /api/fnb${segment}
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: /api/fnb,/api/fnb/calculate,/api/fnb/*,/v3/api-docs/**,/swagger-ui/**
+                excludePaths: >
+                  /api/fnb,
+                  /api/fnb/calculate,
+                  /api/fnb/*,
 
         - id: promotion-service
           uri: http://promotion-service:8089
           predicates:
             - Path=/api/promotions/**
           filters:
-            - RewritePath=/api/promotions(?<segment>.*), /api/promotions${segment}
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: /api/promotions,/api/promotions/validate,/api/promotions/*,/v3/api-docs/**,/swagger-ui/**
+                excludePaths: >
+                  /api/promotions,
+                  /api/promotions/validate,
+                  /api/promotions/*,
 
         - id: notification-service
           uri: http://notification-service:8090
           predicates:
             - Path=/api/notifications/**
           filters:
-            - RewritePath=/api/notifications(?<segment>.*), /api/notifications${segment}
             - name: JwtAuthenticationFilter
 
         - id: analytics-service
@@ -118,29 +136,7 @@ spring:
           predicates:
             - Path=/api/analytics/**
           filters:
-            - RewritePath=/api/analytics(?<segment>.*), /api/analytics${segment}
             - name: JwtAuthenticationFilter
-              args:
-                excludePaths: /api/analytics/track,/v3/api-docs/**,/swagger-ui/**
-
-springdoc:
-  api-docs:
-    enabled: true
-  swagger-ui:
-    path: /swagger-ui.html
-    urls:
-      - name: Auth Service
-        url: /api/auth/v3/api-docs
-      - name: User Profile Service
-        url: /api/profiles/v3/api-docs
-      - name: Movie Service
-        url: /api/movies/v3/api-docs
-      - name: Booking Service
-        url: /api/bookings/v3/api-docs
-      - name: Showtime Service
-        url: /api/showtimes/v3/api-docs
-      - name: Payment Service
-        url: /api/payments/v3/api-docs
 
 # JWT Configuration
 jwt:
@@ -153,7 +149,7 @@ logging:
     com.cinehub.gateway: DEBUG
     org.springframework.cloud.gateway: DEBUG
 
-# thêm dưới phần hiện tại
+# Thêm dưới phần hiện tại
 services:
   movie:
     base-url: http://movie-service:8083

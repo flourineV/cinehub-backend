@@ -18,8 +18,9 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -82,19 +83,38 @@ public class ShowtimeController {
     }
 
     @GetMapping("/available")
-    public ResponseEntity<PagedResponse<ShowtimeDetailResponse>> getAllAvailableShowtimes(
+    public ResponseEntity<PagedResponse<ShowtimeDetailResponse>> getAvailableShowtimesForGuest(
+            @RequestParam(required = false) UUID provinceId,
+            @RequestParam(required = false) UUID theaterId,
+            @RequestParam(required = false) UUID movieId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate showDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime showTime,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortType) {
+        // Public endpoint - no authentication required
+        PagedResponse<ShowtimeDetailResponse> response = showtimeService.getAllAvailableShowtimes(
+                provinceId, theaterId, null, movieId, null, showDate, showTime, page, size, sortBy, sortType);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/admin/available")
+    public ResponseEntity<PagedResponse<ShowtimeDetailResponse>> getAllAvailableShowtimesForAdmin(
             @RequestParam(required = false) UUID provinceId,
             @RequestParam(required = false) UUID theaterId,
             @RequestParam(required = false) UUID roomId,
             @RequestParam(required = false) UUID movieId,
             @RequestParam(required = false) UUID showtimeId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate showDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime showTime,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortType) {
         AuthChecker.requireManagerOrAdmin();
         PagedResponse<ShowtimeDetailResponse> response = showtimeService.getAllAvailableShowtimes(
-                provinceId, theaterId, roomId, movieId, showtimeId, page, size, sortBy, sortType);
+                provinceId, theaterId, roomId, movieId, showtimeId, showDate, showTime, page, size, sortBy, sortType);
         return ResponseEntity.ok(response);
     }
 
