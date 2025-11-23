@@ -135,6 +135,8 @@ services:
 
 ```bash
 docker-compose up --build
+# hoặc
+docker compose up -- build
 # hoặc nền
 docker-compose up -d --build
 ```
