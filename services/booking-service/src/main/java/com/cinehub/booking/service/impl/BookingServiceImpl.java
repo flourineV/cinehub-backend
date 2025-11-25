@@ -232,6 +232,16 @@ public class BookingServiceImpl implements BookingService {
                 booking.setPaymentId(data.paymentId());
 
                 updateBookingStatus(booking, BookingStatus.CONFIRMED);
+
+                if (booking.getUserId() != null) {
+                        BigDecimal divisor = new BigDecimal("10000");
+                        int pointsEarned = booking.getFinalPrice().divide(divisor, 0, RoundingMode.DOWN).intValue();
+
+                        if (pointsEarned > 0) {
+                                // Gọi Client (đã được bọc try-catch safe bên trong Client)
+                                userProfileClient.updateLoyaltyPoints(booking.getUserId(), pointsEarned);
+                        }
+                }
         }
 
         @Transactional
