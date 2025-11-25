@@ -166,12 +166,6 @@ public class ShowtimeService {
                 showtimeRepository.deleteById(id);
         }
 
-        /**
-         * Create multiple showtimes at once
-         * For admin bulk scheduling
-         * Note: Each showtime is saved in its own transaction for safety with
-         * skipOnConflict=true
-         */
         public BatchShowtimeResponse createShowtimesBatch(BatchShowtimeRequest request) {
                 List<ShowtimeResponse> createdShowtimes = new ArrayList<>();
                 List<String> errors = new ArrayList<>();
@@ -321,18 +315,6 @@ public class ShowtimeService {
                                 .build();
         }
 
-        public List<ShowtimeResponse> getAllAvailableShowtimesSimple() {
-                LocalDateTime now = LocalDateTime.now();
-                return showtimeRepository.findAll().stream()
-                                .filter(showtime -> showtime.getStartTime().isAfter(now))
-                                .map(this::mapToShowtimeResponse)
-                                .collect(Collectors.toList());
-        }
-
-        /**
-         * Validate showtime for conflicts before creating/updating
-         * Returns conflict information for admin UI
-         */
         public ShowtimeConflictResponse validateShowtime(ValidateShowtimeRequest request) {
                 List<Showtime> overlappingShowtimes = showtimeRepository.findByRoomIdAndEndTimeAfterAndStartTimeBefore(
                                 request.getRoomId(),

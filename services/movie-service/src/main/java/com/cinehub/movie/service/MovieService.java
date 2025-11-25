@@ -46,5 +46,4 @@ public interface MovieService {
 
     List<MovieSummaryResponse> getAvailableMoviesForDateRange(LocalDate startDate, LocalDate endDate);
 
-    void setMovieNowPlaying(UUID id);
 }

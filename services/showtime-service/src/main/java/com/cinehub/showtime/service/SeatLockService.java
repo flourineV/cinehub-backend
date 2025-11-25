@@ -1,6 +1,7 @@
 package com.cinehub.showtime.service;
 
 import com.cinehub.showtime.entity.ShowtimeSeat;
+import com.cinehub.showtime.entity.Showtime;
 import com.cinehub.showtime.repository.ShowtimeSeatRepository;
 import com.cinehub.showtime.dto.request.SeatSelectionDetail;
 import com.cinehub.showtime.dto.response.SeatLockResponse;
@@ -59,10 +60,23 @@ public class SeatLockService {
         UUID seatId = req.getSelectedSeat().getSeatId();
 
         // Validate showtime-seat combination exists
-        showtimeSeatRepository.findByShowtime_IdAndSeat_Id(
+        ShowtimeSeat showtimeSeat = showtimeSeatRepository.findByShowtime_IdAndSeat_Id(
                 req.getShowtimeId(), seatId)
                 .orElseThrow(() -> new IllegalSeatLockException(
                         "Showtime or seat not found: showtimeId=" + req.getShowtimeId() + ", seatId=" + seatId));
+
+        Showtime showtime = showtimeSeat.getShowtime();
+
+        // Check 1: Status
+        if (showtime.getStatus() == com.cinehub.showtime.entity.ShowtimeStatus.SUSPENDED) {
+            throw new IllegalSeatLockException("Showtime is SUSPENDED. Cannot lock seat.");
+        }
+
+        // Check 2: Time (Không cho đặt vé suất đã chiếu hoặc sắp chiếu trong vòng X
+        // phút nếu cần)
+        if (showtime.getStartTime().isBefore(LocalDateTime.now())) {
+            throw new IllegalSeatLockException("Showtime has already started. Cannot lock seat.");
+        }
 
         String key = key(req.getShowtimeId(), seatId);
         long expireAt = System.currentTimeMillis() + lockTimeout * 1000L;
@@ -164,6 +178,33 @@ public class SeatLockService {
         List<SeatLockResponse> responses = new java.util.ArrayList<>();
         List<UUID> successfullyLockedSeats = new java.util.ArrayList<>();
         List<UUID> seatIds = req.getSelectedSeats().stream().map(SeatSelectionDetail::getSeatId).toList();
+
+        List<ShowtimeSeat> dbSeats = showtimeSeatRepository.findByShowtimeAndSeatIds(req.getShowtimeId(),
+                seatIds);
+
+        if (dbSeats.size() != seatIds.size()) {
+            throw new IllegalSeatLockException("Some seats are invalid or do not belong to this showtime.");
+        }
+        Showtime showtime = dbSeats.get(0).getShowtime();
+
+        // Check 1: Status
+        if (showtime.getStatus() == com.cinehub.showtime.entity.ShowtimeStatus.SUSPENDED) {
+            throw new IllegalSeatLockException("Showtime is SUSPENDED. Cannot lock seat.");
+        }
+
+        // Check 2: Time (Không cho đặt vé suất đã chiếu hoặc sắp chiếu trong vòng X
+        // phút nếu cần)
+        if (showtime.getStartTime().isBefore(LocalDateTime.now())) {
+            throw new IllegalSeatLockException("Showtime has already started. Cannot lock seat.");
+        }
+
+        for (ShowtimeSeat seat : dbSeats) {
+            if (seat.getStatus() == ShowtimeSeat.SeatStatus.LOCKED ||
+                    seat.getStatus() == ShowtimeSeat.SeatStatus.BOOKED) {
+                throw new IllegalSeatLockException(
+                        "Seat " + seat.getSeat().getSeatNumber() + " is already locked or booked.");
+            }
+        }
 
         for (SeatSelectionDetail seatDetail : req.getSelectedSeats()) {
             UUID seatId = seatDetail.getSeatId();

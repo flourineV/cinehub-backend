@@ -37,6 +37,11 @@ public interface ShowtimeSeatRepository extends JpaRepository<ShowtimeSeat, UUID
             """)
     List<ShowtimeSeatResponse> findSeatResponsesByShowtimeId(@Param("showtimeId") UUID showtimeId);
 
+    // Trong ShowtimeSeatRepository
+    @Query("SELECT s FROM ShowtimeSeat s WHERE s.showtime.id = :showtimeId AND s.seat.id IN :seatIds")
+    List<ShowtimeSeat> findByShowtimeAndSeatIds(@Param("showtimeId") UUID showtimeId,
+            @Param("seatIds") List<UUID> seatIds);
+
     /**
      * Cập nhật trạng thái 1 ghế cụ thể trong suất chiếu.
      */

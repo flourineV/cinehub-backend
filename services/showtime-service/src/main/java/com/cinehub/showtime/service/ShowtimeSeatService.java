@@ -7,6 +7,7 @@ import com.cinehub.showtime.entity.Seat;
 import com.cinehub.showtime.entity.Showtime;
 import com.cinehub.showtime.entity.ShowtimeSeat;
 import com.cinehub.showtime.entity.ShowtimeSeat.SeatStatus;
+import com.cinehub.showtime.entity.ShowtimeStatus;
 import com.cinehub.showtime.repository.SeatRepository;
 import com.cinehub.showtime.repository.ShowtimeRepository;
 import com.cinehub.showtime.repository.ShowtimeSeatRepository;
@@ -27,6 +28,14 @@ public class ShowtimeSeatService {
         private final SeatRepository seatRepository;
 
         public ShowtimeSeatsLayoutResponse getSeatsByShowtime(UUID showtimeId) {
+
+                Showtime showtime = showtimeRepository.findById(showtimeId)
+                                .orElseThrow(() -> new RuntimeException("Showtime not found"));
+
+                if (showtime.getStatus() == ShowtimeStatus.SUSPENDED) {
+                        throw new RuntimeException("Cannot get seats for a suspended showtime");
+                }
+
                 List<ShowtimeSeatResponse> seats = showtimeSeatRepository.findSeatResponsesByShowtimeId(showtimeId);
 
                 // Calculate layout metadata from seatNumber (format: A1, B5, etc.)
