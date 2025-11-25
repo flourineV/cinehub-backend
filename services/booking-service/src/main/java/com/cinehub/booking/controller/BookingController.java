@@ -64,4 +64,5 @@ public class BookingController {
         bookingService.deleteBooking(id);
         return ResponseEntity.noContent().build();
     }
+
 }

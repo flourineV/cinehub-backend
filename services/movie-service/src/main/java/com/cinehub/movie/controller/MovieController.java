@@ -1,6 +1,5 @@
 package com.cinehub.movie.controller;
 
-import com.cinehub.movie.dto.AddMovieFromTmdbRequest;
 import com.cinehub.movie.dto.BulkAddMoviesRequest;
 import com.cinehub.movie.dto.BulkAddMoviesResponse;
 import com.cinehub.movie.dto.MovieDetailResponse;

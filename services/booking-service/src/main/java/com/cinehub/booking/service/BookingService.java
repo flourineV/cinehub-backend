@@ -9,6 +9,7 @@ import com.cinehub.booking.entity.BookingStatus;
 import com.cinehub.booking.events.payment.PaymentFailedEvent;
 import com.cinehub.booking.events.payment.PaymentSuccessEvent;
 import com.cinehub.booking.events.showtime.SeatUnlockedEvent;
+import com.cinehub.booking.events.showtime.ShowtimeSuspendedEvent;
 
 public interface BookingService {
 
@@ -30,7 +31,7 @@ public interface BookingService {
 
     BookingResponse cancelBooking(UUID bookingId, UUID userId);
 
-    void handleShowtimeSuspended(com.cinehub.booking.events.showtime.ShowtimeSuspendedEvent event);
+    void handleShowtimeSuspended(ShowtimeSuspendedEvent event);
 
     void deleteBooking(UUID id);
 }
