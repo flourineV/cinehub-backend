@@ -54,6 +54,11 @@ public class UnifiedEventConsumer {
                     log.info("Processing PaymentFailed for booking {}", data.bookingId());
                     bookingService.handlePaymentFailed(data);
                 }
+                case RabbitConfig.SHOWTIME_SUSPENDED_KEY -> {
+                    com.cinehub.booking.events.showtime.ShowtimeSuspendedEvent data = objectMapper.convertValue(dataObj, com.cinehub.booking.events.showtime.ShowtimeSuspendedEvent.class);
+                    log.info("Processing ShowtimeSuspended for showtime {}", data.showtimeId());
+                    bookingService.handleShowtimeSuspended(data);
+                }
                 default -> {
                     log.warn("Unknown routing key: {}", routingKey);
                 }

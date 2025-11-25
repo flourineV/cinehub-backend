@@ -1,13 +1,14 @@
 package com.cinehub.profile.controller;
 
+import com.cinehub.profile.dto.request.StaffProfileRequest; // Import DTO
 import com.cinehub.profile.entity.StaffProfile;
-import com.cinehub.profile.service.StaffProfileService;
 import com.cinehub.profile.security.AuthChecker;
+import com.cinehub.profile.service.StaffProfileService;
+import jakarta.validation.Valid; // Import Valid
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,13 +21,16 @@ public class StaffProfileController {
     private final StaffProfileService staffService;
 
     @PostMapping
-    public ResponseEntity<StaffProfile> createStaff(
-            @RequestParam UUID userProfileId,
-            @RequestParam UUID cinemaId,
-            @RequestParam LocalDate startDate) {
+    public ResponseEntity<StaffProfile> createStaff(@RequestBody @Valid StaffProfileRequest request) {
 
         AuthChecker.requireManagerOrAdmin();
-        StaffProfile created = staffService.createStaff(userProfileId, cinemaId, startDate);
+
+        // Lấy dữ liệu từ Request Body (DTO) truyền vào Service
+        StaffProfile created = staffService.createStaff(
+                request.getUserProfileId(),
+                request.getCinemaId(),
+                request.getStartDate());
+
         return ResponseEntity.ok(created);
     }
 

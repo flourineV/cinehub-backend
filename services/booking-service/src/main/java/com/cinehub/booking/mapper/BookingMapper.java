@@ -27,6 +27,7 @@ public class BookingMapper {
     public BookingResponse toBookingResponse(Booking booking) {
         return BookingResponse.builder()
                 .bookingId(booking.getId())
+                .bookingCode(booking.getBookingCode())
                 .userId(booking.getUserId())
                 .showtimeId(booking.getShowtimeId())
                 .status(booking.getStatus().name())

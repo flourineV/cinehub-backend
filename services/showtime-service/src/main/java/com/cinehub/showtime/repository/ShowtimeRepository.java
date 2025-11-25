@@ -36,8 +36,9 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, UUID> {
                         AND (:roomId IS NULL OR s.room.id = :roomId)
                         AND (:movieId IS NULL OR s.movieId = :movieId)
                         AND (:showtimeId IS NULL OR s.id = :showtimeId)
-                        AND (:showDate IS NULL OR DATE(s.startTime) = :showDate)
-                        AND (:showTime IS NULL OR function('time', s.startTime) = :showTime)
+                        AND (:selectedDate IS NULL OR (s.startTime >= :startOfDay AND s.startTime <= :endOfDay))
+                        AND (:fromTime IS NULL OR function('time', s.startTime) >= :fromTime)
+                        AND (:toTime IS NULL OR function('time', s.startTime) <= :toTime)
                         """)
         Page<Showtime> findAvailableShowtimesWithFilters(
                         @Param("now") LocalDateTime now,
@@ -46,8 +47,11 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, UUID> {
                         @Param("roomId") UUID roomId,
                         @Param("movieId") UUID movieId,
                         @Param("showtimeId") UUID showtimeId,
-                        @Param("showDate") LocalDate showDate,
-                        @Param("showTime") LocalTime showTime,
+                        @Param("selectedDate") LocalDate selectedDate,
+                        @Param("startOfDay") LocalDateTime startOfDay,
+                        @Param("endOfDay") LocalDateTime endOfDay,
+                        @Param("fromTime") LocalTime fromTime,
+                        @Param("toTime") LocalTime toTime,
                         Pageable pageable);
 
         /**
@@ -64,4 +68,9 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, UUID> {
                         @Param("movieId") UUID movieId,
                         @Param("provinceId") UUID provinceId,
                         @Param("now") LocalDateTime now);
+
+        List<Showtime> findByMovieIdAndStatusAndStartTimeAfter(
+                        UUID movieId,
+                        com.cinehub.showtime.entity.ShowtimeStatus status,
+                        LocalDateTime startTime);
 }

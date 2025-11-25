@@ -50,6 +50,14 @@ public class BookingController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<BookingResponse> cancelBooking(@PathVariable UUID id) {
+        AuthChecker.requireAuthenticated();
+        UUID userId = AuthChecker.getCurrentUserId();
+        BookingResponse response = bookingService.cancelBooking(id, userId);
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteBooking(@PathVariable UUID id) {
         AuthChecker.requireAdmin();

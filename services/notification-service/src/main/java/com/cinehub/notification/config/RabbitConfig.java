@@ -16,6 +16,7 @@ public class RabbitConfig {
     // from booking
     public static final String BOOKING_EXCHANGE = "booking.exchange";
     public static final String BOOKING_TICKET_GENERATED_KEY = "booking.ticket.generated";
+    public static final String BOOKING_REFUND_PROCESSED_KEY = "booking.refund.processed";
 
     @Bean
     public Queue notificationQueue() {
@@ -32,6 +33,13 @@ public class RabbitConfig {
         return BindingBuilder.bind(notificationQueue)
                 .to(bookingExchange)
                 .with(BOOKING_TICKET_GENERATED_KEY);
+    }
+
+    @Bean
+    public Binding refundNotificationBinding(Queue notificationQueue, DirectExchange bookingExchange) {
+        return BindingBuilder.bind(notificationQueue)
+                .to(bookingExchange)
+                .with(BOOKING_REFUND_PROCESSED_KEY);
     }
 
     @Bean

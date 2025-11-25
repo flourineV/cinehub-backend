@@ -83,6 +83,10 @@ public class Booking {
     }
 
     public static String generateCode() {
-        return UUID.randomUUID().toString().substring(0, 10).toUpperCase();
+        // 1. Tạo UUID
+        // 2. Xóa hết dấu "-"
+        // 3. Lấy 8 hoặc 10 ký tự đầu
+        // 4. Viết hoa
+        return UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
     }
 }

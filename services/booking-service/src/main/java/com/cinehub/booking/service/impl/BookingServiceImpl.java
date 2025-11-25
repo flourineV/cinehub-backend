@@ -13,7 +13,6 @@ import com.cinehub.booking.dto.external.SeatResponse;
 import com.cinehub.booking.dto.external.FnbItemResponse;
 import com.cinehub.booking.dto.external.RankAndDiscountResponse;
 import com.cinehub.booking.dto.request.CreateBookingRequest;
-
 import com.cinehub.booking.entity.*;
 import com.cinehub.booking.events.booking.*;
 import com.cinehub.booking.events.notification.*;
@@ -72,7 +71,24 @@ public class BookingServiceImpl implements BookingService {
                                 request.getShowtimeId(), request.getSelectedSeats().size(),
                                 request.getUserId(), request.getGuestSessionId());
 
-                // ======== 1. VALIDATE OWNERSHIP ========
+                // ======== 1. VALIDATE SHOWTIME STATUS ========
+                ShowtimeResponse showtime = showtimeClient.getShowtimeById(request.getShowtimeId());
+                if (showtime == null) {
+                        throw new BookingException("Showtime not found");
+                }
+
+                // Check if showtime is suspended
+                if ("SUSPENDED".equals(showtime.getStatus())) {
+                        throw new BookingException(
+                                        "This showtime has been suspended and is no longer available for booking");
+                }
+
+                // Check if showtime is in the past
+                if (showtime.getStartTime().isBefore(LocalDateTime.now())) {
+                        throw new BookingException("Cannot book a showtime that has already started");
+                }
+
+                // ======== 2. VALIDATE OWNERSHIP ========
                 if (request.getUserId() == null && request.getGuestSessionId() == null) {
                         throw new BookingException("Either userId or guestSessionId must be provided");
                 }
@@ -144,13 +160,11 @@ public class BookingServiceImpl implements BookingService {
                 booking.setTotalPrice(totalSeatPrice);
                 booking.setFinalPrice(totalSeatPrice);
 
-                // ======== 4. SAVE BOOKING ========
                 bookingRepository.save(booking);
 
                 log.info("Booking created: {} | total={} | seats={}",
                                 booking.getId(), totalSeatPrice, seats.size());
 
-                // ======== 5. PUBLISH EVENTS ========
                 bookingProducer.sendBookingCreatedEvent(
                                 new BookingCreatedEvent(
                                                 booking.getId(),
@@ -470,44 +484,8 @@ public class BookingServiceImpl implements BookingService {
                                 .map(BookingSeat::getSeatId)
                                 .toList();
 
-                // Cho phép hoàn tiền nếu có userId
-                if (newStatus == BookingStatus.CANCELLED && booking.getUserId() != null) {
-                        try {
-                                ShowtimeResponse showtime = showtimeClient.getShowtimeById(booking.getShowtimeId());
-                                if (showtime != null) {
-                                        LocalDateTime startTime = showtime.getStartTime();
-                                        LocalDateTime now = LocalDateTime.now();
-
-                                        // Hủy trước giờ chiếu ít nhất 60 phút → được hoàn
-                                        if (now.isBefore(startTime.minusMinutes(60))) {
-                                                BigDecimal refundValue = booking.getFinalPrice();
-
-                                                promotionClient.createRefundVoucher(
-                                                                booking.getUserId(),
-                                                                refundValue);
-
-                                                log.info("Refund voucher created for booking {} | user={} | value={}",
-                                                                booking.getId(), booking.getUserId(), refundValue);
-
-                                                bookingProducer.sendBookingRefundedEvent(
-                                                                new BookingRefundedEvent(
-                                                                                booking.getId(),
-                                                                                booking.getUserId(),
-                                                                                refundValue));
-
-                                                log.info("BookingRefundedEvent sent for booking {}", booking.getId());
-                                        } else {
-                                                log.info("Booking {} canceled too close to showtime (<60m), no refund voucher.",
-                                                                booking.getId());
-                                        }
-                                }
-                        } catch (Exception e) {
-                                log.error("Error creating refund voucher for booking {}: {}", booking.getId(),
-                                                e.getMessage());
-                        }
-                }
-
-                if (newStatus == BookingStatus.CANCELLED || newStatus == BookingStatus.EXPIRED) {
+                if (newStatus == BookingStatus.CANCELLED || newStatus == BookingStatus.EXPIRED
+                                || newStatus == BookingStatus.REFUNDED) {
                         bookingProducer.sendSeatUnlockedEvent(
                                         new SeatUnlockedEvent(
                                                         booking.getShowtimeId(),
@@ -523,10 +501,6 @@ public class BookingServiceImpl implements BookingService {
                                                 seatIds,
                                                 newStatus.toString(),
                                                 oldStatus.name()));
-
-                BookingTicketGeneratedEvent bookingticketGeneratedEvent = buildBookingTicketGeneratedEvent(booking);
-
-                bookingProducer.sendBookingTicketGeneratedEvent(bookingticketGeneratedEvent);
         }
 
         @Transactional
@@ -624,6 +598,124 @@ public class BookingServiceImpl implements BookingService {
                 return bookingRepository.findByUserId(userId).stream()
                                 .map(r -> bookingMapper.toBookingResponse(r))
                                 .toList();
+        }
+
+        @Transactional
+        public BookingResponse cancelBooking(UUID bookingId, UUID userId) {
+                Booking booking = bookingRepository.findById(bookingId)
+                                .orElseThrow(() -> new BookingNotFoundException(bookingId.toString()));
+
+                // Validate ownership
+                if (!booking.getUserId().equals(userId)) {
+                        throw new BookingException("You don't own this booking");
+                }
+
+                // Only CONFIRMED bookings can be cancelled
+                if (booking.getStatus() != BookingStatus.CONFIRMED) {
+                        throw new BookingException("Only confirmed bookings can be cancelled. Current status: "
+                                        + booking.getStatus());
+                }
+
+                // Check showtime timing (must cancel at least 60 minutes before)
+                ShowtimeResponse showtime = showtimeClient.getShowtimeById(booking.getShowtimeId());
+                if (showtime == null) {
+                        throw new BookingException("Showtime not found");
+                }
+
+                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime startTime = showtime.getStartTime();
+
+                if (now.isAfter(startTime.minusMinutes(60))) {
+                        throw new BookingException("Cannot cancel booking less than 60 minutes before showtime");
+                }
+
+                // Check monthly cancellation limit (2 times per month)
+                LocalDateTime startOfMonth = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
+                long cancelCount = bookingRepository.countCancelledBookingsInMonth(userId, startOfMonth);
+
+                if (cancelCount >= 2) {
+                        throw new BookingException(
+                                        "You have reached the monthly cancellation limit (2 times per month)");
+                }
+
+                // Create refund voucher
+                BigDecimal refundValue = booking.getFinalPrice();
+                try {
+                        promotionClient.createRefundVoucher(userId, refundValue);
+                        log.info("Refund voucher created for booking {} | user={} | value={}",
+                                        bookingId, userId, refundValue);
+                } catch (Exception e) {
+                        log.error("Failed to create refund voucher for booking {}: {}", bookingId, e.getMessage());
+                        throw new BookingException("Failed to create refund voucher");
+                }
+
+                // Update booking status to REFUNDED (not CANCELLED)
+                updateBookingStatus(booking, BookingStatus.REFUNDED);
+
+                log.info("Booking {} refunded by user {}. Voucher created with value {}",
+                                bookingId, userId, refundValue);
+
+                return bookingMapper.toBookingResponse(booking);
+        }
+
+        @Transactional
+        public void handleShowtimeSuspended(ShowtimeSuspendedEvent event) {
+                log.warn("Showtime {} suspended. Reason: {}. Finding affected bookings...",
+                                event.showtimeId(), event.reason());
+
+                List<Booking> affectedBookings;
+
+                if (event.affectedBookingIds() != null && !event.affectedBookingIds().isEmpty()) {
+                        affectedBookings = bookingRepository.findAllById(event.affectedBookingIds());
+                } else {
+                        // Fallback nếu event không gửi list ID
+                        affectedBookings = bookingRepository.findByShowtimeIdAndStatus(event.showtimeId(),
+                                        BookingStatus.CONFIRMED);
+                }
+
+                if (affectedBookings.isEmpty()) {
+                        log.info("No confirmed user bookings found for suspended showtime {}", event.showtimeId());
+                        return;
+                }
+
+                for (Booking booking : affectedBookings) {
+                        if (booking.getStatus() != BookingStatus.CONFIRMED)
+                                continue;
+
+                        BigDecimal refundValue = booking.getFinalPrice();
+                        String refundMethod = "UNKNOWN";
+
+                        // CASE 1: REGISTERED USER -> Hoàn Voucher
+                        if (booking.getUserId() != null) {
+                                try {
+                                        promotionClient.createRefundVoucher(booking.getUserId(), refundValue);
+                                        refundMethod = "VOUCHER";
+                                        log.info("SYSTEM REFUND: Created VOUCHER for User {} - Booking {}",
+                                                        booking.getUserId(), booking.getId());
+                                } catch (Exception e) {
+                                        log.error("Error creating voucher for user {}: {}", booking.getUserId(),
+                                                        e.getMessage());
+                                        // Vẫn tiếp tục update status để không bị treo đơn, sau đó Admin xử lý tay
+                                        refundMethod = "ERROR_VOUCHER";
+                                }
+                        } else {
+                                refundMethod = "COUNTER";
+                                log.info("SYSTEM REFUND: Marked Booking {} (Guest) for COUNTER refund.",
+                                                booking.getId());
+                        }
+
+                        updateBookingStatus(booking, BookingStatus.REFUNDED);
+                        bookingProducer.sendBookingRefundedEvent(
+                                        new BookingRefundedEvent(
+                                                        booking.getId(),
+                                                        booking.getUserId(),
+                                                        booking.getGuestName(),
+                                                        booking.getGuestEmail(),
+                                                        booking.getShowtimeId(),
+                                                        refundValue,
+                                                        refundMethod,
+                                                        event.reason()));
+                }
         }
 
         @Transactional

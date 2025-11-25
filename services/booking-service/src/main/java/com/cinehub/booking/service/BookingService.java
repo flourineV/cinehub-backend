@@ -28,5 +28,9 @@ public interface BookingService {
 
     List<BookingResponse> getBookingsByUser(UUID userId);
 
+    BookingResponse cancelBooking(UUID bookingId, UUID userId);
+
+    void handleShowtimeSuspended(com.cinehub.booking.events.showtime.ShowtimeSuspendedEvent event);
+
     void deleteBooking(UUID id);
 }

@@ -14,6 +14,7 @@ import com.cinehub.showtime.dto.response.TheaterShowtimesResponse;
 import com.cinehub.showtime.security.AuthChecker;
 import com.cinehub.showtime.service.ShowtimeService;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
@@ -30,20 +31,6 @@ import java.util.UUID;
 public class ShowtimeController {
 
     private final ShowtimeService showtimeService;
-
-    @PostMapping
-    public ResponseEntity<ShowtimeResponse> createShowtime(@RequestBody ShowtimeRequest request) {
-        AuthChecker.requireManagerOrAdmin();
-        ShowtimeResponse response = showtimeService.createShowtime(request);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
-    }
-
-    @PostMapping("/batch")
-    public ResponseEntity<BatchShowtimeResponse> createShowtimesBatch(@RequestBody BatchShowtimeRequest request) {
-        AuthChecker.requireManagerOrAdmin();
-        BatchShowtimeResponse response = showtimeService.createShowtimesBatch(request);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
-    }
 
     @GetMapping("/{id}")
     public ResponseEntity<ShowtimeResponse> getShowtimeById(@PathVariable UUID id) {
@@ -82,22 +69,6 @@ public class ShowtimeController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/available")
-    public ResponseEntity<PagedResponse<ShowtimeDetailResponse>> getAvailableShowtimesForGuest(
-            @RequestParam(required = false) UUID provinceId,
-            @RequestParam(required = false) UUID theaterId,
-            @RequestParam(required = false) UUID movieId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate showDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime showTime,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String sortBy,
-            @RequestParam(required = false) String sortType) {
-        PagedResponse<ShowtimeDetailResponse> response = showtimeService.getAllAvailableShowtimes(
-                provinceId, theaterId, null, movieId, null, showDate, showTime, page, size, sortBy, sortType);
-        return ResponseEntity.ok(response);
-    }
-
     @GetMapping("/admin/available")
     public ResponseEntity<PagedResponse<ShowtimeDetailResponse>> getAllAvailableShowtimesForAdmin(
             @RequestParam(required = false) UUID provinceId,
@@ -105,15 +76,19 @@ public class ShowtimeController {
             @RequestParam(required = false) UUID roomId,
             @RequestParam(required = false) UUID movieId,
             @RequestParam(required = false) UUID showtimeId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate showDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime showTime,
+            @RequestParam(required = false) LocalDate selectedDate,
+            @RequestParam(required = false) LocalDateTime startOfDay,
+            @RequestParam(required = false) LocalDateTime endOfDay,
+            @RequestParam(required = false) LocalTime fromTime,
+            @RequestParam(required = false) LocalTime toTime,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortType) {
         AuthChecker.requireManagerOrAdmin();
         PagedResponse<ShowtimeDetailResponse> response = showtimeService.getAllAvailableShowtimes(
-                provinceId, theaterId, roomId, movieId, showtimeId, showDate, showTime, page, size, sortBy, sortType);
+                provinceId, theaterId, roomId, movieId, showtimeId, selectedDate, startOfDay, endOfDay, fromTime,
+                toTime, page, size, sortBy, sortType);
         return ResponseEntity.ok(response);
     }
 

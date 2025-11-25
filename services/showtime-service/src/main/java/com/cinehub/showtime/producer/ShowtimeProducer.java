@@ -27,4 +27,18 @@ public class ShowtimeProducer {
                                 RabbitConfig.SEAT_UNLOCK_ROUTING_KEY,
                                 msg);
         }
+
+        public <T> void sendShowtimeSuspendedEvent(T data) {
+                var msg = new EventMessage<>(
+                                UUID.randomUUID().toString(),
+                                "ShowtimeSuspended",
+                                "v1",
+                                Instant.now(),
+                                data);
+
+                rabbitTemplate.convertAndSend(
+                                RabbitConfig.SHOWTIME_EXCHANGE,
+                                "showtime.suspended",
+                                msg);
+        }
 }

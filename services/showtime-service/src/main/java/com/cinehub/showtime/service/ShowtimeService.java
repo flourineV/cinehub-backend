@@ -30,6 +30,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -271,19 +272,17 @@ public class ShowtimeService {
                                 .build();
         }
 
-        /**
-         * Get all available showtimes (future showtimes only) with pagination and
-         * filters
-         * For ADMIN/MANAGER to view in management table
-         */
         public PagedResponse<ShowtimeDetailResponse> getAllAvailableShowtimes(
                         UUID provinceId,
                         UUID theaterId,
                         UUID roomId,
                         UUID movieId,
                         UUID showtimeId,
-                        LocalDate showDate,
-                        LocalTime showTime,
+                        LocalDate selectedDate,
+                        LocalDateTime startOfDay,
+                        LocalDateTime endOfDay,
+                        LocalTime fromTime,
+                        LocalTime toTime,
                         int page,
                         int size,
                         String sortBy,
@@ -291,7 +290,6 @@ public class ShowtimeService {
 
                 LocalDateTime now = LocalDateTime.now();
 
-                // Build sort
                 Sort sort = Sort.unsorted();
                 if (sortBy != null && !sortBy.isEmpty()) {
                         Sort.Direction direction = "desc".equalsIgnoreCase(sortType)
@@ -306,7 +304,8 @@ public class ShowtimeService {
                 Pageable pageable = PageRequest.of(page - 1, size, sort);
 
                 Page<Showtime> showtimePage = showtimeRepository.findAvailableShowtimesWithFilters(
-                                now, provinceId, theaterId, roomId, movieId, showtimeId, showDate, showTime, pageable);
+                                now, provinceId, theaterId, roomId, movieId, showtimeId, selectedDate, startOfDay,
+                                endOfDay, fromTime, toTime, pageable);
 
                 // Map to detailed response with booking counts
                 List<ShowtimeDetailResponse> content = showtimePage.getContent().stream()
@@ -385,6 +384,7 @@ public class ShowtimeService {
                                 .roomName(showtime.getRoom().getName()) // Lấy tên Room
                                 .startTime(showtime.getStartTime())
                                 .endTime(showtime.getEndTime())
+                                .status(showtime.getStatus() != null ? showtime.getStatus().name() : "ACTIVE")
                                 .build();
         }
 
@@ -445,9 +445,9 @@ public class ShowtimeService {
         }
 
         public AutoGenerateShowtimesResponse autoGenerateShowtimes(LocalDate startDate, LocalDate endDate) {
+
                 log.info("Starting auto-generation of showtimes from {} to {}", startDate, endDate);
 
-                // Get all available movies from movie-service
                 List<MovieSummaryResponse> availableMovies = movieServiceClient
                                 .getAvailableMoviesForDateRange(startDate, endDate);
 
@@ -457,13 +457,11 @@ public class ShowtimeService {
 
                 log.info("Found {} available movies in date range", availableMovies.size());
 
-                // Get all theaters
                 List<Theater> theaters = theaterRepository.findAll();
                 if (theaters.isEmpty()) {
                         return buildEmptyResponse("No theaters found in system");
                 }
 
-                // Track statistics
                 GenerationStats stats = new GenerationStats();
 
                 // Calculate number of days

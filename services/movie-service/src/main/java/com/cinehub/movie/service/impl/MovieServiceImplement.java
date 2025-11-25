@@ -38,7 +38,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -561,35 +560,28 @@ public class MovieServiceImplement implements MovieService {
     public List<MovieSummaryResponse> getAvailableMoviesForDateRange(LocalDate startDate, LocalDate endDate) {
         log.info("Getting available movies for date range: {} to {}", startDate, endDate);
 
-        List<MovieSummary> allMovies = movieSummaryRepository.findAll();
+        List<MovieSummary> activeMovies = movieSummaryRepository.findByStatusIn(
+                List.of(MovieStatus.NOW_PLAYING, MovieStatus.UPCOMING));
 
-        return allMovies.stream()
+        return activeMovies.stream()
                 .filter(movie -> isMovieAvailableInRange(movie, startDate, endDate))
                 .map(movieMapper::toSummaryResponse)
                 .toList();
     }
 
-    /**
-     * Check if a movie is available (NOW_PLAYING) at any point during the date
-     * range
-     */
     private boolean isMovieAvailableInRange(MovieSummary movie, LocalDate rangeStart, LocalDate rangeEnd) {
-        // Movie must have a start date
         if (movie.getStartDate() == null) {
             return false;
         }
 
-        // Check if movie starts before or during the range
         if (movie.getStartDate().isAfter(rangeEnd)) {
-            return false; // Movie hasn't started yet during this range
+            return false;
         }
 
-        // If movie has endDate, check if it ends before the range starts
         if (movie.getEndDate() != null && movie.getEndDate().isBefore(rangeStart)) {
-            return false; // Movie already ended before this range
+            return false;
         }
 
-        // Movie overlaps with the range
         return true;
     }
 

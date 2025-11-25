@@ -20,5 +20,4 @@ public class UserProfileUpdateRequest {
     private String address;
     private String avatarUrl;
     private Gender gender;
-
 }

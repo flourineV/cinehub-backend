@@ -15,6 +15,7 @@ public class RabbitConfig {
 
     // routing key from booking queue to connect showtime exchange
     public static final String SEAT_UNLOCK_ROUTING_KEY = "seat.unlocked";
+    public static final String SHOWTIME_SUSPENDED_KEY = "showtime.suspended";
 
     // payment exchange
     public static final String PAYMENT_EXCHANGE = "payment.exchange";

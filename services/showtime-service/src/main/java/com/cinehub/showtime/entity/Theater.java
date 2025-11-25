@@ -26,7 +26,7 @@ public class Theater {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    private UUID id; // UUID
+    private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "province_id", nullable = false)

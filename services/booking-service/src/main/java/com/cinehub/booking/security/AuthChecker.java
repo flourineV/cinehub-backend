@@ -32,6 +32,18 @@ public class AuthChecker {
         if (ctx == null || ctx.getUserId() == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated");
         }
-        return ctx.getUserId().toString();
+        return ctx.getUserId();
+    }
+
+    public static java.util.UUID getCurrentUserId() {
+        var ctx = UserContext.get();
+        if (ctx == null || ctx.getUserId() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated");
+        }
+        try {
+            return java.util.UUID.fromString(ctx.getUserId());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid user ID format");
+        }
     }
 }

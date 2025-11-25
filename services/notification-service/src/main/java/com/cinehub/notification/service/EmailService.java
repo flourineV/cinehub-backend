@@ -26,6 +26,37 @@ public class EmailService {
     @Qualifier("emailTemplateEngine")
     private final TemplateEngine templateEngine;
 
+    public void sendRefundEmail(
+            String to,
+            String userName,
+            UUID bookingId,
+            BigDecimal refundAmount,
+            String refundMethod, // "VOUCHER" hoặc "COUNTER"
+            String reason) throws MessagingException {
+
+        Context ctx = new Context();
+        ctx.setVariable("userName", userName);
+        ctx.setVariable("bookingId", bookingId);
+        ctx.setVariable("refundAmount", refundAmount);
+        ctx.setVariable("reason", reason);
+
+        // Biến này để Thymeleaf ẩn/hiện nội dung (Ví dụ: th:if="${isVoucher}")
+        ctx.setVariable("isVoucher", "VOUCHER".equalsIgnoreCase(refundMethod));
+        ctx.setVariable("isCounter", "COUNTER".equalsIgnoreCase(refundMethod));
+
+        // Bạn cần tạo file template: resources/templates/booking-refund.html
+        String html = templateEngine.process("booking-refund", ctx);
+
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
+
+        helper.setTo(to);
+        helper.setSubject("CineHub – Thông báo hoàn tiền / Hủy vé ⚠️");
+        helper.setText(html, true);
+
+        mailSender.send(message);
+    }
+
     public void sendBookingTicketEmail(
             String to,
             String userName,
@@ -37,12 +68,11 @@ public class EmailService {
             List<SeatDetail> seats,
             List<FnbDetail> fnbs,
             PromotionDetail promotion,
-            String rankName,                    
-            BigDecimal rankDiscountAmount,      
-            BigDecimal totalPrice,              
+            String rankName,
+            BigDecimal rankDiscountAmount,
+            BigDecimal totalPrice,
             BigDecimal finalPrice,
-            String paymentMethod
-    ) throws MessagingException {
+            String paymentMethod) throws MessagingException {
 
         Context ctx = new Context();
         ctx.setVariable("userName", userName);

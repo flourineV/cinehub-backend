@@ -23,4 +23,5 @@ public class ShowtimeResponse {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private BigDecimal price;
+    private String status;
 }

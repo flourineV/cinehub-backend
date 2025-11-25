@@ -2,6 +2,7 @@ package com.cinehub.notification.consumer;
 
 import com.cinehub.notification.config.RabbitConfig;
 import com.cinehub.notification.events.BookingTicketGeneratedEvent;
+import com.cinehub.notification.events.BookingRefundedEvent;
 import com.cinehub.notification.service.NotificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -24,8 +25,7 @@ public class NotificationConsumer {
     @RabbitListener(queues = RabbitConfig.NOTIFICATION_QUEUE)
     public void handleUnifiedEvents(
             @Payload Map<String, Object> raw,
-            @Header("amqp_receivedRoutingKey") String routingKey
-    ) {
+            @Header("amqp_receivedRoutingKey") String routingKey) {
         log.info("[NotificationConsumer] Received unified event | RoutingKey: {}", routingKey);
 
         try {
@@ -36,18 +36,28 @@ public class NotificationConsumer {
                 case RabbitConfig.BOOKING_TICKET_GENERATED_KEY -> {
                     BookingTicketGeneratedEvent event = objectMapper.convertValue(
                             dataObj,
-                            BookingTicketGeneratedEvent.class
-                    );
+                            BookingTicketGeneratedEvent.class);
                     log.info("[NotificationConsumer] Processing BookingTicketGeneratedEvent | bookingId={}",
                             event.bookingId());
                     notificationService.sendSuccessBookingTicketNotification(event);
+                }
+
+                case RabbitConfig.BOOKING_REFUND_PROCESSED_KEY -> {
+
+                    BookingRefundedEvent event = objectMapper.convertValue(
+                            dataObj,
+                            BookingRefundedEvent.class);
+                    log.info("[NotificationConsumer] Processing BookingRefundProcessedEvent | bookingId={}",
+                            event.bookingId());
+                    notificationService.sendBookingRefundProcessedNotification(event);
                 }
 
                 default -> log.warn("[NotificationConsumer] Received event with unknown RoutingKey: {}", routingKey);
             }
 
         } catch (Exception e) {
-            log.error("[NotificationConsumer] ❌ Critical error during event processing for RK {}: {}", routingKey, e.getMessage(), e);
+            log.error("[NotificationConsumer] ❌ Critical error during event processing for RK {}: {}", routingKey,
+                    e.getMessage(), e);
         }
     }
 }

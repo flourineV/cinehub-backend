@@ -1,13 +1,14 @@
 package com.cinehub.profile.controller;
 
+import com.cinehub.profile.dto.request.ManagerProfileRequest; // Import DTO
 import com.cinehub.profile.entity.ManagerProfile;
 import com.cinehub.profile.security.AuthChecker;
 import com.cinehub.profile.service.ManagerProfileService;
+import jakarta.validation.Valid; // Import Valid
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,14 +20,16 @@ public class ManagerProfileController {
     private final ManagerProfileService managerService;
 
     @PostMapping
-    public ResponseEntity<ManagerProfile> createManager(
-            @RequestParam UUID userProfileId,
-            @RequestParam(required = false) UUID managedCinemaId,
-            @RequestParam(required = false) LocalDate hireDate) {
+    public ResponseEntity<ManagerProfile> createManager(@RequestBody @Valid ManagerProfileRequest request) {
 
         AuthChecker.requireAdmin();
 
-        ManagerProfile created = managerService.createManager(userProfileId, managedCinemaId, hireDate);
+        // Lấy dữ liệu từ Request Body (DTO) truyền vào Service
+        ManagerProfile created = managerService.createManager(
+                request.getUserProfileId(),
+                request.getManagedCinemaId(),
+                request.getHireDate());
+
         return ResponseEntity.ok(created);
     }
 

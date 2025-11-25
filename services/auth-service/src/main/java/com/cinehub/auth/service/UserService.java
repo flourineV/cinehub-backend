@@ -68,10 +68,8 @@ public class UserService {
         if (role != null && !role.isBlank()) {
             final String roleNormalized = role.trim().toLowerCase();
             spec = spec.and((root, query, cb) -> {
-                // fetch role to avoid N+1 and use LEFT JOIN
-                root.fetch("role", JoinType.LEFT);
                 query.distinct(true);
-                return cb.equal(cb.lower(root.join("role", JoinType.LEFT).get("name")), roleNormalized);
+                return cb.equal(cb.lower(root.get("role").get("name")), roleNormalized);
             });
         }
 

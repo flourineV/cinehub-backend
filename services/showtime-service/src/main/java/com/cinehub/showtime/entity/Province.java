@@ -22,6 +22,6 @@ public class Province {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    private UUID id; // UUID
+    private UUID id;
     private String name;
 }

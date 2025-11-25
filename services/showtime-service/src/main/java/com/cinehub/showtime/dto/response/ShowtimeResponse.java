@@ -23,4 +23,5 @@ public class ShowtimeResponse {
     private String roomName;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
+    private String status;
 }

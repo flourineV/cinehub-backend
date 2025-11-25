@@ -13,6 +13,7 @@ import java.util.UUID;
 public class BookingResponse {
 
     private UUID bookingId;
+    private String bookingCode;
     private UUID userId;
     private UUID showtimeId;
     private String guestName;

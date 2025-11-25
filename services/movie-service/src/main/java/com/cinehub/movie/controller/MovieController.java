@@ -31,21 +31,6 @@ public class MovieController {
     private final MovieService movieService;
     private final MovieStatusScheduler movieStatusScheduler;
 
-    @PostMapping("/admin/sync")
-    public ResponseEntity<String> syncMovies() {
-        AuthChecker.requireManagerOrAdmin();
-        movieService.syncMovies();
-        return ResponseEntity.ok("Movies synced successfully!");
-    }
-
-    @PostMapping("/from-tmdb")
-    public ResponseEntity<MovieDetailResponse> addMovieFromTmdb(
-            @Valid @RequestBody AddMovieFromTmdbRequest request) {
-        AuthChecker.requireManagerOrAdmin();
-        MovieDetailResponse response = movieService.addMovieFromTmdb(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
-
     @PostMapping("/bulk-from-tmdb")
     public ResponseEntity<BulkAddMoviesResponse> bulkAddMoviesFromTmdb(
             @Valid @RequestBody BulkAddMoviesRequest request) {
@@ -70,13 +55,6 @@ public class MovieController {
     public ResponseEntity<Page<MovieSummaryResponse>> getArchivedMovies(Pageable pageable) {
         AuthChecker.requireManagerOrAdmin();
         Page<MovieSummaryResponse> movies = movieService.getArchivedMovies(pageable);
-        return ResponseEntity.ok(movies);
-    }
-
-    @GetMapping("/search")
-    public ResponseEntity<List<MovieSummaryResponse>> searchMovies(
-            @RequestParam String keyword) {
-        List<MovieSummaryResponse> movies = movieService.searchMovies(keyword);
         return ResponseEntity.ok(movies);
     }
 
@@ -107,7 +85,14 @@ public class MovieController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping
+    @GetMapping("/search") // dành cho user tìm kiếm
+    public ResponseEntity<List<MovieSummaryResponse>> searchMovies(
+            @RequestParam String keyword) {
+        List<MovieSummaryResponse> movies = movieService.searchMovies(keyword);
+        return ResponseEntity.ok(movies);
+    }
+
+    @GetMapping("/advanced-search")
     public ResponseEntity<PagedResponse<MovieSummaryResponse>> list(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) MovieStatus status,

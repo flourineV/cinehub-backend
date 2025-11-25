@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 import java.util.UUID;
 
 @Entity
-@Table
+@Table(name = "seat")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
