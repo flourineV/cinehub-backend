@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.UUID;
 import java.util.List;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
 @RequestMapping("/api/movies")
@@ -107,6 +109,7 @@ public class MovieController {
         return ResponseEntity.ok(pages);
     }
 
+    @PostMapping("/status/{id}")
     public ResponseEntity<Void> changeStatus(@PathVariable UUID id,
             @RequestBody ChangeStatusRequest req) {
         AuthChecker.requireManagerOrAdmin();

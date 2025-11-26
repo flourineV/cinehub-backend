@@ -389,11 +389,19 @@ public class MovieServiceImplement implements MovieService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Status is required");
         }
 
+        // Update MovieSummary
         MovieSummary summary = movieSummaryRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Movie not found"));
-
         summary.setStatus(status);
         movieSummaryRepository.save(summary);
+
+        // Update MovieDetail
+        MovieDetail detail = movieDetailRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Movie detail not found"));
+        detail.setStatus(status);
+        movieDetailRepository.save(detail);
+
+        log.info("Changed movie status for id={} to {}", id, status);
     }
 
     @Transactional
