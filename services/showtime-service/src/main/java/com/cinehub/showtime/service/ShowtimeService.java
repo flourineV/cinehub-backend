@@ -20,6 +20,7 @@ import com.cinehub.showtime.entity.Room;
 import com.cinehub.showtime.repository.SeatRepository;
 import com.cinehub.showtime.repository.ShowtimeRepository;
 import com.cinehub.showtime.repository.ShowtimeSeatRepository;
+import com.cinehub.showtime.repository.ShowtimeRepositoryCustom;
 import com.cinehub.showtime.repository.TheaterRepository;
 import com.cinehub.showtime.repository.RoomRepository;
 
@@ -52,6 +53,7 @@ public class ShowtimeService {
         private final RoomRepository roomRepository;
         private final SeatRepository seatRepository;
         private final ShowtimeSeatRepository showtimeSeatRepository;
+        private final ShowtimeRepositoryCustom showtimeRepositoryCustom;
         private final MovieServiceClient movieServiceClient;
         private final ShowtimeAutoGenerateConfig autoGenerateConfig;
 
@@ -296,9 +298,9 @@ public class ShowtimeService {
 
                 Pageable pageable = PageRequest.of(page - 1, size, sort);
 
-                Page<Showtime> showtimePage = showtimeRepository.findAvailableShowtimesWithFilters(
-                                now, provinceId, theaterId, roomId, movieId, showtimeId, selectedDate, startOfDay,
-                                endOfDay, fromTime, toTime, pageable);
+                Page<Showtime> showtimePage = showtimeRepositoryCustom.findAvailableShowtimesWithFiltersDynamic(
+                                provinceId, theaterId, roomId, movieId, showtimeId, selectedDate, startOfDay,
+                                endOfDay, fromTime, toTime, now, pageable);
 
                 // Map to detailed response with booking counts
                 List<ShowtimeDetailResponse> content = showtimePage.getContent().stream()

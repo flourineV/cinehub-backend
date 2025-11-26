@@ -18,6 +18,7 @@ public class Booking {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
+    @Column(name = "booking_code", nullable = false, unique = true)
     private String BookingCode;
 
     @Column(nullable = true)

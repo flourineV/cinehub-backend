@@ -26,35 +26,6 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, UUID> {
                         UUID roomId, LocalDateTime startTime, LocalDateTime endTime);
 
         /**
-         * Advanced search with filters and pagination
-         */
-        @Query("""
-                        SELECT s FROM Showtime s
-                        WHERE s.startTime > :now
-                        AND (:provinceId IS NULL OR s.theater.province.id = :provinceId)
-                        AND (:theaterId IS NULL OR s.theater.id = :theaterId)
-                        AND (:roomId IS NULL OR s.room.id = :roomId)
-                        AND (:movieId IS NULL OR s.movieId = :movieId)
-                        AND (:showtimeId IS NULL OR s.id = :showtimeId)
-                        AND (:selectedDate IS NULL OR (s.startTime >= :startOfDay AND s.startTime <= :endOfDay))
-                        AND (:fromTime IS NULL OR function('time', s.startTime) >= :fromTime)
-                        AND (:toTime IS NULL OR function('time', s.startTime) <= :toTime)
-                        """)
-        Page<Showtime> findAvailableShowtimesWithFilters(
-                        @Param("now") LocalDateTime now,
-                        @Param("provinceId") UUID provinceId,
-                        @Param("theaterId") UUID theaterId,
-                        @Param("roomId") UUID roomId,
-                        @Param("movieId") UUID movieId,
-                        @Param("showtimeId") UUID showtimeId,
-                        @Param("selectedDate") LocalDate selectedDate,
-                        @Param("startOfDay") LocalDateTime startOfDay,
-                        @Param("endOfDay") LocalDateTime endOfDay,
-                        @Param("fromTime") LocalTime fromTime,
-                        @Param("toTime") LocalTime toTime,
-                        Pageable pageable);
-
-        /**
          * Find showtimes by movie and province
          */
         @Query("""

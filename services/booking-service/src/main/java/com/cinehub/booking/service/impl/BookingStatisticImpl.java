@@ -39,21 +39,8 @@ public class BookingStatisticImpl implements BookingStatisticService {
         // 2. Tạo Pageable
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        // 3. Gọi Repository (searchBookingsWithFilters)
-        // Chúng ta "bóc tách" từng trường trong criteria để truyền vào repository
-        Page<Booking> bookingsPage = bookingRepository.searchBookingsWithFilters(
-                criteria.getUserId(),
-                criteria.getShowtimeId(),
-                criteria.getBookingCode(),
-                criteria.getStatus(),
-                criteria.getPaymentMethod(),
-                criteria.getGuestName(),
-                criteria.getGuestEmail(),
-                criteria.getFromDate(),
-                criteria.getToDate(),
-                criteria.getMinPrice(),
-                criteria.getMaxPrice(),
-                pageable);
+        // 3. Gọi Custom Repository
+        Page<Booking> bookingsPage = bookingRepository.searchWithCriteria(criteria, pageable);
 
         // 4. Map Entity sang Response DTO dùng BookingMapper
         List<BookingResponse> bookingResponses = bookingsPage.getContent().stream()
