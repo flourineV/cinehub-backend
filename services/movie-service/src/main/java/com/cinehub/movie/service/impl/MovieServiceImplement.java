@@ -176,17 +176,20 @@ public class MovieServiceImplement implements MovieService {
     }
 
     public Page<MovieSummaryResponse> getNowPlayingMovies(Pageable pageable) {
-        Page<MovieSummary> entities = movieSummaryRepository.findByStatus(MovieStatus.NOW_PLAYING, pageable);
+        Pageable sortedPageable = createPageableWithPopularitySort(pageable);
+        Page<MovieSummary> entities = movieSummaryRepository.findByStatus(MovieStatus.NOW_PLAYING, sortedPageable);
         return movieMapper.toSummaryResponsePage(entities);
     }
 
     public Page<MovieSummaryResponse> getUpcomingMovies(Pageable pageable) {
-        Page<MovieSummary> entities = movieSummaryRepository.findByStatus(MovieStatus.UPCOMING, pageable);
+        Pageable sortedPageable = createPageableWithPopularitySort(pageable);
+        Page<MovieSummary> entities = movieSummaryRepository.findByStatus(MovieStatus.UPCOMING, sortedPageable);
         return movieMapper.toSummaryResponsePage(entities);
     }
 
     public Page<MovieSummaryResponse> getArchivedMovies(Pageable pageable) {
-        Page<MovieSummary> entities = movieSummaryRepository.findByStatus(MovieStatus.ARCHIVED, pageable);
+        Pageable sortedPageable = createPageableWithPopularitySort(pageable);
+        Page<MovieSummary> entities = movieSummaryRepository.findByStatus(MovieStatus.ARCHIVED, sortedPageable);
         return movieMapper.toSummaryResponsePage(entities);
     }
 
@@ -583,5 +586,13 @@ public class MovieServiceImplement implements MovieService {
         }
 
         return true;
+    }
+
+    private Pageable createPageableWithPopularitySort(Pageable pageable) {
+        return PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(Sort.Direction.DESC, "popularity") // Sắp xếp điểm cao nhất lên đầu
+        );
     }
 }

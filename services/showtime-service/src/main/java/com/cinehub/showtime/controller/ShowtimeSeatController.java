@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @RestController
@@ -54,5 +55,17 @@ public class ShowtimeSeatController {
         AuthChecker.requireManagerOrAdmin();
         int count = showtimeSeatService.batchInitializeSeats(request.getShowtimeIds());
         return ResponseEntity.ok("Seats initialized successfully for " + count + " showtimes");
+    }
+
+    // ShowtimeSeatController.java
+    @PostMapping("/initialize-seats/range")
+    public ResponseEntity<String> initializeSeatsByRange(
+            @RequestParam LocalDate startDate,
+            @RequestParam LocalDate endDate) {
+
+        AuthChecker.requireManagerOrAdmin();
+        int count = showtimeSeatService.initializeSeatsByDateRange(startDate, endDate);
+
+        return ResponseEntity.ok("Initialized seats for " + count + " showtimes from " + startDate + " to " + endDate);
     }
 }

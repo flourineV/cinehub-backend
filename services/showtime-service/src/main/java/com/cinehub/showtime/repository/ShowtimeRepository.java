@@ -73,4 +73,16 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, UUID> {
                         UUID movieId,
                         com.cinehub.showtime.entity.ShowtimeStatus status,
                         LocalDateTime startTime);
+
+        @Query("""
+                            SELECT s FROM Showtime s
+                            WHERE s.startTime >= :start AND s.endTime <= :end
+                            AND NOT EXISTS (
+                                SELECT ss FROM ShowtimeSeat ss
+                                WHERE ss.showtime.id = s.id
+                            )
+                        """)
+        List<Showtime> findShowtimesWithoutSeats(
+                        @Param("start") LocalDateTime start,
+                        @Param("end") LocalDateTime end);
 }

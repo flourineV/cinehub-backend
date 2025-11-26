@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,8 +27,6 @@ public class MovieStatsService {
     }
 
     public List<MovieMonthlyStatsResponse> getMonthlyStats() {
-        return movieSummaryRepository.countMoviesAddedByMonth().stream()
-                .map(movieStatsMapper::toMonthly)
-                .collect(Collectors.toList());
+        return movieSummaryRepository.countMoviesAddedByMonth();
     }
 }

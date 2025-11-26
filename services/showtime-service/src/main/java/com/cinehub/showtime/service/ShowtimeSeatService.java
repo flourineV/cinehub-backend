@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -110,6 +111,23 @@ public class ShowtimeSeatService {
                                 .toList();
 
                 showtimeSeatRepository.saveAll(showtimeSeats);
+        }
+
+        @Transactional
+        public int initializeSeatsByDateRange(LocalDate startDate, LocalDate endDate) {
+                LocalDateTime start = startDate.atStartOfDay();
+                LocalDateTime end = endDate.plusDays(1).atStartOfDay();
+
+                // Lấy các suất chiếu chưa có ghế
+                List<Showtime> showtimes = showtimeRepository.findShowtimesWithoutSeats(start, end);
+
+                int count = 0;
+                for (Showtime showtime : showtimes) {
+                        // Gọi lại logic init ghế cho 1 showtime (hàm cũ của bạn)
+                        initializeSeatsForShowtime(showtime.getId());
+                        count++;
+                }
+                return count;
         }
 
         private ShowtimeSeatResponse toResponse(ShowtimeSeat seat) {

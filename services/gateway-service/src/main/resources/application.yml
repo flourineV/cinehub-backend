@@ -58,7 +58,6 @@ spring:
                   /api/showtimes/by-movie/**,
                   /api/showtimes/by-theater,
                   /api/showtimes/by-movie-and-province,
-                  /api/showtimes/*,
                   /api/showtimes/*/seats,
                   /api/showtimes/seat-lock/lock-single,
                   /api/showtimes/seat-lock/unlock-single,

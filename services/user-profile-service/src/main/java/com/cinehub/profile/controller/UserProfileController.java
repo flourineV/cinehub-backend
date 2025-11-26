@@ -26,7 +26,7 @@ public class UserProfileController {
     @PostMapping
     public ResponseEntity<UserProfileResponse> createProfile(
             @Valid @RequestBody UserProfileRequest request) {
-        AuthChecker.requireManagerOrAdmin();
+        AuthChecker.requireAuthenticated();
         return ResponseEntity.ok(profileService.createProfile(request));
     }
 

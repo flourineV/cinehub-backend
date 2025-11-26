@@ -314,6 +314,7 @@ public class SeatLockService {
             return;
         }
 
+        // 1. Update DB
         int updated = showtimeSeatRepository.bulkUpdateSeatStatus(
                 event.showtimeId(),
                 event.seatIds(),
@@ -322,8 +323,16 @@ public class SeatLockService {
 
         log.info("CONFIRMED: Bulk updated {} seats for booking {} to BOOKED.", updated, event.bookingId());
 
-        // Xóa lock Redis
+        // 2. Xóa lock Redis (để giải phóng tài nguyên)
         deleteRedisLocks(event.showtimeId(), event.seatIds());
+
+        // 3. [QUAN TRỌNG] Broadcast thông báo ghế đã bán (BOOKED)
+        for (UUID seatId : event.seatIds()) {
+            // Status gửi xuống Client nên là "BOOKED" hoặc "SOLD" tùy quy ước Frontend của
+            // bạn
+            SeatLockResponse response = buildLockResponse(event.showtimeId(), seatId, "BOOKED", 0);
+            webSocketHandler.broadcastToShowtime(event.showtimeId(), response);
+        }
     }
 
     @Transactional
@@ -344,6 +353,11 @@ public class SeatLockService {
 
         // Xóa lock Redis
         deleteRedisLocks(event.showtimeId(), event.seatIds());
+
+        for (UUID seatId : event.seatIds()) {
+            SeatLockResponse response = buildLockResponse(event.showtimeId(), seatId, "AVAILABLE", 0);
+            webSocketHandler.broadcastToShowtime(event.showtimeId(), response);
+        }
     }
 
     @Transactional
@@ -389,6 +403,9 @@ public class SeatLockService {
 
         log.info("EXPIRED: Seat {} of showtime {} status reset to AVAILABLE. DB updated: {}",
                 seatId, showtimeId, updatedCount);
+
+        SeatLockResponse response = buildLockResponse(showtimeId, seatId, "AVAILABLE", 0);
+        webSocketHandler.broadcastToShowtime(showtimeId, response);
 
         // 2. Xây dựng key mapping để lấy Booking ID
         String mappingKey = BOOKING_MAPPING_KEY_PREFIX + showtimeId.toString() + ":" + seatId.toString();
