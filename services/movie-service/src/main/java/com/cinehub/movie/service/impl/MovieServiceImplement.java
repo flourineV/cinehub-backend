@@ -290,25 +290,35 @@ public class MovieServiceImplement implements MovieService {
         if (request.getOverview() != null)
             existingDetail.setOverview(request.getOverview());
 
-        if (request.getPosterUrl() != null)
+        if (request.getPosterUrl() != null) {
+            existingDetail.setPosterUrl(request.getPosterUrl());
             existingSummary.setPosterUrl(request.getPosterUrl());
+        }
 
         if (request.getGenres() != null && !request.getGenres().isEmpty()) {
             existingDetail.setGenres(request.getGenres());
             existingSummary.setGenres(request.getGenres());
         }
 
-        if (request.getTime() != null)
+        if (request.getTime() != null) {
             existingDetail.setTime(request.getTime());
+            existingSummary.setTime(request.getTime());
+        }
 
-        if (request.getCountry() != null)
+        if (request.getCountry() != null) {
             existingDetail.setCountry(request.getCountry());
+            existingSummary.setCountry(request.getCountry());
+        }
 
-        if (request.getTrailer() != null)
+        if (request.getTrailer() != null) {
             existingDetail.setTrailer(request.getTrailer());
+            existingSummary.setTrailer(request.getTrailer());
+        }
 
-        if (request.getAge() != null)
+        if (request.getAge() != null) {
             existingDetail.setAge(request.getAge());
+            existingSummary.setAge(request.getAge());
+        }
 
         movieDetailRepository.save(existingDetail);
         movieSummaryRepository.save(existingSummary);
