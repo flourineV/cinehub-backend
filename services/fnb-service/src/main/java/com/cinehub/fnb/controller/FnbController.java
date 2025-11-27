@@ -56,9 +56,6 @@ public class FnbController {
         }
     }
 
-    /**
-     * PUT /api/fnb/{id} - Cập nhật mục F&B
-     */
     @PutMapping("/{id}")
     public ResponseEntity<FnbItemResponse> updateFnbItem(
             @PathVariable UUID id,
@@ -71,9 +68,6 @@ public class FnbController {
         }
     }
 
-    /**
-     * DELETE /api/fnb/{id} - Xóa mục F&B
-     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteFnbItem(@PathVariable UUID id) {
         try {

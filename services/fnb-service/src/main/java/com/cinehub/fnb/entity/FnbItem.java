@@ -28,4 +28,7 @@ public class FnbItem {
 
     @Column(name = "unit_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal unitPrice;
+
+    @Column(name = "image_url", nullable = false, length = 512)
+    private String imageUrl;
 }

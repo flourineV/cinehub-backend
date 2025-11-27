@@ -17,4 +17,7 @@ public class FnbItemRequest {
     @NotNull(message = "Đơn giá không được để trống")
     @DecimalMin(value = "0.00", inclusive = false, message = "Đơn giá phải lớn hơn 0")
     private BigDecimal unitPrice;
+
+    @NotBlank(message = "URL hình ảnh không được để trống")
+    private String imageUrl;
 }

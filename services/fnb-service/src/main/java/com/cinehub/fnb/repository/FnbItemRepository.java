@@ -7,9 +7,7 @@ import java.util.UUID;
 
 public interface FnbItemRepository extends JpaRepository<FnbItem, UUID> {
 
-    /**
-     * Phương thức tùy chỉnh để tra cứu nhiều mục F&B bằng ID.
-     * Cần thiết cho việc tính toán tổng tiền khi Booking Service gửi danh sách ID.
-     */
     List<FnbItem> findAllByIdIn(List<UUID> ids);
+
+    boolean existsByName(String name);
 }

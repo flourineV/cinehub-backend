@@ -37,30 +37,24 @@ public class FnbService {
 
         Map<UUID, FnbItem> fnbMap = fnbEntities.stream()
                 .collect(Collectors.toMap(FnbItem::getId, item -> item));
-        // -------------------------------------------------------------------
 
-        // Khai báo list mới để lưu chi tiết các mục đã tính toán
         List<CalculatedFnbItemDto> calculatedItems = new ArrayList<>();
-        BigDecimal grandTotal = BigDecimal.ZERO; // Đổi tên biến total thành grandTotal để rõ ràng hơn
+        BigDecimal grandTotal = BigDecimal.ZERO;
 
         for (FnbItemDto itemDto : selectedFnbItems) {
             FnbItem fnbItem = fnbMap.get(itemDto.getFnbItemId());
 
             if (fnbItem == null) {
-                log.warn("❌ F&B Item ID {} not found. Skipping calculation for this item.", itemDto.getFnbItemId());
-                // Tùy chọn: Ném ngoại lệ
+                log.warn("F&B Item ID {} not found. Skipping calculation for this item.", itemDto.getFnbItemId());
                 continue;
             }
 
-            // 1. Tính toán giá trị: đơn giá * số lượng
             BigDecimal unitPrice = fnbItem.getUnitPrice();
             BigDecimal itemTotal = unitPrice
                     .multiply(new BigDecimal(itemDto.getQuantity()));
 
-            // 2. Cộng vào tổng chung
             grandTotal = grandTotal.add(itemTotal);
 
-            // 3. TẠO DTO CHI TIẾT ĐỂ TRẢ VỀ
             CalculatedFnbItemDto calculatedItem = CalculatedFnbItemDto.builder()
                     .fnbItemId(itemDto.getFnbItemId())
                     .quantity(itemDto.getQuantity())
@@ -71,9 +65,8 @@ public class FnbService {
             calculatedItems.add(calculatedItem);
         }
 
-        log.info("🍔 Total F&B price calculated: {}", grandTotal);
+        log.info("Total F&B price calculated: {}", grandTotal);
 
-        // 4. TRẢ VỀ RESPONSE CUỐI CÙNG CÓ CẢ TỔNG VÀ CHI TIẾT
         return FnbCalculationResponse.builder()
                 .totalFnbPrice(grandTotal)
                 .calculatedFnbItems(calculatedItems)
@@ -90,19 +83,23 @@ public class FnbService {
         return fnbItemRepository.findById(id)
                 .map(this::mapToResponse)
                 .orElseThrow(() -> {
-                    log.error("❌ F&B Item not found with ID: {}", id);
+                    log.error("F&B Item not found with ID: {}", id);
                     return new IllegalArgumentException("F&B Item not found with ID: " + id);
                 });
     }
 
     @Transactional
     public FnbItemResponse createFnbItem(FnbItemRequest request) {
-        // Tùy chọn: Kiểm tra trùng tên (nếu cần xử lý lỗi thân thiện hơn)
+
+        if (fnbItemRepository.existsByName(request.getName())) {
+            throw new IllegalArgumentException("F&B Item with name '" + request.getName() + "' already exists.");
+        }
 
         FnbItem newItem = FnbItem.builder()
                 .name(request.getName())
                 .description(request.getDescription())
                 .unitPrice(request.getUnitPrice())
+                .imageUrl(request.getImageUrl())
                 .build();
 
         FnbItem savedItem = fnbItemRepository.save(newItem);
@@ -110,9 +107,6 @@ public class FnbService {
         return mapToResponse(savedItem);
     }
 
-    /**
-     * Cập nhật một mục F&B hiện có.
-     */
     @Transactional
     public FnbItemResponse updateFnbItem(UUID id, FnbItemRequest request) {
         FnbItem existingItem = fnbItemRepository.findById(id)
@@ -121,25 +115,21 @@ public class FnbService {
         existingItem.setName(request.getName());
         existingItem.setDescription(request.getDescription());
         existingItem.setUnitPrice(request.getUnitPrice());
+        existingItem.setImageUrl(request.getImageUrl());
 
         FnbItem updatedItem = fnbItemRepository.save(existingItem);
-        log.info("🔄 Updated F&B item: {}", updatedItem.getName());
+        log.info("Updated F&B item: {}", updatedItem.getName());
         return mapToResponse(updatedItem);
     }
 
-    /**
-     * Xóa một mục F&B.
-     */
     @Transactional
     public void deleteFnbItem(UUID id) {
         if (!fnbItemRepository.existsById(id)) {
             throw new IllegalArgumentException("F&B Item not found with ID: " + id);
         }
         fnbItemRepository.deleteById(id);
-        log.warn("🗑️ Deleted F&B item with ID: {}", id);
+        log.warn("Deleted F&B item with ID: {}", id);
     }
-
-    // --- Mapper Helpers ---
 
     private FnbItemResponse mapToResponse(FnbItem item) {
         return FnbItemResponse.builder()
@@ -147,6 +137,7 @@ public class FnbService {
                 .name(item.getName())
                 .description(item.getDescription())
                 .unitPrice(item.getUnitPrice())
+                .imageUrl(item.getImageUrl())
                 .build();
     }
 }

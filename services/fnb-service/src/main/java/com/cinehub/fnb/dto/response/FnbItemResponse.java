@@ -13,4 +13,5 @@ public class FnbItemResponse {
     private String name;
     private String description;
     private BigDecimal unitPrice;
+    private String imageUrl;
 }
