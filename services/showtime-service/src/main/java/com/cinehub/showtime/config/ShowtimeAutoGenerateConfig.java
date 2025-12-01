@@ -10,7 +10,11 @@ import lombok.Data;
 @Data
 public class ShowtimeAutoGenerateConfig {
 
-    private int startHour = 5;
+    private int startHour = 4;
     private int endHour = 24;
-    private int cleaningGapMinutes = 20;
+    private int cleaningGapMinutes = 15;
+
+    // Khung giờ vàng
+    private int primeTimeStartHour = 17;
+    private int primeTimeEnd = 22;
 }

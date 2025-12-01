@@ -48,4 +48,5 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, UUID> {
     List<Showtime> findShowtimesWithoutSeats(
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
+
 }

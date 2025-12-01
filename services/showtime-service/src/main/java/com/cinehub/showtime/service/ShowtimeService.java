@@ -2,7 +2,6 @@ package com.cinehub.showtime.service;
 
 import com.cinehub.showtime.client.MovieServiceClient;
 import com.cinehub.showtime.client.MovieSummaryResponse;
-import com.cinehub.showtime.config.ShowtimeAutoGenerateConfig;
 import com.cinehub.showtime.dto.request.BatchShowtimeRequest;
 import com.cinehub.showtime.dto.request.ShowtimeRequest;
 import com.cinehub.showtime.dto.request.ValidateShowtimeRequest;
@@ -18,12 +17,13 @@ import com.cinehub.showtime.dto.response.TheaterShowtimesResponse;
 import com.cinehub.showtime.entity.Showtime;
 import com.cinehub.showtime.entity.Theater;
 import com.cinehub.showtime.entity.Room;
-import com.cinehub.showtime.repository.SeatRepository;
 import com.cinehub.showtime.repository.ShowtimeRepository;
-import com.cinehub.showtime.repository.ShowtimeSeatRepository;
 import com.cinehub.showtime.repository.ShowtimeRepositoryCustom;
 import com.cinehub.showtime.repository.TheaterRepository;
 import com.cinehub.showtime.repository.RoomRepository;
+import com.cinehub.showtime.mapper.ShowtimeMapper;
+import com.cinehub.showtime.dto.model.GenerationStats;
+import com.cinehub.showtime.helper.ShowtimeGenerationHelper;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -54,22 +54,18 @@ public class ShowtimeService {
         private final ShowtimeRepository showtimeRepository;
         private final TheaterRepository theaterRepository;
         private final RoomRepository roomRepository;
-        private final SeatRepository seatRepository;
-        private final ShowtimeSeatRepository showtimeSeatRepository;
         private final ShowtimeRepositoryCustom showtimeRepositoryCustom;
         private final MovieServiceClient movieServiceClient;
-        private final ShowtimeAutoGenerateConfig autoGenerateConfig;
+
+        private final ShowtimeMapper showtimeMapper;
+        private final ShowtimeGenerationHelper generationHelper;
 
         public ShowtimeResponse createShowtime(ShowtimeRequest request) {
                 Theater theater = theaterRepository.findById(request.getTheaterId())
-                                .orElseThrow(
-                                                () -> new EntityNotFoundException("Theater with ID "
-                                                                + request.getTheaterId() + " not found"));
+                                .orElseThrow(() -> new EntityNotFoundException("Theater not found"));
                 Room room = roomRepository.findById(request.getRoomId())
-                                .orElseThrow(() -> new EntityNotFoundException(
-                                                "Room with ID " + request.getRoomId() + " not found"));
+                                .orElseThrow(() -> new EntityNotFoundException("Room not found"));
 
-                // 2. KIỂM TRA TRÙNG LỊCH (Gọi hàm helper)
                 checkOverlap(request.getRoomId(), request.getStartTime(), request.getEndTime(), null);
 
                 Showtime showtime = Showtime.builder()
@@ -78,119 +74,20 @@ public class ShowtimeService {
                                 .room(room)
                                 .startTime(request.getStartTime())
                                 .endTime(request.getEndTime())
+                                .status(com.cinehub.showtime.entity.ShowtimeStatus.ACTIVE)
                                 .build();
 
-                Showtime savedShowtime = showtimeRepository.save(showtime);
-                return mapToShowtimeResponse(savedShowtime);
-        }
-
-        public ShowtimeResponse getShowtimeById(UUID id) {
-                Showtime showtime = showtimeRepository.findById(id)
-                                .orElseThrow(() -> new EntityNotFoundException(
-                                                "Showtime with ID " + id + " not found"));
-
-                return mapToShowtimeResponse(showtime);
-        }
-
-        public List<ShowtimeResponse> getAllShowtimes() {
-                return showtimeRepository.findAll().stream()
-                                .map(this::mapToShowtimeResponse)
-                                .collect(Collectors.toList());
-        }
-
-        public List<ShowtimeResponse> getShowtimesByTheaterAndDate(UUID theaterId, LocalDateTime start,
-                        LocalDateTime end) {
-                return showtimeRepository.findByTheaterIdAndStartTimeBetween(theaterId, start, end).stream()
-                                .map(this::mapToShowtimeResponse)
-                                .collect(Collectors.toList());
-        }
-
-        public List<ShowtimeResponse> getShowtimesByMovie(UUID movieId) {
-                return showtimeRepository.findByMovieId(movieId).stream()
-                                .map(this::mapToShowtimeResponse)
-                                .collect(Collectors.toList());
-        }
-
-        public ShowtimesByMovieResponse getShowtimesByMovieGrouped(UUID movieId) {
-                // 1. Xác định khung thời gian 5 NGÀY (Hôm nay -> 4 ngày sau)
-                LocalDate today = LocalDate.now();
-                List<LocalDate> targetDates = new ArrayList<>();
-
-                // Sửa số 7 thành 5 ở đây
-                for (int i = 0; i < 5; i++) {
-                        targetDates.add(today.plusDays(i));
-                }
-
-                // 2. Lấy suất chiếu của phim (Chỉ lấy những suất từ hôm nay trở đi)
-                List<Showtime> allShowtimes = showtimeRepository.findByMovieId(movieId).stream()
-                                .filter(st -> !st.getStartTime().toLocalDate().isBefore(today))
-                                .collect(Collectors.toList());
-
-                // 3. Lấy TẤT CẢ các rạp (Source of Truth)
-                List<Theater> allTheaters = theaterRepository.findAll();
-                // Nếu muốn tối ưu theo tỉnh: theaterRepository.findByProvinceId(...)
-
-                // 4. Gom nhóm dữ liệu: [Ngày -> [TheaterId -> List<Showtime>]]
-                Map<LocalDate, Map<UUID, List<Showtime>>> groupedData = allShowtimes.stream()
-                                .collect(Collectors.groupingBy(
-                                                st -> st.getStartTime().toLocalDate(),
-                                                Collectors.groupingBy(st -> st.getTheater().getId())));
-
-                Map<LocalDate, List<TheaterScheduleResponse>> scheduleByDate = new LinkedHashMap<>();
-
-                // 5. Duyệt qua 5 ngày cố định
-                for (LocalDate date : targetDates) {
-                        // Lấy map suất chiếu của ngày đó (Có thể rỗng)
-                        Map<UUID, List<Showtime>> showtimesOnDate = groupedData.getOrDefault(date, new HashMap<>());
-
-                        // Duyệt qua TẤT CẢ rạp để tạo khung dữ liệu
-                        List<TheaterScheduleResponse> dailySchedules = allTheaters.stream()
-                                        .map(theater -> {
-                                                // Lấy list suất chiếu của rạp (Nếu không có thì trả về List rỗng [])
-                                                List<Showtime> theaterShowtimes = showtimesOnDate
-                                                                .getOrDefault(theater.getId(), new ArrayList<>());
-
-                                                // Map sang DTO
-                                                List<ShowtimeResponse> showtimeDtos = theaterShowtimes.stream()
-                                                                .sorted(Comparator.comparing(Showtime::getStartTime))
-                                                                .map(this::mapToShowtimeResponse)
-                                                                .collect(Collectors.toList());
-
-                                                return TheaterScheduleResponse.builder()
-                                                                .theaterId(theater.getId())
-                                                                .theaterName(theater.getName())
-                                                                .theaterAddress(theater.getAddress())
-                                                                .showtimes(showtimeDtos) // ✅ Frontend sẽ nhận được []
-                                                                                         // nếu rạp không chiếu
-                                                                .build();
-                                        })
-                                        .collect(Collectors.toList());
-
-                        scheduleByDate.put(date, dailySchedules);
-                }
-
-                return ShowtimesByMovieResponse.builder()
-                                .availableDates(targetDates) // Luôn trả về danh sách 5 ngày
-                                .scheduleByDate(scheduleByDate)
-                                .build();
+                return showtimeMapper.toShowtimeResponse(showtimeRepository.save(showtime));
         }
 
         public ShowtimeResponse updateShowtime(UUID id, ShowtimeRequest request) {
                 Showtime showtime = showtimeRepository.findById(id)
-                                .orElseThrow(() -> new EntityNotFoundException(
-                                                "Showtime with ID " + id + " not found"));
-
+                                .orElseThrow(() -> new EntityNotFoundException("Showtime not found"));
                 Theater theater = theaterRepository.findById(request.getTheaterId())
-                                .orElseThrow(
-                                                () -> new EntityNotFoundException("Theater with ID "
-                                                                + request.getTheaterId() + " not found"));
-
+                                .orElseThrow(() -> new EntityNotFoundException("Theater not found"));
                 Room room = roomRepository.findById(request.getRoomId())
-                                .orElseThrow(() -> new EntityNotFoundException(
-                                                "Room with ID " + request.getRoomId() + " not found"));
+                                .orElseThrow(() -> new EntityNotFoundException("Room not found"));
 
-                // KIỂM TRA TRÙNG LỊCH (Gọi hàm helper, truyền id suất chiếu hiện tại để loại
-                // trừ)
                 checkOverlap(request.getRoomId(), request.getStartTime(), request.getEndTime(), id);
 
                 showtime.setMovieId(request.getMovieId());
@@ -199,15 +96,148 @@ public class ShowtimeService {
                 showtime.setStartTime(request.getStartTime());
                 showtime.setEndTime(request.getEndTime());
 
-                Showtime updatedShowtime = showtimeRepository.save(showtime);
-                return mapToShowtimeResponse(updatedShowtime);
+                return showtimeMapper.toShowtimeResponse(showtimeRepository.save(showtime));
         }
 
         public void deleteShowtime(UUID id) {
                 if (!showtimeRepository.existsById(id)) {
-                        throw new EntityNotFoundException("Showtime with ID " + id + " not found for deletion");
+                        throw new EntityNotFoundException("Showtime not found");
                 }
                 showtimeRepository.deleteById(id);
+        }
+
+        public ShowtimeResponse getShowtimeById(UUID id) {
+                Showtime showtime = showtimeRepository.findById(id)
+                                .orElseThrow(() -> new EntityNotFoundException("Showtime not found"));
+                return showtimeMapper.toShowtimeResponse(showtime);
+        }
+
+        public List<ShowtimeResponse> getAllShowtimes() {
+                return showtimeRepository.findAll().stream()
+                                .map(showtimeMapper::toShowtimeResponse)
+                                .collect(Collectors.toList());
+        }
+
+        public List<ShowtimeResponse> getShowtimesByTheaterAndDate(UUID theaterId, LocalDateTime start,
+                        LocalDateTime end) {
+                return showtimeRepository.findByTheaterIdAndStartTimeBetween(theaterId, start, end).stream()
+                                .map(showtimeMapper::toShowtimeResponse)
+                                .collect(Collectors.toList());
+        }
+
+        public List<ShowtimeResponse> getShowtimesByMovie(UUID movieId) {
+                return showtimeRepository.findByMovieId(movieId).stream()
+                                .map(showtimeMapper::toShowtimeResponse)
+                                .collect(Collectors.toList());
+        }
+
+        public ShowtimesByMovieResponse getShowtimesByMovieGrouped(UUID movieId) {
+                LocalDate today = LocalDate.now();
+                List<LocalDate> targetDates = new ArrayList<>();
+                for (int i = 0; i < 5; i++) {
+                        targetDates.add(today.plusDays(i));
+                }
+
+                List<Showtime> allShowtimes = showtimeRepository.findByMovieId(movieId).stream()
+                                .filter(st -> !st.getStartTime().toLocalDate().isBefore(today))
+                                .collect(Collectors.toList());
+
+                List<Theater> allTheaters = theaterRepository.findAll();
+
+                Map<LocalDate, Map<UUID, List<Showtime>>> groupedData = allShowtimes.stream()
+                                .collect(Collectors.groupingBy(
+                                                st -> st.getStartTime().toLocalDate(),
+                                                Collectors.groupingBy(st -> st.getTheater().getId())));
+
+                Map<LocalDate, List<TheaterScheduleResponse>> scheduleByDate = new LinkedHashMap<>();
+
+                for (LocalDate date : targetDates) {
+                        Map<UUID, List<Showtime>> showtimesOnDate = groupedData.getOrDefault(date, new HashMap<>());
+                        List<TheaterScheduleResponse> dailySchedules = allTheaters.stream()
+                                        .map(theater -> {
+                                                List<Showtime> theaterShowtimes = showtimesOnDate
+                                                                .getOrDefault(theater.getId(), new ArrayList<>());
+                                                List<ShowtimeResponse> showtimeDtos = theaterShowtimes.stream()
+                                                                .sorted(Comparator.comparing(Showtime::getStartTime))
+                                                                .map(showtimeMapper::toShowtimeResponse)
+                                                                .collect(Collectors.toList());
+
+                                                return TheaterScheduleResponse.builder()
+                                                                .theaterId(theater.getId())
+                                                                .theaterName(theater.getName())
+                                                                .theaterAddress(theater.getAddress())
+                                                                .showtimes(showtimeDtos)
+                                                                .build();
+                                        })
+                                        .collect(Collectors.toList());
+                        scheduleByDate.put(date, dailySchedules);
+                }
+
+                return ShowtimesByMovieResponse.builder()
+                                .availableDates(targetDates)
+                                .scheduleByDate(scheduleByDate)
+                                .build();
+        }
+
+        public List<TheaterShowtimesResponse> getTheaterShowtimesByMovieAndProvince(UUID movieId, UUID provinceId) {
+                LocalDateTime now = LocalDateTime.now();
+                List<Showtime> showtimes = showtimeRepository.findByMovieAndProvince(movieId, provinceId, now);
+
+                Map<UUID, List<Showtime>> showtimesByTheater = showtimes.stream()
+                                .collect(Collectors.groupingBy(s -> s.getTheater().getId()));
+
+                return showtimesByTheater.entrySet().stream()
+                                .map(entry -> {
+                                        UUID theaterId = entry.getKey();
+                                        List<Showtime> theaterShowtimes = entry.getValue();
+                                        Theater theater = theaterShowtimes.get(0).getTheater();
+
+                                        List<TheaterShowtimesResponse.ShowtimeInfo> showtimeInfos = theaterShowtimes
+                                                        .stream()
+                                                        .sorted(Comparator.comparing(Showtime::getStartTime))
+                                                        .map(showtimeMapper::toShowtimeInfo)
+                                                        .collect(Collectors.toList());
+
+                                        return TheaterShowtimesResponse.builder()
+                                                        .theaterId(theaterId)
+                                                        .theaterName(theater.getName())
+                                                        .theaterAddress(theater.getAddress())
+                                                        .showtimes(showtimeInfos)
+                                                        .build();
+                                })
+                                .collect(Collectors.toList());
+        }
+
+        public PagedResponse<ShowtimeDetailResponse> getAllAvailableShowtimes(
+                        UUID provinceId, UUID theaterId, UUID roomId, UUID movieId, UUID showtimeId,
+                        LocalDate selectedDate, LocalDateTime startOfDay, LocalDateTime endOfDay,
+                        LocalTime fromTime, LocalTime toTime, int page, int size, String sortBy, String sortType) {
+
+                Sort sort = Sort.unsorted();
+                if (sortBy != null && !sortBy.isEmpty()) {
+                        Sort.Direction direction = "desc".equalsIgnoreCase(sortType) ? Sort.Direction.DESC
+                                        : Sort.Direction.ASC;
+                        sort = Sort.by(direction, sortBy);
+                } else {
+                        sort = Sort.by(Sort.Direction.ASC, "startTime");
+                }
+
+                Pageable pageable = PageRequest.of(page - 1, size, sort);
+                Page<Showtime> showtimePage = showtimeRepositoryCustom.findAvailableShowtimesWithFiltersDynamic(
+                                provinceId, theaterId, roomId, movieId, showtimeId, selectedDate, startOfDay,
+                                endOfDay, fromTime, toTime, LocalDateTime.now(), pageable);
+
+                List<ShowtimeDetailResponse> content = showtimePage.getContent().stream()
+                                .map(showtimeMapper::toShowtimeDetailResponse)
+                                .collect(Collectors.toList());
+
+                return PagedResponse.<ShowtimeDetailResponse>builder()
+                                .data(content)
+                                .page(page)
+                                .size(size)
+                                .totalElements(showtimePage.getTotalElements())
+                                .totalPages(showtimePage.getTotalPages())
+                                .build();
         }
 
         public BatchShowtimeResponse createShowtimesBatch(BatchShowtimeRequest request) {
@@ -310,55 +340,6 @@ public class ShowtimeService {
                                 .build();
         }
 
-        public PagedResponse<ShowtimeDetailResponse> getAllAvailableShowtimes(
-                        UUID provinceId,
-                        UUID theaterId,
-                        UUID roomId,
-                        UUID movieId,
-                        UUID showtimeId,
-                        LocalDate selectedDate,
-                        LocalDateTime startOfDay,
-                        LocalDateTime endOfDay,
-                        LocalTime fromTime,
-                        LocalTime toTime,
-                        int page,
-                        int size,
-                        String sortBy,
-                        String sortType) {
-
-                LocalDateTime now = LocalDateTime.now();
-
-                Sort sort = Sort.unsorted();
-                if (sortBy != null && !sortBy.isEmpty()) {
-                        Sort.Direction direction = "desc".equalsIgnoreCase(sortType)
-                                        ? Sort.Direction.DESC
-                                        : Sort.Direction.ASC;
-                        sort = Sort.by(direction, sortBy);
-                } else {
-                        // Default sort by startTime ascending
-                        sort = Sort.by(Sort.Direction.ASC, "startTime");
-                }
-
-                Pageable pageable = PageRequest.of(page - 1, size, sort);
-
-                Page<Showtime> showtimePage = showtimeRepositoryCustom.findAvailableShowtimesWithFiltersDynamic(
-                                provinceId, theaterId, roomId, movieId, showtimeId, selectedDate, startOfDay,
-                                endOfDay, fromTime, toTime, now, pageable);
-
-                // Map to detailed response with booking counts
-                List<ShowtimeDetailResponse> content = showtimePage.getContent().stream()
-                                .map(this::mapToShowtimeDetailResponse)
-                                .collect(Collectors.toList());
-
-                return PagedResponse.<ShowtimeDetailResponse>builder()
-                                .data(content)
-                                .page(page)
-                                .size(size)
-                                .totalElements(showtimePage.getTotalElements())
-                                .totalPages(showtimePage.getTotalPages())
-                                .build();
-        }
-
         public ShowtimeConflictResponse validateShowtime(ValidateShowtimeRequest request) {
                 List<Showtime> overlappingShowtimes = showtimeRepository.findByRoomIdAndEndTimeAfterAndStartTimeBefore(
                                 request.getRoomId(),
@@ -414,37 +395,6 @@ public class ShowtimeService {
                                 .build();
         }
 
-        /**
-         * Map to detailed response with booking information
-         */
-        private ShowtimeDetailResponse mapToShowtimeDetailResponse(Showtime showtime) {
-                // Get total seats for this room
-                int totalSeats = seatRepository.countByRoomId(showtime.getRoom().getId());
-
-                // Get booked seats count
-                long bookedSeats = showtimeSeatRepository.countBookedSeatsByShowtimeId(showtime.getId());
-
-                // Fetch movie title from movie-service
-                String movieTitle = movieServiceClient.getMovieTitle(showtime.getMovieId());
-
-                return ShowtimeDetailResponse.builder()
-                                .id(showtime.getId())
-                                .movieId(showtime.getMovieId())
-                                .movieTitle(movieTitle)
-                                .theaterId(showtime.getTheater().getId())
-                                .theaterName(showtime.getTheater().getName())
-                                .provinceId(showtime.getTheater().getProvince().getId())
-                                .provinceName(showtime.getTheater().getProvince().getName())
-                                .roomId(showtime.getRoom().getId())
-                                .roomName(showtime.getRoom().getName())
-                                .startTime(showtime.getStartTime())
-                                .endTime(showtime.getEndTime())
-                                .totalSeats(totalSeats)
-                                .bookedSeats((int) bookedSeats)
-                                .availableSeats(totalSeats - (int) bookedSeats)
-                                .build();
-        }
-
         // --- Helper function: Kiểm tra trùng lịch ---
         private void checkOverlap(UUID roomId, LocalDateTime newStartTime, LocalDateTime newEndTime,
                         UUID excludedShowtimeId) {
@@ -471,186 +421,46 @@ public class ShowtimeService {
         }
 
         public AutoGenerateShowtimesResponse autoGenerateShowtimes(LocalDate startDate, LocalDate endDate) {
-
-                log.info("Starting auto-generation of showtimes from {} to {}", startDate, endDate);
+                log.info("Starting auto-generation from {} to {}", startDate, endDate);
 
                 List<MovieSummaryResponse> availableMovies = movieServiceClient
                                 .getAvailableMoviesForDateRange(startDate, endDate);
-
-                if (availableMovies.isEmpty()) {
-                        return buildEmptyResponse("No available movies found for the date range");
-                }
-
-                log.info("Found {} available movies in date range", availableMovies.size());
+                if (availableMovies.isEmpty())
+                        return buildEmptyResponse("No movies found");
 
                 List<Theater> theaters = theaterRepository.findAll();
-                if (theaters.isEmpty()) {
-                        return buildEmptyResponse("No theaters found in system");
-                }
+                if (theaters.isEmpty())
+                        return buildEmptyResponse("No theaters found");
 
                 GenerationStats stats = new GenerationStats();
-
-                // Calculate number of days
                 long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate) + 1;
 
-                // Generate for each day in range
-                for (long dayOffset = 0; dayOffset < daysBetween; dayOffset++) {
-                        LocalDate targetDate = startDate.plusDays(dayOffset);
-                        generateShowtimesForDate(targetDate, availableMovies, theaters, stats);
+                for (long i = 0; i < daysBetween; i++) {
+                        LocalDate targetDate = startDate.plusDays(i);
+                        generateForDate(targetDate, availableMovies, theaters, stats);
                 }
 
                 return buildSuccessResponse(stats, theaters.size(), daysBetween);
         }
 
-        private void generateShowtimesForDate(LocalDate targetDate, List<MovieSummaryResponse> availableMovies,
-                        List<Theater> theaters, GenerationStats stats) {
-
-                // Filter movies available on this specific date
-                List<MovieSummaryResponse> todayMovies = availableMovies.stream()
-                                .filter(m -> isMovieAvailableOnDate(m, targetDate))
+        private void generateForDate(LocalDate date, List<MovieSummaryResponse> movies, List<Theater> theaters,
+                        GenerationStats stats) {
+                List<MovieSummaryResponse> todayMovies = movies.stream()
+                                .filter(m -> isMovieAvailable(m, date))
                                 .toList();
-
-                if (todayMovies.isEmpty()) {
-                        log.debug("No movies available for date: {}", targetDate);
+                if (todayMovies.isEmpty())
                         return;
-                }
 
-                // Create weighted movie pool based on popularity
-                List<MovieSummaryResponse> weightedMoviePool = createWeightedMoviePool(todayMovies);
+                List<MovieSummaryResponse> weightedPool = createWeightedMoviePool(todayMovies);
 
-                // Generate for each theater
-                for (Theater theater : theaters) {
-                        generateShowtimesForTheater(targetDate, theater, weightedMoviePool, stats);
-                }
-        }
-
-        private void generateShowtimesForTheater(LocalDate targetDate, Theater theater,
-                        List<MovieSummaryResponse> weightedMoviePool, GenerationStats stats) {
-
-                List<Room> rooms = roomRepository.findByTheaterId(theater.getId());
-
-                if (rooms.isEmpty()) {
-                        log.debug("No rooms found for theater: {}", theater.getName());
-                        return;
-                }
-
-                // Generate for each room
-                for (Room room : rooms) {
-                        fillRoomWithShowtimes(targetDate, theater, room, weightedMoviePool, stats);
-                }
-        }
-
-        private void fillRoomWithShowtimes(LocalDate targetDate, Theater theater, Room room,
-                        List<MovieSummaryResponse> weightedMoviePool, GenerationStats stats) {
-
-                LocalDateTime currentSlot = targetDate.atTime(autoGenerateConfig.getStartHour(), 0);
-                // Handle endHour = 24 as midnight next day
-                LocalDateTime dayEnd = autoGenerateConfig.getEndHour() == 24
-                                ? targetDate.plusDays(1).atTime(0, 0)
-                                : targetDate.atTime(autoGenerateConfig.getEndHour(), 0);
-
-                // PHASE 1: Guarantee each movie at least one showtime
-                List<MovieSummaryResponse> uniqueMovies = weightedMoviePool.stream()
-                                .distinct()
-                                .collect(java.util.stream.Collectors.toList());
-                java.util.Collections.shuffle(uniqueMovies); // Random order for fairness
-
-                for (MovieSummaryResponse movie : uniqueMovies) {
-                        if (currentSlot.isBefore(dayEnd)) {
-                                int duration = movie.getTime() != null ? movie.getTime() : 120;
-                                LocalDateTime endTime = currentSlot.plusMinutes(duration);
-
-                                if (endTime.isAfter(dayEnd)) {
-                                        break; // No more time
-                                }
-
-                                boolean created = tryCreateShowtime(movie, theater, room, currentSlot, endTime, stats);
-                                if (created) {
-                                        // Round up next slot to nearest 5 minutes
-                                        currentSlot = roundUpToNearestInterval(
-                                                        endTime.plusMinutes(autoGenerateConfig.getCleaningGapMinutes()),
-                                                        5);
-                                }
+                for (Theater t : theaters) {
+                        List<Room> rooms = roomRepository.findByTheaterId(t.getId());
+                        generationHelper.ensureOneShowtimePerMovie(date, t, rooms, todayMovies, stats);
+                        for (Room r : rooms) {
+                                generationHelper.generateForRoom(date, t, r, weightedPool, stats);
                         }
                 }
-
-                // PHASE 2: Fill remaining slots with weighted distribution
-                int poolIndex = 0;
-                while (currentSlot.isBefore(dayEnd) && !weightedMoviePool.isEmpty()) {
-                        MovieSummaryResponse movie = weightedMoviePool.get(poolIndex % weightedMoviePool.size());
-
-                        int duration = movie.getTime() != null ? movie.getTime() : 120;
-                        LocalDateTime endTime = currentSlot.plusMinutes(duration);
-
-                        if (endTime.isAfter(dayEnd)) {
-                                break;
-                        }
-
-                        boolean created = tryCreateShowtime(movie, theater, room, currentSlot, endTime, stats);
-
-                        if (created) {
-                                // Round up next slot to nearest 5 minutes
-                                currentSlot = roundUpToNearestInterval(
-                                                endTime.plusMinutes(autoGenerateConfig.getCleaningGapMinutes()), 5);
-                        } else {
-                                currentSlot = currentSlot.plusMinutes(30);
-                                stats.totalSkipped++;
-                        }
-
-                        poolIndex++;
-                }
         }
-
-        private boolean tryCreateShowtime(MovieSummaryResponse movie, Theater theater, Room room,
-                        LocalDateTime startTime, LocalDateTime endTime, GenerationStats stats) {
-                try {
-                        // Check for conflicts
-                        List<Showtime> conflicts = showtimeRepository
-                                        .findByRoomIdAndEndTimeAfterAndStartTimeBefore(room.getId(), startTime,
-                                                        endTime);
-
-                        if (!conflicts.isEmpty()) {
-                                return false; // Conflict exists, skip
-                        }
-
-                        // Create and save showtime
-                        Showtime showtime = Showtime.builder()
-                                        .movieId(movie.getId())
-                                        .theater(theater)
-                                        .room(room)
-                                        .startTime(startTime)
-                                        .endTime(endTime)
-                                        .build();
-
-                        showtimeRepository.save(showtime);
-                        stats.totalGenerated++;
-
-                        // Track unique movie titles
-                        if (!stats.generatedMovies.contains(movie.getTitle())) {
-                                stats.generatedMovies.add(movie.getTitle());
-                                // Update movie status to NOW_PLAYING when first showtime is created
-                                movieServiceClient.updateMovieToNowPlaying(movie.getId());
-                        }
-
-                        return true;
-
-                } catch (Exception e) {
-                        stats.errors.add(String.format(
-                                        "Failed to generate showtime for movie %s at %s: %s",
-                                        movie.getTitle(), startTime, e.getMessage()));
-                        log.error("Error generating showtime for movie {} at {}", movie.getTitle(), startTime, e);
-                        return false;
-                }
-        }
-
-        private static class GenerationStats {
-                int totalGenerated = 0;
-                int totalSkipped = 0;
-                List<String> generatedMovies = new ArrayList<>();
-                List<String> errors = new ArrayList<>();
-        }
-
-        // --- Response Builders ---
 
         private AutoGenerateShowtimesResponse buildEmptyResponse(String message) {
                 return AutoGenerateShowtimesResponse.builder()
@@ -663,58 +473,16 @@ public class ShowtimeService {
                                 .build();
         }
 
-        private AutoGenerateShowtimesResponse buildSuccessResponse(GenerationStats stats, int theaterCount,
-                        long dayCount) {
-                String message = String.format(
-                                "Generated %d showtimes for %d movies across %d theaters over %d days",
-                                stats.totalGenerated, stats.generatedMovies.size(), theaterCount, dayCount);
-
-                return AutoGenerateShowtimesResponse.builder()
-                                .totalGenerated(stats.totalGenerated)
-                                .totalSkipped(stats.totalSkipped)
-                                .generatedMovies(stats.generatedMovies)
-                                .skippedMovies(List.of()) // Not used in current implementation
-                                .errors(stats.errors)
-                                .message(message)
-                                .build();
-        }
-
-        // --- Algorithm Helpers ---
-
-        // --- Algorithm Helpers ---
-
-        /**
-         * Create weighted movie pool based on popularity
-         * Higher popularity movies appear multiple times in the pool
-         * This ensures they get more showtimes during scheduling
-         */
         private List<MovieSummaryResponse> createWeightedMoviePool(List<MovieSummaryResponse> movies) {
                 if (movies.isEmpty()) {
                         return new ArrayList<>();
                 }
 
-                // Calculate min/max popularity for normalization
-                double minPopularity = movies.stream()
-                                .map(m -> m.getPopularity() != null ? m.getPopularity() : 0.0)
-                                .min(Double::compare)
-                                .orElse(0.0);
-
-                double maxPopularity = movies.stream()
-                                .map(m -> m.getPopularity() != null ? m.getPopularity() : 0.0)
-                                .max(Double::compare)
-                                .orElse(100.0);
-
                 List<MovieSummaryResponse> weightedPool = new ArrayList<>();
 
                 for (MovieSummaryResponse movie : movies) {
-                        double popularity = movie.getPopularity() != null ? movie.getPopularity() : 0.0;
-
-                        // Normalize to 0-100 scale
-                        double normalizedPopularity = normalizePopularity(popularity, minPopularity, maxPopularity);
-                        int weight = calculateWeight(normalizedPopularity);
-
-                        log.debug("Movie: {}, Raw popularity: {}, Normalized: {}, Weight: {}",
-                                        movie.getTitle(), popularity, normalizedPopularity, weight);
+                        double popularity = movie.getPopularity() != null ? movie.getPopularity() : 5.0;
+                        double weight = popularity;
 
                         // Add movie to pool 'weight' times
                         for (int i = 0; i < weight; i++) {
@@ -723,127 +491,27 @@ public class ShowtimeService {
                 }
 
                 log.info("Created weighted pool: {} movies expanded to {} entries (popularity range: {} - {})",
-                                movies.size(), weightedPool.size(), minPopularity, maxPopularity);
+                                movies.size(), weightedPool.size());
 
                 return weightedPool;
         }
 
-        /**
-         * Normalize popularity to 0-100 scale based on current movie pool
-         */
-        private double normalizePopularity(double popularity, double min, double max) {
-                if (max == min) {
-                        return 50.0; // All movies have same popularity, give them middle weight
-                }
-                return ((popularity - min) / (max - min)) * 100.0;
-        }
-
-        /**
-         * Calculate weight based on normalized popularity score (0-100)
-         * Weight determines how many times a movie appears in the pool
-         */
-        private int calculateWeight(double normalizedPopularity) {
-                if (normalizedPopularity >= 90) {
-                        return 8; // Top 10%: 8x showtimes
-                } else if (normalizedPopularity >= 75) {
-                        return 6; // Top 25%: 6x showtimes
-                } else if (normalizedPopularity >= 60) {
-                        return 4; // Top 40%: 4x showtimes
-                } else if (normalizedPopularity >= 40) {
-                        return 3; // Top 60%: 3x showtimes
-                } else if (normalizedPopularity >= 20) {
-                        return 2; // Top 80%: 2x showtimes
-                } else {
-                        return 1; // Bottom 20%: 1x showtime
-                }
-        }
-
-        /**
-         * Check if a movie is available on a specific date
-         */
-        private boolean isMovieAvailableOnDate(MovieSummaryResponse movie, LocalDate date) {
-                if (movie.getStartDate() == null) {
+        private boolean isMovieAvailable(MovieSummaryResponse m, LocalDate d) {
+                if (m.getStartDate() == null)
                         return false;
-                }
-
-                // Movie must have started by this date
-                if (movie.getStartDate().isAfter(date)) {
+                if (m.getStartDate().isAfter(d))
                         return false;
-                }
-
-                // If movie has end date, check if it's still showing
-                if (movie.getEndDate() != null && movie.getEndDate().isBefore(date)) {
-                        return false;
-                }
-
-                return true;
+                return m.getEndDate() == null || !m.getEndDate().isBefore(d);
         }
 
-        /**
-         * Round up time to nearest interval (5 or 10 minutes)
-         * Example: 14:23 with interval 5 → 14:25, 14:27 with interval 10 → 14:30
-         */
-        private LocalDateTime roundUpToNearestInterval(LocalDateTime time, int intervalMinutes) {
-                int currentMinute = time.getMinute();
-                int remainder = currentMinute % intervalMinutes;
-
-                if (remainder == 0) {
-                        return time; // Already aligned
-                }
-
-                // Round up to next interval
-                int minutesToAdd = intervalMinutes - remainder;
-                return time.plusMinutes(minutesToAdd);
-        }
-
-        /**
-         * Get theaters with their showtimes for a specific movie in a province
-         */
-        public List<TheaterShowtimesResponse> getTheaterShowtimesByMovieAndProvince(
-                        UUID movieId, UUID provinceId) {
-                LocalDateTime now = LocalDateTime.now();
-
-                // Query all showtimes for the movie and province
-                List<Showtime> showtimes = showtimeRepository.findByMovieAndProvince(movieId, provinceId, now);
-
-                // Group by theater
-                Map<UUID, List<Showtime>> showtimesByTheater = showtimes.stream()
-                                .collect(Collectors.groupingBy(s -> s.getTheater().getId()));
-
-                // Build response for each theater
-                return showtimesByTheater.entrySet().stream()
-                                .map(entry -> {
-                                        UUID theaterId = entry.getKey();
-                                        List<Showtime> theaterShowtimes = entry.getValue();
-                                        Theater theater = theaterShowtimes.get(0).getTheater();
-
-                                        // Map showtimes to ShowtimeInfo
-                                        List<TheaterShowtimesResponse.ShowtimeInfo> showtimeInfos = theaterShowtimes
-                                                        .stream()
-                                                        .sorted(Comparator.comparing(Showtime::getStartTime))
-                                                        .map(this::mapToShowtimeInfo)
-                                                        .collect(Collectors.toList());
-
-                                        return TheaterShowtimesResponse.builder()
-                                                        .theaterId(theaterId)
-                                                        .theaterName(theater.getName())
-                                                        .theaterAddress(theater.getAddress())
-                                                        .showtimes(showtimeInfos)
-                                                        .build();
-                                })
-                                .collect(Collectors.toList());
-        }
-
-        /**
-         * Map Showtime entity to ShowtimeInfo DTO
-         */
-        private TheaterShowtimesResponse.ShowtimeInfo mapToShowtimeInfo(Showtime showtime) {
-                return TheaterShowtimesResponse.ShowtimeInfo.builder()
-                                .showtimeId(showtime.getId())
-                                .roomId(showtime.getRoom().getId().toString())
-                                .roomName(showtime.getRoom().getName())
-                                .startTime(showtime.getStartTime())
-                                .endTime(showtime.getEndTime())
+        private AutoGenerateShowtimesResponse buildSuccessResponse(GenerationStats stats, int theaterCount,
+                        long dayCount) {
+                return AutoGenerateShowtimesResponse.builder()
+                                .totalGenerated(stats.getTotalGenerated())
+                                .totalSkipped(stats.getTotalSkipped())
+                                .generatedMovies(stats.getGeneratedMovies())
+                                .message(String.format("Generated %d showtimes across %d theaters in %d days",
+                                                stats.getTotalGenerated(), theaterCount, dayCount))
                                 .build();
         }
 }

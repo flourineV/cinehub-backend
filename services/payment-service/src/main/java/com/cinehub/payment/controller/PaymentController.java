@@ -19,14 +19,14 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/payment")
+@RequestMapping("/api/payment")
 @RequiredArgsConstructor
 public class PaymentController {
 
     private final ZaloPayService zaloPayService;
     private final PaymentService paymentService;
     private final ZaloPayConfig zaloPayConfig;
-    private final ObjectMapper objectMapper; // ✅ Spring Boot tự inject cái này
+    private final ObjectMapper objectMapper;
 
     @PostMapping("/create-zalopay-url")
     public ResponseEntity<?> createZaloPayUrl(@RequestParam UUID bookingId) {
