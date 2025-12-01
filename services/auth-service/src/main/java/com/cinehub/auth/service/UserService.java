@@ -7,7 +7,6 @@ import com.cinehub.auth.entity.Role;
 import com.cinehub.auth.repository.UserRepository;
 import com.cinehub.auth.repository.RoleRepository;
 
-import jakarta.persistence.criteria.JoinType;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;

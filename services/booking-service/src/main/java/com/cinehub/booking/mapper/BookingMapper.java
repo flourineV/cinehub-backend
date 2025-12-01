@@ -36,8 +36,6 @@ public class BookingMapper {
                 .finalPrice(booking.getFinalPrice())
                 .guestName(booking.getGuestName())
                 .guestEmail(booking.getGuestEmail())
-                .createdAt(booking.getCreatedAt())
-                .updatedAt(booking.getUpdatedAt())
                 .seats(toSeatResponses(booking.getSeats()))
                 .build();
     }

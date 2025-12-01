@@ -135,16 +135,6 @@ services:
     depends_on:
       - rabbitmq
 
-  analytics-service:
-    build: ./services/analytics-service
-    env_file:
-      - ./services/analytics-service/.env
-    container_name: analytics-service
-    expose:
-      - "8091"
-    networks:
-      - cinehub-net
-
   gateway-service:
     build: ./services/gateway-service
     env_file:
@@ -165,7 +155,6 @@ services:
       - fnb-service
       - promotion-service
       - notification-service
-      - analytics-service
 
 networks:
   cinehub-net:

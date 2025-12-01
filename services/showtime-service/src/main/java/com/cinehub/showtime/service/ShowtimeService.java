@@ -13,6 +13,7 @@ import com.cinehub.showtime.dto.response.ShowtimeConflictResponse;
 import com.cinehub.showtime.dto.response.ShowtimeDetailResponse;
 import com.cinehub.showtime.dto.response.ShowtimeResponse;
 import com.cinehub.showtime.dto.response.ShowtimesByMovieResponse;
+import com.cinehub.showtime.dto.response.TheaterScheduleResponse;
 import com.cinehub.showtime.dto.response.TheaterShowtimesResponse;
 import com.cinehub.showtime.entity.Showtime;
 import com.cinehub.showtime.entity.Theater;
@@ -38,6 +39,8 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -109,26 +112,66 @@ public class ShowtimeService {
         }
 
         public ShowtimesByMovieResponse getShowtimesByMovieGrouped(UUID movieId) {
-                List<Showtime> showtimes = showtimeRepository.findByMovieId(movieId);
+                // 1. Xác định khung thời gian 5 NGÀY (Hôm nay -> 4 ngày sau)
+                LocalDate today = LocalDate.now();
+                List<LocalDate> targetDates = new ArrayList<>();
 
-                // Map to response
-                List<ShowtimeResponse> showtimeResponses = showtimes.stream()
-                                .map(this::mapToShowtimeResponse)
+                // Sửa số 7 thành 5 ở đây
+                for (int i = 0; i < 5; i++) {
+                        targetDates.add(today.plusDays(i));
+                }
+
+                // 2. Lấy suất chiếu của phim (Chỉ lấy những suất từ hôm nay trở đi)
+                List<Showtime> allShowtimes = showtimeRepository.findByMovieId(movieId).stream()
+                                .filter(st -> !st.getStartTime().toLocalDate().isBefore(today))
                                 .collect(Collectors.toList());
 
-                // Group by date
-                Map<LocalDate, List<ShowtimeResponse>> showtimesByDate = showtimeResponses.stream()
+                // 3. Lấy TẤT CẢ các rạp (Source of Truth)
+                List<Theater> allTheaters = theaterRepository.findAll();
+                // Nếu muốn tối ưu theo tỉnh: theaterRepository.findByProvinceId(...)
+
+                // 4. Gom nhóm dữ liệu: [Ngày -> [TheaterId -> List<Showtime>]]
+                Map<LocalDate, Map<UUID, List<Showtime>>> groupedData = allShowtimes.stream()
                                 .collect(Collectors.groupingBy(
-                                                st -> st.getStartTime().toLocalDate()));
+                                                st -> st.getStartTime().toLocalDate(),
+                                                Collectors.groupingBy(st -> st.getTheater().getId())));
 
-                // Extract available dates and sort
-                List<LocalDate> availableDates = showtimesByDate.keySet().stream()
-                                .sorted()
-                                .collect(Collectors.toList());
+                Map<LocalDate, List<TheaterScheduleResponse>> scheduleByDate = new LinkedHashMap<>();
+
+                // 5. Duyệt qua 5 ngày cố định
+                for (LocalDate date : targetDates) {
+                        // Lấy map suất chiếu của ngày đó (Có thể rỗng)
+                        Map<UUID, List<Showtime>> showtimesOnDate = groupedData.getOrDefault(date, new HashMap<>());
+
+                        // Duyệt qua TẤT CẢ rạp để tạo khung dữ liệu
+                        List<TheaterScheduleResponse> dailySchedules = allTheaters.stream()
+                                        .map(theater -> {
+                                                // Lấy list suất chiếu của rạp (Nếu không có thì trả về List rỗng [])
+                                                List<Showtime> theaterShowtimes = showtimesOnDate
+                                                                .getOrDefault(theater.getId(), new ArrayList<>());
+
+                                                // Map sang DTO
+                                                List<ShowtimeResponse> showtimeDtos = theaterShowtimes.stream()
+                                                                .sorted(Comparator.comparing(Showtime::getStartTime))
+                                                                .map(this::mapToShowtimeResponse)
+                                                                .collect(Collectors.toList());
+
+                                                return TheaterScheduleResponse.builder()
+                                                                .theaterId(theater.getId())
+                                                                .theaterName(theater.getName())
+                                                                .theaterAddress(theater.getAddress())
+                                                                .showtimes(showtimeDtos) // ✅ Frontend sẽ nhận được []
+                                                                                         // nếu rạp không chiếu
+                                                                .build();
+                                        })
+                                        .collect(Collectors.toList());
+
+                        scheduleByDate.put(date, dailySchedules);
+                }
 
                 return ShowtimesByMovieResponse.builder()
-                                .availableDates(availableDates)
-                                .showtimesByDate(showtimesByDate)
+                                .availableDates(targetDates) // Luôn trả về danh sách 5 ngày
+                                .scheduleByDate(scheduleByDate)
                                 .build();
         }
 

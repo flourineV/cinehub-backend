@@ -15,7 +15,7 @@ public class CorsConfig {
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfig = new CorsConfiguration();
 
-        corsConfig.setAllowedOrigins(List.of("http://localhost:5173"));
+        corsConfig.setAllowedOrigins(List.of("*")); // Accept requests from all origins
 
         corsConfig.setMaxAge(3600L);
         corsConfig.addAllowedMethod("*"); // Accept (GET, POST, PUT, OPTIONS...)

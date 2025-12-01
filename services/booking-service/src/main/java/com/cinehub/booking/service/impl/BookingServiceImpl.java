@@ -7,11 +7,14 @@ import com.cinehub.booking.dto.external.FnbCalculationResponse;
 import com.cinehub.booking.dto.request.FinalizeBookingRequest;
 import com.cinehub.booking.dto.request.SeatSelectionDetail;
 import com.cinehub.booking.dto.response.BookingResponse;
+import com.cinehub.booking.dto.response.PagedResponse;
 import com.cinehub.booking.dto.external.FnbCalculationRequest;
 import com.cinehub.booking.dto.external.MovieTitleResponse;
 import com.cinehub.booking.dto.external.SeatResponse;
 import com.cinehub.booking.dto.external.FnbItemResponse;
 import com.cinehub.booking.dto.external.RankAndDiscountResponse;
+import com.cinehub.booking.dto.external.UserProfileResponse;
+import com.cinehub.booking.dto.request.BookingCriteria;
 import com.cinehub.booking.dto.request.CreateBookingRequest;
 import com.cinehub.booking.entity.*;
 import com.cinehub.booking.events.booking.*;
@@ -29,6 +32,11 @@ import com.cinehub.booking.mapper.BookingMapper;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +53,7 @@ import java.util.UUID;
 public class BookingServiceImpl implements BookingService {
 
         private final BookingRepository bookingRepository;
+        private final BookingSeatRepository bookingSeatRepository;
         private final UsedPromotionRepository usedPromotionRepository;
         private final BookingPromotionRepository bookingPromotionRepository;
         private final BookingFnbRepository bookingFnbRepository;
@@ -62,7 +71,6 @@ public class BookingServiceImpl implements BookingService {
         @Transactional
         public BookingResponse createBooking(CreateBookingRequest request) {
 
-                // ======== 0. VALIDATE REQUEST ========
                 if (request.getSelectedSeats() == null || request.getSelectedSeats().isEmpty()) {
                         throw new BookingException("At least one seat must be selected");
                 }
@@ -71,13 +79,11 @@ public class BookingServiceImpl implements BookingService {
                                 request.getShowtimeId(), request.getSelectedSeats().size(),
                                 request.getUserId(), request.getGuestSessionId());
 
-                // ======== 1. VALIDATE SHOWTIME STATUS ========
                 ShowtimeResponse showtime = showtimeClient.getShowtimeById(request.getShowtimeId());
                 if (showtime == null) {
                         throw new BookingException("Showtime not found");
                 }
 
-                // Check if showtime is suspended
                 if ("SUSPENDED".equals(showtime.getStatus())) {
                         throw new BookingException(
                                         "This showtime has been suspended and is no longer available for booking");
@@ -211,6 +217,7 @@ public class BookingServiceImpl implements BookingService {
                 bookingFnbRepository.deleteByBooking_Id(booking.getId());
                 bookingPromotionRepository.deleteByBooking_Id(booking.getId());
                 usedPromotionRepository.deleteByBooking_Id(booking.getId());
+                bookingSeatRepository.deleteByBooking_Id(booking.getId());
 
                 updateBookingStatus(booking, BookingStatus.EXPIRED);
         }
@@ -464,6 +471,46 @@ public class BookingServiceImpl implements BookingService {
                                 .booking(booking)
                                 .usedAt(LocalDateTime.now())
                                 .build());
+        }
+
+        @Override
+        public PagedResponse<BookingResponse> getBookingsByCriteria(
+                        BookingCriteria criteria,
+                        int page,
+                        int size,
+                        String sortBy,
+                        String sortType) {
+
+                Sort sort = sortType.equalsIgnoreCase("desc")
+                                ? Sort.by(sortBy).descending()
+                                : Sort.by(sortBy).ascending();
+
+                Pageable pageable = PageRequest.of(page, size, sort);
+
+                Page<Booking> bookingsPage = bookingRepository.searchWithCriteria(criteria, pageable);
+
+                List<BookingResponse> bookingResponses = bookingsPage.getContent().stream()
+                                .map(bookingMapper::toBookingResponse)
+                                .toList();
+
+                for (BookingResponse response : bookingResponses) {
+                        if (response.getUserId() != null) {
+                                try {
+                                        String fullName = userProfileClient.getUserFullName(response.getUserId());
+                                        response.setUserName(fullName);
+                                } catch (Exception e) {
+                                        response.setUserName(null); // tránh lỗi
+                                }
+                        }
+                }
+
+                return PagedResponse.<BookingResponse>builder()
+                                .data(bookingResponses)
+                                .page(bookingsPage.getNumber())
+                                .size(bookingsPage.getSize())
+                                .totalElements(bookingsPage.getTotalElements())
+                                .totalPages(bookingsPage.getTotalPages())
+                                .build();
         }
 
         @Transactional

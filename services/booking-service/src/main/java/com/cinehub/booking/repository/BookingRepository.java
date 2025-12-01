@@ -2,13 +2,9 @@ package com.cinehub.booking.repository;
 
 import com.cinehub.booking.entity.Booking;
 import com.cinehub.booking.entity.BookingStatus;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;

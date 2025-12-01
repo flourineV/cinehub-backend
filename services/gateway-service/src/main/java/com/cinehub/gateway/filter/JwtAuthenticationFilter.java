@@ -91,11 +91,19 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
             return true;
         }
 
-        // Wildcard pattern matching
+        // Wildcard pattern matching: /prefix/**
         if (pattern.endsWith("/**")) {
             String prefix = pattern.substring(0, pattern.length() - 3);
             boolean matches = path.startsWith(prefix);
             log.debug("Pattern /** - prefix: '{}', path: '{}', matches: {}", prefix, path, matches);
+            return matches;
+        }
+
+        // Wildcard pattern matching: **/suffix (e.g., **/v3/api-docs)
+        if (pattern.startsWith("**/")) {
+            String suffix = pattern.substring(3);
+            boolean matches = path.endsWith(suffix) || path.contains("/" + suffix);
+            log.debug("Pattern **/ - suffix: '{}', path: '{}', matches: {}", suffix, path, matches);
             return matches;
         }
 
@@ -109,7 +117,8 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
                     String middle = path.substring(prefix.length() + 1, path.length() - suffix.length() - 1);
                     // Check if middle part is a single segment (no slashes) and looks like UUID
                     boolean matches = !middle.contains("/") && middle.matches("[0-9a-f-]+");
-                    log.debug("Pattern /*/ - prefix: '{}', suffix: '{}', middle: '{}', matches: {}", prefix, suffix, middle, matches);
+                    log.debug("Pattern /*/ - prefix: '{}', suffix: '{}', middle: '{}', matches: {}", prefix, suffix,
+                            middle, matches);
                     return matches;
                 }
             }

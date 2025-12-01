@@ -1,10 +1,8 @@
 package com.cinehub.showtime.controller;
 
-import com.cinehub.showtime.dto.request.BatchShowtimeRequest;
 import com.cinehub.showtime.dto.request.ShowtimeRequest;
 import com.cinehub.showtime.dto.request.ValidateShowtimeRequest;
 import com.cinehub.showtime.dto.response.AutoGenerateShowtimesResponse;
-import com.cinehub.showtime.dto.response.BatchShowtimeResponse;
 import com.cinehub.showtime.dto.response.PagedResponse;
 import com.cinehub.showtime.dto.response.ShowtimeConflictResponse;
 import com.cinehub.showtime.dto.response.ShowtimeDetailResponse;

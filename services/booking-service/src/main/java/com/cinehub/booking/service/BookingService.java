@@ -3,8 +3,10 @@ package com.cinehub.booking.service;
 import java.util.List;
 import java.util.UUID;
 
+import com.cinehub.booking.dto.request.BookingCriteria;
 import com.cinehub.booking.dto.request.FinalizeBookingRequest;
 import com.cinehub.booking.dto.response.BookingResponse;
+import com.cinehub.booking.dto.response.PagedResponse;
 import com.cinehub.booking.entity.BookingStatus;
 import com.cinehub.booking.events.payment.PaymentFailedEvent;
 import com.cinehub.booking.events.payment.PaymentSuccessEvent;
@@ -34,4 +36,11 @@ public interface BookingService {
     void handleShowtimeSuspended(ShowtimeSuspendedEvent event);
 
     void deleteBooking(UUID id);
+
+    PagedResponse<BookingResponse> getBookingsByCriteria(
+            BookingCriteria criteria,
+            int page,
+            int size,
+            String sortBy,
+            String sortType);
 }

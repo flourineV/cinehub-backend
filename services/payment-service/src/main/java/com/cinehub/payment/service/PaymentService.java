@@ -9,7 +9,6 @@ import com.cinehub.payment.events.SeatUnlockedEvent;
 import com.cinehub.payment.events.PaymentFailedEvent;
 import com.cinehub.payment.producer.PaymentProducer;
 import com.cinehub.payment.repository.PaymentRepository;
-import com.cinehub.payment.exception.PaymentProcessingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,17 +25,24 @@ public class PaymentService {
         private final PaymentProducer paymentProducer;
         private final PaymentRepository paymentRepository;
 
+        // 1. Tạo Transaction khi Booking vừa tạo (Giữ nguyên)
         @Transactional
         public void createPendingTransaction(BookingCreatedEvent event) {
+                // Kiểm tra xem đã tồn tại chưa để tránh duplicate
+                if (paymentRepository.existsByBookingId(event.bookingId())) {
+                        log.warn("Transaction already exists for bookingId: {}. Skipping.", event.bookingId());
+                        return;
+                }
+
                 PaymentTransaction pendingTxn = PaymentTransaction.builder()
                                 .bookingId(event.bookingId())
                                 .userId(event.userId())
                                 .showtimeId(event.showtimeId())
                                 .seatIds(event.seatIds())
                                 .amount(event.totalPrice())
-                                .method("INIT_GATEWAY")
+                                .method("UNKNOWN") // Chưa biết user chọn ví nào, lát nữa update sau
                                 .status(PaymentStatus.PENDING)
-                                .transactionRef("TXN_PENDING_" + UUID.randomUUID().toString())
+                                .transactionRef("TXN_INIT_" + UUID.randomUUID()) // Tạm thời
                                 .build();
 
                 paymentRepository.save(pendingTxn);
@@ -44,79 +50,43 @@ public class PaymentService {
         }
 
         @Transactional
-        public void processPaymentSuccess(UUID bookingId, String transactionRef, String paymentMethod) {
-
-                Optional<PaymentTransaction> optionalTxn = paymentRepository.findByBookingId(bookingId)
-                                .stream()
-                                .filter(t -> t.getStatus() == PaymentStatus.PENDING)
-                                .findFirst();
-
-                if (optionalTxn.isEmpty()) {
-                        log.error("Transaction not found or not PENDING for bookingId {}. Cannot confirm payment.",
-                                        bookingId);
-                        throw new PaymentProcessingException(
-                                        "Transaction not found or not PENDING for bookingId: " + bookingId);
-                }
-
-                PaymentTransaction txn = optionalTxn.get();
+        public void confirmPaymentSuccess(String appTransId, String merchantTransId, long amountPaid) {
+                // Tìm transaction dựa trên app_trans_id mà ZaloPay gửi về (đã lưu ở bước
+                // createOrder)
+                PaymentTransaction txn = paymentRepository.findByTransactionRef(appTransId)
+                                .orElseThrow(() -> new RuntimeException(
+                                                "Transaction not found for ref: " + appTransId));
 
                 if (txn.getStatus() == PaymentStatus.SUCCESS) {
-                        log.warn("Transaction for bookingId {} already SUCCESS. Skipping.", bookingId);
+                        log.warn("⚠️ Transaction {} already SUCCESS. Ignoring callback.", appTransId);
                         return;
                 }
 
-                txn.setStatus(PaymentStatus.SUCCESS);
-                txn.setTransactionRef(transactionRef);
-                txn.setMethod(paymentMethod);
-                paymentRepository.save(txn);
-                log.info("SUCCESS: Payment transaction updated for bookingId: {}", bookingId);
+                // Validate số tiền (quan trọng để tránh hack)
+                if (txn.getAmount().longValue() != amountPaid) {
+                        log.error("🚨 Amount mismatch! Expected: {}, Paid: {}", txn.getAmount(), amountPaid);
+                        // Có thể set status là FAILED hoặc SUSPECT
+                        return;
+                }
 
+                // Update DB
+                txn.setStatus(PaymentStatus.SUCCESS);
+                txn.setMethod("ZALOPAY"); // Hoặc lấy từ callback
+                paymentRepository.save(txn);
+
+                log.info("💰 Payment SUCCESS for bookingId: {}", txn.getBookingId());
+
+                // Bắn Event báo cho Booking Service biết để xuất vé
                 PaymentSuccessEvent successEvent = new PaymentSuccessEvent(
                                 txn.getId(),
                                 txn.getBookingId(),
                                 txn.getShowtimeId(),
                                 txn.getUserId(),
                                 txn.getAmount(),
-                                txn.getMethod(),
+                                "ZALOPAY",
                                 txn.getSeatIds(),
-                                "PAYMENT_SUCCESS");
-
+                                "Payment confirmed via ZaloPay Callback");
                 paymentProducer.sendPaymentSuccessEvent(successEvent);
-        }
-
-        @Transactional
-        public void processPaymentFailure(UUID bookingId, String transactionRef, String reason) {
-
-                Optional<PaymentTransaction> optionalTxn = paymentRepository.findByBookingId(bookingId)
-                                .stream()
-                                .filter(t -> t.getStatus() == PaymentStatus.PENDING)
-                                .findFirst();
-
-                if (optionalTxn.isEmpty()) {
-                        log.error("Transaction not found or not PENDING for bookingId {}. Cannot record failure.",
-                                        bookingId);
-                        throw new PaymentProcessingException(
-                                        "Transaction not found or not PENDING for bookingId: " + bookingId);
-                }
-
-                PaymentTransaction txn = optionalTxn.get();
-
-                txn.setStatus(PaymentStatus.FAILED);
-                txn.setTransactionRef(transactionRef);
-                paymentRepository.save(txn);
-                log.warn("FAILED: Payment transaction updated for bookingId: {}", bookingId);
-
-                PaymentFailedEvent failedEvent = new PaymentFailedEvent(
-                                txn.getId(),
-                                txn.getBookingId(),
-                                txn.getUserId(),
-                                txn.getShowtimeId(),
-                                txn.getAmount(),
-                                txn.getMethod(),
-                                txn.getSeatIds(),
-                                reason);
-
-                paymentProducer.sendPaymentFailedEvent(failedEvent);
         }
 
         @Transactional
@@ -182,5 +152,4 @@ public class PaymentService {
 
                 paymentProducer.sendPaymentFailedEvent(expiredEvent);
         }
-
 }

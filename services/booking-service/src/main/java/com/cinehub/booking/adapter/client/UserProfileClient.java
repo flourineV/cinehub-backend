@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.UUID;
 import java.math.BigDecimal;
 import com.cinehub.booking.dto.external.RankAndDiscountResponse;
+import com.cinehub.booking.dto.external.UserProfileResponse;
 
 @Service
 @Slf4j
@@ -37,6 +38,16 @@ public class UserProfileClient {
     public RankAndDiscountResponse fallbackRank(UUID userId, Throwable t) {
         System.err.println("Circuit Breaker activated for userProfileService. Lỗi: " + t.getMessage());
         return new RankAndDiscountResponse(userId, "BRONZE", BigDecimal.ZERO);
+    }
+
+    @CircuitBreaker(name = "userProfileService", fallbackMethod = "fallbackUserProfile")
+    public String getUserFullName(UUID userId) {
+        return userProfileWebClient.get()
+                .uri("/api/profiles/profiles/{userId}", userId)
+                .retrieve()
+                .bodyToMono(UserProfileResponse.class)
+                .block()
+                .getFullName();
     }
 
     @CircuitBreaker(name = "userProfileService", fallbackMethod = "fallbackUpdateLoyalty")

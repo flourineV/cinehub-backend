@@ -6,9 +6,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -26,25 +24,25 @@ public class SeatLockRedisService {
         for (UUID seatId : seatIds) {
             String key = "seat:" + showtimeId + ":" + seatId;
             String value = redisTemplate.opsForValue().get(key);
-            
+
             if (value == null) {
                 log.warn("Seat lock not found for seat {} in showtime {}", seatId, showtimeId);
                 return false;
             }
-            
+
             // Parse value: GUEST|{guestSessionId}|{expireAt}
             String[] parts = value.split("\\|");
             if (parts.length < 2) {
                 log.warn("Invalid lock value format for seat {}: {}", seatId, value);
                 return false;
             }
-            
+
             String ownerType = parts[0];
             String ownerIdentifier = parts[1];
-            
+
             if (!"GUEST".equals(ownerType) || !ownerIdentifier.equals(guestSessionId.toString())) {
-                log.warn("Guest session {} does not own seat {} for showtime {} (owner: {}|{})", 
-                    guestSessionId, seatId, showtimeId, ownerType, ownerIdentifier);
+                log.warn("Guest session {} does not own seat {} for showtime {} (owner: {}|{})",
+                        guestSessionId, seatId, showtimeId, ownerType, ownerIdentifier);
                 return false;
             }
         }
@@ -60,25 +58,25 @@ public class SeatLockRedisService {
         for (UUID seatId : seatIds) {
             String key = "seat:" + showtimeId + ":" + seatId;
             String value = redisTemplate.opsForValue().get(key);
-            
+
             if (value == null) {
                 log.warn("Seat lock not found for seat {} in showtime {}", seatId, showtimeId);
                 return false;
             }
-            
+
             // Parse value: USER|{userId}|{expireAt}
             String[] parts = value.split("\\|");
             if (parts.length < 2) {
                 log.warn("Invalid lock value format for seat {}: {}", seatId, value);
                 return false;
             }
-            
+
             String ownerType = parts[0];
             String ownerIdentifier = parts[1];
-            
+
             if (!"USER".equals(ownerType) || !ownerIdentifier.equals(userId.toString())) {
-                log.warn("User {} does not own seat {} for showtime {} (owner: {}|{})", 
-                    userId, seatId, showtimeId, ownerType, ownerIdentifier);
+                log.warn("User {} does not own seat {} for showtime {} (owner: {}|{})",
+                        userId, seatId, showtimeId, ownerType, ownerIdentifier);
                 return false;
             }
         }
