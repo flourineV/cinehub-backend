@@ -28,9 +28,34 @@ public class BookingRepositoryCustomImpl implements BookingRepositoryCustom {
 
         List<Predicate> predicates = new ArrayList<>();
 
+        // keyword - partial match on userId, showtimeId, bookingCode, guestName
+        if (criteria.getKeyword() != null && !criteria.getKeyword().isBlank()) {
+            String keywordLower = "%" + criteria.getKeyword().toLowerCase() + "%";
+            List<Predicate> keywordPredicates = new ArrayList<>();
+
+            // Match userId as string
+            keywordPredicates.add(cb.like(cb.lower(booking.get("userId").as(String.class)), keywordLower));
+
+            // Match showtimeId as string
+            keywordPredicates.add(cb.like(cb.lower(booking.get("showtimeId").as(String.class)), keywordLower));
+
+            // Match bookingCode
+            keywordPredicates.add(cb.like(cb.lower(booking.get("BookingCode")), keywordLower));
+
+            // Match guestName
+            keywordPredicates.add(cb.like(cb.lower(booking.get("guestName")), keywordLower));
+
+            predicates.add(cb.or(keywordPredicates.toArray(new Predicate[0])));
+        }
+
         // userId
         if (criteria.getUserId() != null) {
             predicates.add(cb.equal(booking.get("userId"), criteria.getUserId()));
+        }
+
+        // userIds (for username search - multiple matching users)
+        if (criteria.getUserIds() != null && !criteria.getUserIds().isEmpty()) {
+            predicates.add(booking.get("userId").in(criteria.getUserIds()));
         }
 
         // showtimeId
@@ -38,12 +63,16 @@ public class BookingRepositoryCustomImpl implements BookingRepositoryCustom {
             predicates.add(cb.equal(booking.get("showtimeId"), criteria.getShowtimeId()));
         }
 
+        // movieId
+        if (criteria.getMovieId() != null) {
+            predicates.add(cb.equal(booking.get("movieId"), criteria.getMovieId()));
+        }
+
         // bookingCode (LIKE search)
         if (criteria.getBookingCode() != null && !criteria.getBookingCode().isBlank()) {
             predicates.add(cb.like(
-                cb.lower(booking.get("BookingCode")),
-                "%" + criteria.getBookingCode().toLowerCase() + "%"
-            ));
+                    cb.lower(booking.get("BookingCode")),
+                    "%" + criteria.getBookingCode().toLowerCase() + "%"));
         }
 
         // status
@@ -59,17 +88,15 @@ public class BookingRepositoryCustomImpl implements BookingRepositoryCustom {
         // guestName (LIKE search)
         if (criteria.getGuestName() != null && !criteria.getGuestName().isBlank()) {
             predicates.add(cb.like(
-                cb.lower(booking.get("guestName")),
-                "%" + criteria.getGuestName().toLowerCase() + "%"
-            ));
+                    cb.lower(booking.get("guestName")),
+                    "%" + criteria.getGuestName().toLowerCase() + "%"));
         }
 
         // guestEmail (LIKE search)
         if (criteria.getGuestEmail() != null && !criteria.getGuestEmail().isBlank()) {
             predicates.add(cb.like(
-                cb.lower(booking.get("guestEmail")),
-                "%" + criteria.getGuestEmail().toLowerCase() + "%"
-            ));
+                    cb.lower(booking.get("guestEmail")),
+                    "%" + criteria.getGuestEmail().toLowerCase() + "%"));
         }
 
         // fromDate

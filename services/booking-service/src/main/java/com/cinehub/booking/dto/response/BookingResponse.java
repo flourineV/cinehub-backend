@@ -14,7 +14,10 @@ public class BookingResponse {
     private UUID bookingId;
     private String bookingCode;
     private UUID userId;
+    private String fullName; // From user-profile-service
     private UUID showtimeId;
+    private UUID movieId; // Add movieId for batch lookup
+    private String movieTitle; // From movie-service
     private String guestName;
     private String guestEmail;
     private String status;

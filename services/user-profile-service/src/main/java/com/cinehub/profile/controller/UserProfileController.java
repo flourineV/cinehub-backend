@@ -83,4 +83,22 @@ public class UserProfileController {
         RankAndDiscountResponse response = profileService.getRankAndDiscount(userId);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/batch/names")
+    public ResponseEntity<java.util.Map<UUID, String>> getBatchUserNames(
+            @RequestBody List<UUID> userIds,
+            @RequestHeader(value = "X-Internal-Secret", required = false) String internalKey) {
+        internalAuthChecker.requireInternal(internalKey);
+        java.util.Map<UUID, String> names = profileService.getBatchUserNames(userIds);
+        return ResponseEntity.ok(names);
+    }
+
+    @GetMapping("/batch/search-userids")
+    public ResponseEntity<List<UUID>> searchUserIdsByUsername(
+            @RequestParam String username,
+            @RequestHeader(value = "X-Internal-Secret", required = false) String internalKey) {
+        internalAuthChecker.requireInternal(internalKey);
+        List<UUID> userIds = profileService.searchUserIdsByUsername(username);
+        return ResponseEntity.ok(userIds);
+    }
 }

@@ -15,6 +15,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PaymentCriteria {
+    private String keyword; // Partial match: userId, bookingId, showtimeId, transactionRef
     private UUID userId;
     private UUID bookingId;
     private UUID showtimeId;

@@ -613,4 +613,17 @@ public class MovieServiceImplement implements MovieService {
                 Sort.by(Sort.Direction.DESC, "popularity") // Sắp xếp điểm cao nhất lên đầu
         );
     }
+
+    @Override
+    public Map<UUID, String> getBatchMovieTitles(List<UUID> movieIds) {
+        if (movieIds == null || movieIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<MovieDetail> movies = movieDetailRepository.findAllByIdIn(movieIds);
+        return movies.stream()
+                .collect(Collectors.toMap(
+                        MovieDetail::getId,
+                        movie -> movie.getTitle() != null ? movie.getTitle() : "Unknown Movie"));
+    }
 }

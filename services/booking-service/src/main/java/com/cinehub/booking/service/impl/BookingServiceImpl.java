@@ -129,6 +129,7 @@ public class BookingServiceImpl implements BookingService {
                 Booking booking = Booking.builder()
                                 .userId(request.getUserId())
                                 .showtimeId(request.getShowtimeId())
+                                .movieId(showtime.getMovieId())
                                 .status(BookingStatus.PENDING)
                                 .totalPrice(BigDecimal.ZERO)
                                 .discountAmount(BigDecimal.ZERO)
@@ -481,6 +482,30 @@ public class BookingServiceImpl implements BookingService {
                         String sortBy,
                         String sortType) {
 
+                // If username search is provided, get matching userIds first
+                if (criteria.getUsername() != null && !criteria.getUsername().trim().isEmpty()) {
+                        try {
+                                List<UUID> matchingUserIds = userProfileClient
+                                                .searchUserIdsByUsername(criteria.getUsername());
+                                if (matchingUserIds.isEmpty()) {
+                                        // No users found matching username, return empty result
+                                        return PagedResponse.<BookingResponse>builder()
+                                                        .data(java.util.Collections.emptyList())
+                                                        .page(page)
+                                                        .size(size)
+                                                        .totalElements(0)
+                                                        .totalPages(0)
+                                                        .build();
+                                }
+                                // Set matching userIds to criteria for repository search
+                                criteria.setUserIds(matchingUserIds);
+                                log.debug("Found {} matching users for username '{}'", matchingUserIds.size(),
+                                                criteria.getUsername());
+                        } catch (Exception e) {
+                                log.error("Failed to search userIds by username: {}", e.getMessage());
+                        }
+                }
+
                 Sort sort = sortType.equalsIgnoreCase("desc")
                                 ? Sort.by(sortBy).descending()
                                 : Sort.by(sortBy).ascending();
@@ -492,6 +517,51 @@ public class BookingServiceImpl implements BookingService {
                 List<BookingResponse> bookingResponses = bookingsPage.getContent().stream()
                                 .map(bookingMapper::toBookingResponse)
                                 .toList();
+
+                // Batch fetch userNames
+                List<UUID> userIds = bookingResponses.stream()
+                                .map(BookingResponse::getUserId)
+                                .filter(java.util.Objects::nonNull)
+                                .distinct()
+                                .toList();
+
+                java.util.Map<UUID, String> userNames = java.util.Collections.emptyMap();
+                if (!userIds.isEmpty()) {
+                        try {
+                                userNames = userProfileClient.getBatchUserNames(userIds);
+                        } catch (Exception e) {
+                                log.error("Failed to fetch batch user names: {}", e.getMessage());
+                        }
+                }
+
+                // Batch fetch movie titles
+                List<UUID> movieIds = bookingResponses.stream()
+                                .map(BookingResponse::getMovieId)
+                                .filter(java.util.Objects::nonNull)
+                                .distinct()
+                                .toList();
+
+                java.util.Map<UUID, String> movieTitles = java.util.Collections.emptyMap();
+                if (!movieIds.isEmpty()) {
+                        try {
+                                movieTitles = movieClient.getBatchMovieTitles(movieIds);
+                        } catch (Exception e) {
+                                log.error("Failed to fetch batch movie titles: {}", e.getMessage());
+                        }
+                }
+
+                // Enrich responses with fullName and movieTitle
+                final java.util.Map<UUID, String> finalUserNames = userNames;
+                final java.util.Map<UUID, String> finalMovieTitles = movieTitles;
+
+                bookingResponses.forEach(response -> {
+                        if (response.getUserId() != null) {
+                                response.setFullName(finalUserNames.getOrDefault(response.getUserId(), null));
+                        }
+                        if (response.getMovieId() != null) {
+                                response.setMovieTitle(finalMovieTitles.getOrDefault(response.getMovieId(), null));
+                        }
+                });
 
                 return PagedResponse.<BookingResponse>builder()
                                 .data(bookingResponses)
@@ -637,13 +707,75 @@ public class BookingServiceImpl implements BookingService {
                 Booking booking = bookingRepository.findById(id)
                                 .orElseThrow(() -> new BookingException("Booking not found: " + id)); // Dùng
                                                                                                       // BookingException
-                return bookingMapper.toBookingResponse(booking);
+                BookingResponse response = bookingMapper.toBookingResponse(booking);
+
+                // Enrich with fullName
+                if (response.getUserId() != null) {
+                        try {
+                                java.util.Map<UUID, String> userNames = userProfileClient.getBatchUserNames(
+                                                java.util.List.of(response.getUserId()));
+                                response.setFullName(userNames.get(response.getUserId()));
+                        } catch (Exception e) {
+                                log.error("Failed to fetch user name for booking {}: {}", id, e.getMessage());
+                        }
+                }
+
+                // Enrich with movieTitle
+                if (response.getMovieId() != null) {
+                        try {
+                                java.util.Map<UUID, String> movieTitles = movieClient.getBatchMovieTitles(
+                                                java.util.List.of(response.getMovieId()));
+                                response.setMovieTitle(movieTitles.get(response.getMovieId()));
+                        } catch (Exception e) {
+                                log.error("Failed to fetch movie title for booking {}: {}", id, e.getMessage());
+                        }
+                }
+
+                return response;
         }
 
         public List<BookingResponse> getBookingsByUser(UUID userId) {
-                return bookingRepository.findByUserId(userId).stream()
+                List<BookingResponse> responses = bookingRepository.findByUserId(userId).stream()
                                 .map(r -> bookingMapper.toBookingResponse(r))
                                 .toList();
+
+                if (responses.isEmpty()) {
+                        return responses;
+                }
+
+                // Batch fetch user fullName
+                if (userId != null) {
+                        try {
+                                java.util.Map<UUID, String> userNames = userProfileClient.getBatchUserNames(
+                                                java.util.List.of(userId));
+                                String fullName = userNames.get(userId);
+                                responses.forEach(r -> r.setFullName(fullName));
+                        } catch (Exception e) {
+                                log.error("Failed to fetch user name for userId {}: {}", userId, e.getMessage());
+                        }
+                }
+
+                // Batch fetch movie titles
+                List<UUID> movieIds = responses.stream()
+                                .map(BookingResponse::getMovieId)
+                                .filter(java.util.Objects::nonNull)
+                                .distinct()
+                                .toList();
+
+                if (!movieIds.isEmpty()) {
+                        try {
+                                java.util.Map<UUID, String> movieTitles = movieClient.getBatchMovieTitles(movieIds);
+                                responses.forEach(r -> {
+                                        if (r.getMovieId() != null) {
+                                                r.setMovieTitle(movieTitles.get(r.getMovieId()));
+                                        }
+                                });
+                        } catch (Exception e) {
+                                log.error("Failed to fetch movie titles: {}", e.getMessage());
+                        }
+                }
+
+                return responses;
         }
 
         @Transactional
@@ -767,5 +899,46 @@ public class BookingServiceImpl implements BookingService {
         @Transactional
         public void deleteBooking(UUID id) {
                 bookingRepository.deleteById(id);
+        }
+
+        @Override
+        @Transactional
+        public int backfillMovieIds() {
+                log.info("Starting backfill of movieIds for bookings with null movieId");
+
+                List<Booking> bookingsWithoutMovieId = bookingRepository.findAllWithNullMovieId();
+
+                if (bookingsWithoutMovieId.isEmpty()) {
+                        log.info("No bookings found with null movieId");
+                        return 0;
+                }
+
+                int successCount = 0;
+                int failCount = 0;
+
+                for (Booking booking : bookingsWithoutMovieId) {
+                        try {
+                                ShowtimeResponse showtime = showtimeClient.getShowtimeById(booking.getShowtimeId());
+                                if (showtime != null && showtime.getMovieId() != null) {
+                                        booking.setMovieId(showtime.getMovieId());
+                                        bookingRepository.save(booking);
+                                        successCount++;
+                                        log.debug("Updated booking {} with movieId {}", booking.getId(),
+                                                        showtime.getMovieId());
+                                } else {
+                                        failCount++;
+                                        log.warn("Could not get movieId for booking {} (showtime: {})",
+                                                        booking.getId(), booking.getShowtimeId());
+                                }
+                        } catch (Exception e) {
+                                failCount++;
+                                log.error("Error updating booking {}: {}", booking.getId(), e.getMessage());
+                        }
+                }
+
+                log.info("Backfill completed: {} updated, {} failed out of {} total",
+                                successCount, failCount, bookingsWithoutMovieId.size());
+
+                return successCount;
         }
 }

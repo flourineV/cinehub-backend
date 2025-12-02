@@ -113,6 +113,7 @@ public class PaymentController {
 
     @GetMapping("/admin/search")
     public ResponseEntity<PagedResponse<PaymentTransactionResponse>> searchPayments(
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) UUID userId,
             @RequestParam(required = false) UUID bookingId,
             @RequestParam(required = false) UUID showtimeId,
@@ -131,6 +132,7 @@ public class PaymentController {
         AuthChecker.requireAdmin();
 
         PaymentCriteria criteria = PaymentCriteria.builder()
+                .keyword(keyword)
                 .userId(userId)
                 .bookingId(bookingId)
                 .showtimeId(showtimeId)

@@ -40,4 +40,6 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, UUID> 
             String username, String email, String fullName);
 
     List<UserProfile> findTop20ByOrderByCreatedAtDesc();
+
+    List<UserProfile> findAllByUserIdIn(List<UUID> userIds);
 }

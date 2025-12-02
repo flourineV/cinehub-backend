@@ -27,6 +27,9 @@ public class Booking {
     @Column(nullable = false)
     private UUID showtimeId;
 
+    @Column(name = "movie_id")
+    private UUID movieId;
+
     @Column(name = "payment_id", length = 100)
     private UUID paymentId;
 

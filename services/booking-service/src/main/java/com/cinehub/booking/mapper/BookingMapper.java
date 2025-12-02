@@ -30,6 +30,7 @@ public class BookingMapper {
                 .bookingCode(booking.getBookingCode())
                 .userId(booking.getUserId())
                 .showtimeId(booking.getShowtimeId())
+                .movieId(booking.getMovieId())
                 .status(booking.getStatus().name())
                 .totalPrice(booking.getTotalPrice())
                 .discountAmount(booking.getDiscountAmount())

@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.UUID;
 import java.util.Optional;
+import java.util.List;
 
 @Repository
 public interface MovieDetailRepository extends MongoRepository<MovieDetail, UUID> {
@@ -15,4 +16,6 @@ public interface MovieDetailRepository extends MongoRepository<MovieDetail, UUID
     boolean existsByTmdbId(Integer tmdbId);
 
     void deleteByTmdbId(Integer tmdbId);
+
+    List<MovieDetail> findAllByIdIn(List<UUID> ids);
 }

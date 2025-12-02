@@ -146,6 +146,15 @@ public class MovieController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/batch/titles")
+    public ResponseEntity<java.util.Map<UUID, String>> getBatchMovieTitles(
+            @RequestBody List<UUID> movieIds,
+            @RequestHeader("X-Internal-Secret") String internalSecret) {
+        internalAuthChecker.requireInternal(internalSecret);
+        java.util.Map<UUID, String> titles = movieService.getBatchMovieTitles(movieIds);
+        return ResponseEntity.ok(titles);
+    }
+
     public static record ChangeStatusRequest(MovieStatus status) {
     }
 

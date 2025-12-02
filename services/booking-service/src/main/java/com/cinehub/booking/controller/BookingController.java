@@ -74,22 +74,20 @@ public class BookingController {
 
     @GetMapping("/admin/search")
     public ResponseEntity<PagedResponse<BookingResponse>> getAllBookings(
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) UUID userId,
+            @RequestParam(required = false) String username,
             @RequestParam(required = false) UUID showtimeId,
-            @RequestParam(required = false) UUID theaterId,
+            @RequestParam(required = false) UUID movieId,
             @RequestParam(required = false) String bookingCode,
             @RequestParam(required = false) BookingStatus status,
             @RequestParam(required = false) String paymentMethod,
             @RequestParam(required = false) String guestName,
             @RequestParam(required = false) String guestEmail,
-
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
-
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate,
-
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
-
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
@@ -98,8 +96,11 @@ public class BookingController {
         AuthChecker.requireAdmin();
 
         BookingCriteria criteria = new BookingCriteria();
+        criteria.setKeyword(keyword);
         criteria.setUserId(userId);
+        criteria.setUsername(username);
         criteria.setShowtimeId(showtimeId);
+        criteria.setMovieId(movieId);
         criteria.setBookingCode(bookingCode);
         criteria.setStatus(status);
         criteria.setPaymentMethod(paymentMethod);

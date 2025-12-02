@@ -46,4 +46,6 @@ public interface MovieService {
 
     List<MovieSummaryResponse> getAvailableMoviesForDateRange(LocalDate startDate, LocalDate endDate);
 
+    java.util.Map<UUID, String> getBatchMovieTitles(List<UUID> movieIds);
+
 }

@@ -69,6 +69,26 @@ public class PaymentRepositoryCustomImpl implements PaymentRepositoryCustom {
             Root<PaymentTransaction> root) {
         List<Predicate> predicates = new ArrayList<>();
 
+        // keyword - partial match on userId, bookingId, showtimeId, transactionRef
+        if (criteria.getKeyword() != null && !criteria.getKeyword().isEmpty()) {
+            String keywordLower = "%" + criteria.getKeyword().toLowerCase() + "%";
+            List<Predicate> keywordPredicates = new ArrayList<>();
+
+            // Match userId as string
+            keywordPredicates.add(cb.like(cb.lower(root.get("userId").as(String.class)), keywordLower));
+
+            // Match bookingId as string
+            keywordPredicates.add(cb.like(cb.lower(root.get("bookingId").as(String.class)), keywordLower));
+
+            // Match showtimeId as string
+            keywordPredicates.add(cb.like(cb.lower(root.get("showtimeId").as(String.class)), keywordLower));
+
+            // Match transactionRef
+            keywordPredicates.add(cb.like(cb.lower(root.get("transactionRef")), keywordLower));
+
+            predicates.add(cb.or(keywordPredicates.toArray(new Predicate[0])));
+        }
+
         if (criteria.getUserId() != null) {
             predicates.add(cb.equal(root.get("userId"), criteria.getUserId()));
         }

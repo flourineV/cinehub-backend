@@ -62,4 +62,51 @@ public class UserProfileClient {
         log.error("Circuit Breaker: Failed to update loyalty for user {}. Service might be down. Error: {}", userId,
                 t.getMessage());
     }
+
+    @CircuitBreaker(name = "userProfileService", fallbackMethod = "fallbackBatchUserNames")
+    public java.util.Map<UUID, String> getBatchUserNames(java.util.List<UUID> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return java.util.Collections.emptyMap();
+        }
+
+        return userProfileWebClient.post()
+                .uri("/api/profiles/profiles/batch/names")
+                .header("X-Internal-Secret", internalSecret)
+                .bodyValue(userIds)
+                .retrieve()
+                .bodyToMono(new org.springframework.core.ParameterizedTypeReference<java.util.Map<UUID, String>>() {
+                })
+                .block();
+    }
+
+    public java.util.Map<UUID, String> fallbackBatchUserNames(java.util.List<UUID> userIds, Throwable t) {
+        log.error("Circuit Breaker: Failed to get batch user names. Error: {}", t.getMessage());
+        return userIds.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        userId -> userId,
+                        userId -> "Unknown"));
+    }
+
+    @CircuitBreaker(name = "userProfileService", fallbackMethod = "fallbackSearchUserIds")
+    public java.util.List<UUID> searchUserIdsByUsername(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+
+        return userProfileWebClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/profiles/profiles/batch/search-userids")
+                        .queryParam("username", username)
+                        .build())
+                .header("X-Internal-Secret", internalSecret)
+                .retrieve()
+                .bodyToMono(new org.springframework.core.ParameterizedTypeReference<java.util.List<UUID>>() {
+                })
+                .block();
+    }
+
+    public java.util.List<UUID> fallbackSearchUserIds(String username, Throwable t) {
+        log.error("Circuit Breaker: Failed to search user IDs by username. Error: {}", t.getMessage());
+        return java.util.Collections.emptyList();
+    }
 }

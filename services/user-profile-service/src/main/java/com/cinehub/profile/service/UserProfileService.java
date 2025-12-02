@@ -161,6 +161,33 @@ public class UserProfileService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public java.util.Map<UUID, String> getBatchUserNames(List<UUID> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return java.util.Collections.emptyMap();
+        }
+
+        List<UserProfile> profiles = profileRepository.findAllByUserIdIn(userIds);
+        return profiles.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        UserProfile::getUserId,
+                        profile -> profile.getFullName() != null ? profile.getFullName() : "Unknown"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<UUID> searchUserIdsByUsername(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+
+        return profileRepository
+                .findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCaseOrFullNameContainingIgnoreCase(
+                        username, username, username)
+                .stream()
+                .map(UserProfile::getUserId)
+                .toList();
+    }
+
     // --- Phương thức Mapping (Giữ nguyên) ---
     private UserProfileResponse mapToResponse(UserProfile entity) {
         if (entity == null)

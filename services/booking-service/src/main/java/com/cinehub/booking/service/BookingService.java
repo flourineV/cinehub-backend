@@ -42,5 +42,12 @@ public interface BookingService {
             int page,
             int size,
             String sortBy,
-            String sortType);
+            String sortDir);
+
+    /**
+     * Backfill movieId for old bookings that don't have it
+     * 
+     * @return number of bookings updated
+     */
+    int backfillMovieIds();
 }

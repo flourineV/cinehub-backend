@@ -23,4 +23,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID>, Booking
 
         List<Booking> findByShowtimeIdAndStatus(UUID showtimeId, BookingStatus status);
 
+        @Query("SELECT b FROM Booking b WHERE b.movieId IS NULL")
+        List<Booking> findAllWithNullMovieId();
+
 }
