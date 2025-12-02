@@ -38,6 +38,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -77,7 +78,16 @@ public class ShowtimeService {
                                 .status(com.cinehub.showtime.entity.ShowtimeStatus.ACTIVE)
                                 .build();
 
-                return showtimeMapper.toShowtimeResponse(showtimeRepository.save(showtime));
+                Showtime saved = showtimeRepository.save(showtime);
+
+                // Cập nhật movie thành NOW_PLAYING nếu đang UPCOMING
+                try {
+                        movieServiceClient.updateMovieToNowPlaying(request.getMovieId());
+                } catch (Exception e) {
+                        log.warn("Failed to update movie {} to NOW_PLAYING", request.getMovieId(), e);
+                }
+
+                return showtimeMapper.toShowtimeResponse(saved);
         }
 
         public ShowtimeResponse updateShowtime(UUID id, ShowtimeRequest request) {
@@ -264,7 +274,7 @@ public class ShowtimeService {
 
                                 // 1. Check overlap with existing showtimes in database
                                 List<Showtime> overlappingShowtimes = showtimeRepository
-                                                .findByRoomIdAndEndTimeAfterAndStartTimeBefore(
+                                                .findOverlappingShowtimes(
                                                                 showtimeRequest.getRoomId(),
                                                                 showtimeRequest.getStartTime(),
                                                                 showtimeRequest.getEndTime());
@@ -315,6 +325,14 @@ public class ShowtimeService {
                                 Showtime savedShowtime = showtimeRepository.save(showtime);
                                 createdShowtimes.add(mapToShowtimeResponse(savedShowtime));
 
+                                // Cập nhật movie thành NOW_PLAYING
+                                try {
+                                        movieServiceClient.updateMovieToNowPlaying(showtimeRequest.getMovieId());
+                                } catch (Exception ex) {
+                                        log.warn("Failed to update movie {} to NOW_PLAYING",
+                                                        showtimeRequest.getMovieId(), ex);
+                                }
+
                                 // Add to pending list for next iteration's conflict check
                                 pendingShowtimes.add(showtimeRequest);
 
@@ -341,7 +359,7 @@ public class ShowtimeService {
         }
 
         public ShowtimeConflictResponse validateShowtime(ValidateShowtimeRequest request) {
-                List<Showtime> overlappingShowtimes = showtimeRepository.findByRoomIdAndEndTimeAfterAndStartTimeBefore(
+                List<Showtime> overlappingShowtimes = showtimeRepository.findOverlappingShowtimes(
                                 request.getRoomId(),
                                 request.getStartTime(),
                                 request.getEndTime());
@@ -398,7 +416,7 @@ public class ShowtimeService {
         // --- Helper function: Kiểm tra trùng lịch ---
         private void checkOverlap(UUID roomId, LocalDateTime newStartTime, LocalDateTime newEndTime,
                         UUID excludedShowtimeId) {
-                List<Showtime> overlappingShowtimes = showtimeRepository.findByRoomIdAndEndTimeAfterAndStartTimeBefore(
+                List<Showtime> overlappingShowtimes = showtimeRepository.findOverlappingShowtimes(
                                 roomId,
                                 newStartTime,
                                 newEndTime);
@@ -455,7 +473,8 @@ public class ShowtimeService {
 
                 for (Theater t : theaters) {
                         List<Room> rooms = roomRepository.findByTheaterId(t.getId());
-                        generationHelper.ensureOneShowtimePerMovie(date, t, rooms, todayMovies, stats);
+                        // Bỏ ensureOneShowtimePerMovie - weighted pool đã đảm bảo phim popular xuất
+                        // hiện nhiều
                         for (Room r : rooms) {
                                 generationHelper.generateForRoom(date, t, r, weightedPool, stats);
                         }
@@ -474,26 +493,64 @@ public class ShowtimeService {
         }
 
         private List<MovieSummaryResponse> createWeightedMoviePool(List<MovieSummaryResponse> movies) {
-                if (movies.isEmpty()) {
+                if (movies.isEmpty())
                         return new ArrayList<>();
-                }
 
-                List<MovieSummaryResponse> weightedPool = new ArrayList<>();
+                List<MovieSummaryResponse> pool = new ArrayList<>();
 
-                for (MovieSummaryResponse movie : movies) {
-                        double popularity = movie.getPopularity() != null ? movie.getPopularity() : 5.0;
-                        double weight = popularity;
+                // Log để debug dải điểm thực tế
+                double maxPop = movies.stream()
+                                .mapToDouble(m -> m.getPopularity() != null ? m.getPopularity() : 0)
+                                .max().orElse(0);
+                log.info("Generating pool. Max popularity in batch: {}", maxPop);
 
-                        // Add movie to pool 'weight' times
+                for (MovieSummaryResponse m : movies) {
+                        double pop = m.getPopularity() != null ? m.getPopularity() : 5.0;
+
+                        // GỌI HÀM MỚI Ở ĐÂY
+                        int weight = calculateDynamicWeight(pop);
+
+                        // Log chi tiết để bạn kiểm tra
+                        // log.debug("Movie: {} | Pop: {} | Weight: {}", m.getTitle(), pop, weight);
+
                         for (int i = 0; i < weight; i++) {
-                                weightedPool.add(movie);
+                                pool.add(m);
                         }
                 }
 
-                log.info("Created weighted pool: {} movies expanded to {} entries (popularity range: {} - {})",
-                                movies.size(), weightedPool.size());
+                // Đừng quên shuffle!
+                Collections.shuffle(pool);
+                return pool;
+        }
 
-                return weightedPool;
+        private int calculateDynamicWeight(double popularity) {
+                // Nhóm Siêu Bom Tấn (Marvel, Avatar...)
+                if (popularity >= 18.0)
+                        return 12; // Gấp 12 lần phim thường
+                if (popularity >= 15.0)
+                        return 10;
+
+                // Nhóm Bom Tấn
+                if (popularity >= 12.0)
+                        return 8;
+                if (popularity >= 10.0)
+                        return 6;
+
+                // Nhóm Phổ biến
+                if (popularity >= 8.0)
+                        return 5;
+                if (popularity >= 6.0)
+                        return 4;
+
+                // Nhóm Trung bình
+                if (popularity >= 4.0)
+                        return 3;
+
+                // Nhóm Ít người xem
+                if (popularity >= 2.0)
+                        return 2;
+
+                return 1;
         }
 
         private boolean isMovieAvailable(MovieSummaryResponse m, LocalDate d) {

@@ -2,6 +2,7 @@ package com.cinehub.pricing.controller;
 
 import com.cinehub.pricing.dto.request.SeatPriceRequest;
 import com.cinehub.pricing.dto.response.SeatPriceResponse;
+import com.cinehub.pricing.security.AuthChecker;
 import com.cinehub.pricing.service.PricingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -52,6 +53,7 @@ public class PricingController {
      */
     @PostMapping
     public ResponseEntity<SeatPriceResponse> createSeatPrice(@Valid @RequestBody SeatPriceRequest request) {
+        AuthChecker.requireAdmin();
         try {
             SeatPriceResponse response = pricingService.createSeatPrice(request);
             return new ResponseEntity<>(response, HttpStatus.CREATED);
@@ -68,6 +70,7 @@ public class PricingController {
     public ResponseEntity<SeatPriceResponse> updateSeatPrice(
             @PathVariable UUID id,
             @Valid @RequestBody SeatPriceRequest request) {
+        AuthChecker.requireAdmin();
         try {
             SeatPriceResponse response = pricingService.updateSeatPrice(id, request);
             return ResponseEntity.ok(response);
@@ -81,6 +84,7 @@ public class PricingController {
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteSeatPrice(@PathVariable UUID id) {
+        AuthChecker.requireAdmin();
         try {
             pricingService.deleteSeatPrice(id);
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);

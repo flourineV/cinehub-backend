@@ -493,17 +493,6 @@ public class BookingServiceImpl implements BookingService {
                                 .map(bookingMapper::toBookingResponse)
                                 .toList();
 
-                for (BookingResponse response : bookingResponses) {
-                        if (response.getUserId() != null) {
-                                try {
-                                        String fullName = userProfileClient.getUserFullName(response.getUserId());
-                                        response.setUserName(fullName);
-                                } catch (Exception e) {
-                                        response.setUserName(null); // tránh lỗi
-                                }
-                        }
-                }
-
                 return PagedResponse.<BookingResponse>builder()
                                 .data(bookingResponses)
                                 .page(bookingsPage.getNumber())

@@ -19,28 +19,32 @@ public class ProvinceController {
 
     private final ProvinceService provinceService;
 
+    // admin
     @PostMapping
     public ResponseEntity<ProvinceResponse> createProvince(@RequestBody ProvinceRequest request) {
-        AuthChecker.requireManagerOrAdmin();
+        AuthChecker.requireAdmin();
         ProvinceResponse response = provinceService.createProvince(request);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
+    // all
     @GetMapping("/{id}")
     public ResponseEntity<ProvinceResponse> getProvinceById(@PathVariable UUID id) {
         return ResponseEntity.ok(provinceService.getProvinceById(id));
     }
 
+    // all
     @GetMapping
     public ResponseEntity<List<ProvinceResponse>> getAllProvinces() {
         return ResponseEntity.ok(provinceService.getAllProvinces());
     }
 
+    // admin
     @PutMapping("/{id}")
     public ResponseEntity<ProvinceResponse> updateProvince(
             @PathVariable UUID id,
             @RequestBody ProvinceRequest request) {
-        AuthChecker.requireManagerOrAdmin();
+        AuthChecker.requireAdmin();
         return ResponseEntity.ok(provinceService.updateProvince(id, request));
     }
 

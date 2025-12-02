@@ -85,7 +85,7 @@ spring:
           filters:
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: /api/bookings,/api/bookings/v3/api-docs,/api/bookings/v3/api-docs/**,/swagger-ui/**
+                excludePaths: /api/bookings/v3/api-docs,/api/bookings/v3/api-docs/**,/swagger-ui/**
 
         - id: payment-service
           uri: http://payment-service:8086
@@ -94,7 +94,7 @@ spring:
           filters:
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: /api/payments/v3/api-docs,/api/payments/v3/api-docs/**,/swagger-ui/**
+                excludePaths: /api/payments/callback,/api/payments/v3/api-docs,/api/payments/v3/api-docs/**,/swagger-ui/**
 
         - id: pricing-service
           uri: http://pricing-service:8087

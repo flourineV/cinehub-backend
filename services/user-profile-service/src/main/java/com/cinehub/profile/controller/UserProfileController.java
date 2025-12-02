@@ -31,8 +31,17 @@ public class UserProfileController {
     }
 
     @GetMapping("/{userId}")
-    public ResponseEntity<UserProfileResponse> getProfileByUserId(@PathVariable UUID userId) {
-        AuthChecker.requireAuthenticated();
+    public ResponseEntity<UserProfileResponse> getProfileByUserId(
+            @PathVariable UUID userId,
+            @RequestHeader(value = "X-Internal-Secret", required = false) String internalKey) {
+
+        // Allow either authenticated user or internal service call
+        if (internalKey == null) {
+            AuthChecker.requireAuthenticated();
+        } else {
+            internalAuthChecker.requireInternal(internalKey);
+        }
+
         return profileService.getProfileByUserId(userId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

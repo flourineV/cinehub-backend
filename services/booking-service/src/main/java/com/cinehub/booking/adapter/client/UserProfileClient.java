@@ -40,31 +40,21 @@ public class UserProfileClient {
         return new RankAndDiscountResponse(userId, "BRONZE", BigDecimal.ZERO);
     }
 
-    @CircuitBreaker(name = "userProfileService", fallbackMethod = "fallbackUserProfile")
-    public String getUserFullName(UUID userId) {
-        return userProfileWebClient.get()
-                .uri("/api/profiles/profiles/{userId}", userId)
-                .retrieve()
-                .bodyToMono(UserProfileResponse.class)
-                .block()
-                .getFullName();
-    }
-
     @CircuitBreaker(name = "userProfileService", fallbackMethod = "fallbackUpdateLoyalty")
     public void updateLoyaltyPoints(UUID userId, Integer points) {
         try {
             userProfileWebClient.patch()
                     .uri("/api/profiles/profiles/{userId}/loyalty", userId)
-                    .header("X-Internal-Secret", internalSecret) // Bắt buộc phải có Header này
+                    .header("X-Internal-Secret", internalSecret)
                     .bodyValue(points)
                     .retrieve()
-                    .toBodilessEntity() // Chúng ta không quan tâm response body, chỉ cần 200 OK
+                    .toBodilessEntity()
                     .block();
 
             log.info("Sent update loyalty points request for user {}: +{} points", userId, points);
         } catch (Exception e) {
             log.error("Failed to update loyalty points for user {}: {}", userId, e.getMessage());
-            // Không throw exception để tránh rollback transaction của Booking
+
         }
     }
 

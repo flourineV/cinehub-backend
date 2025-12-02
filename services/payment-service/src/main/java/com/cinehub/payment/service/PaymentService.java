@@ -1,5 +1,8 @@
 package com.cinehub.payment.service;
 
+import com.cinehub.payment.dto.request.PaymentCriteria;
+import com.cinehub.payment.dto.response.PagedResponse;
+import com.cinehub.payment.dto.response.PaymentTransactionResponse;
 import com.cinehub.payment.entity.PaymentTransaction;
 import com.cinehub.payment.entity.PaymentStatus;
 import com.cinehub.payment.events.BookingCreatedEvent;
@@ -11,9 +14,14 @@ import com.cinehub.payment.producer.PaymentProducer;
 import com.cinehub.payment.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 import java.util.Optional;
 
@@ -51,8 +59,7 @@ public class PaymentService {
 
         @Transactional
         public void confirmPaymentSuccess(String appTransId, String merchantTransId, long amountPaid) {
-                // Tìm transaction dựa trên app_trans_id mà ZaloPay gửi về (đã lưu ở bước
-                // createOrder)
+
                 PaymentTransaction txn = paymentRepository.findByTransactionRef(appTransId)
                                 .orElseThrow(() -> new RuntimeException(
                                                 "Transaction not found for ref: " + appTransId));
@@ -62,10 +69,8 @@ public class PaymentService {
                         return;
                 }
 
-                // Validate số tiền (quan trọng để tránh hack)
                 if (txn.getAmount().longValue() != amountPaid) {
-                        log.error("🚨 Amount mismatch! Expected: {}, Paid: {}", txn.getAmount(), amountPaid);
-                        // Có thể set status là FAILED hoặc SUSPECT
+                        log.error("Amount mismatch! Expected: {}, Paid: {}", txn.getAmount(), amountPaid);
                         return;
                 }
 
@@ -151,5 +156,56 @@ public class PaymentService {
                                 "Payment expired: " + event.reason());
 
                 paymentProducer.sendPaymentFailedEvent(expiredEvent);
+        }
+
+        public List<PaymentTransactionResponse> getPaymentsByUserId(UUID userId) {
+                List<PaymentTransaction> payments = paymentRepository.findByUserId(userId);
+                return payments.stream()
+                                .map(this::toResponse)
+                                .toList();
+        }
+
+        public PaymentTransactionResponse getPaymentById(UUID id) {
+                PaymentTransaction payment = paymentRepository.findById(id)
+                                .orElseThrow(() -> new RuntimeException("Payment not found with id: " + id));
+                return toResponse(payment);
+        }
+
+        public PagedResponse<PaymentTransactionResponse> getPaymentsByCriteria(
+                        PaymentCriteria criteria, int page, int size, String sortBy, String sortDir) {
+
+                Sort.Direction direction = "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC
+                                : Sort.Direction.ASC;
+                Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+
+                Page<PaymentTransaction> paymentPage = paymentRepository.findByCriteria(criteria, pageable);
+
+                List<PaymentTransactionResponse> responses = paymentPage.getContent().stream()
+                                .map(this::toResponse)
+                                .toList();
+
+                return PagedResponse.<PaymentTransactionResponse>builder()
+                                .data(responses)
+                                .page(page)
+                                .size(size)
+                                .totalElements(paymentPage.getTotalElements())
+                                .totalPages(paymentPage.getTotalPages())
+                                .build();
+        }
+
+        private PaymentTransactionResponse toResponse(PaymentTransaction txn) {
+                return PaymentTransactionResponse.builder()
+                                .id(txn.getId())
+                                .bookingId(txn.getBookingId())
+                                .userId(txn.getUserId())
+                                .showtimeId(txn.getShowtimeId())
+                                .seatIds(txn.getSeatIds())
+                                .amount(txn.getAmount())
+                                .method(txn.getMethod())
+                                .status(txn.getStatus())
+                                .transactionRef(txn.getTransactionRef())
+                                .createdAt(txn.getCreatedAt())
+                                .updatedAt(txn.getUpdatedAt())
+                                .build();
         }
 }

@@ -69,17 +69,24 @@ public class ShowtimeGenerationHelper {
         PriorityQueue<TimeSlot> freeSlotsQueue = new PriorityQueue<>();
         freeSlotsQueue.addAll(calculateFreeSlots(dayStart, dayEnd, existingShowtimes));
 
-        int poolIndex = 0;
+        log.info("Room {}: Found {} free slots, {} existing showtimes",
+                room.getName(), freeSlotsQueue.size(), existingShowtimes.size());
+
         int safetyCounter = 0;
+        int slotsProcessed = 0;
+        int showtimesCreated = 0;
 
         while (!freeSlotsQueue.isEmpty() && safetyCounter < 500) {
             safetyCounter++;
             TimeSlot currentSlot = freeSlotsQueue.poll();
+            slotsProcessed++;
 
-            if (currentSlot.getDurationMinutes() < 60)
+            if (currentSlot.getDurationMinutes() < 60) {
+                log.debug("Slot too short: {} minutes", currentSlot.getDurationMinutes());
                 continue;
+            }
 
-            MovieSummaryResponse selectedMovie = selectMovieStrategy(currentSlot, weightedMoviePool, poolIndex);
+            MovieSummaryResponse selectedMovie = selectMovieStrategy(currentSlot, weightedMoviePool, 0);
 
             if (selectedMovie != null) {
                 int duration = selectedMovie.getTime() != null ? selectedMovie.getTime() : 120;
@@ -87,6 +94,7 @@ public class ShowtimeGenerationHelper {
                 LocalDateTime showEnd = showStart.plusMinutes(duration);
 
                 createShowtimeEntity(selectedMovie, theater, room, showStart, showEnd, stats);
+                showtimesCreated++;
 
                 LocalDateTime nextAvailableStart = roundUpToNearestInterval(
                         showEnd.plusMinutes(config.getCleaningGapMinutes()), 5);
@@ -94,12 +102,13 @@ public class ShowtimeGenerationHelper {
                 if (nextAvailableStart.isBefore(currentSlot.getEnd())) {
                     freeSlotsQueue.offer(new TimeSlot(nextAvailableStart, currentSlot.getEnd()));
                 }
-
-                if (!isPrimeTime(currentSlot.getStart())) {
-                    poolIndex++;
-                }
+            } else {
+                log.debug("No movie fits slot: {} - {}", currentSlot.getStart(), currentSlot.getEnd());
             }
         }
+
+        log.info("Room {}: Processed {} slots, created {} showtimes",
+                room.getName(), slotsProcessed, showtimesCreated);
     }
 
     private boolean tryScheduleSingleSlot(LocalDate date, Theater theater, Room room,
@@ -149,9 +158,11 @@ public class ShowtimeGenerationHelper {
 
     private MovieSummaryResponse selectMovieStrategy(TimeSlot slot, List<MovieSummaryResponse> pool, int poolIndex) {
         if (isPrimeTime(slot.getStart())) {
+            // Giờ vàng: chọn phim có popularity cao nhất
             return findBestPopularMovieForSlot(slot, pool);
         }
-        return findStandardMovieForSlot(slot, pool, poolIndex);
+        // Giờ thường: random từ weighted pool để phân bố đều
+        return findRandomMovieForSlot(slot, pool);
     }
 
     private boolean isPrimeTime(LocalDateTime time) {
@@ -160,6 +171,7 @@ public class ShowtimeGenerationHelper {
     }
 
     private MovieSummaryResponse findBestPopularMovieForSlot(TimeSlot slot, List<MovieSummaryResponse> pool) {
+        // Lấy danh sách phim unique và sort theo popularity giảm dần
         List<MovieSummaryResponse> unique = pool.stream().distinct()
                 .sorted((m1, m2) -> {
                     Double p1 = m1.getPopularity() != null ? m1.getPopularity() : 0.0;
@@ -167,17 +179,33 @@ public class ShowtimeGenerationHelper {
                     return p2.compareTo(p1);
                 }).toList();
 
-        for (MovieSummaryResponse m : unique) {
-            if (canFit(m, slot))
-                return m;
+        // Ưu tiên top 3 phim có popularity cao nhất trong giờ vàng
+        int topCount = Math.min(3, unique.size());
+        for (int i = 0; i < topCount; i++) {
+            MovieSummaryResponse topMovie = unique.get(i);
+            if (canFit(topMovie, slot))
+                return topMovie;
         }
-        return findAny(slot, unique);
+
+        // Nếu top 3 không fit, thử các phim khác
+        for (int i = topCount; i < unique.size(); i++) {
+            if (canFit(unique.get(i), slot))
+                return unique.get(i);
+        }
+
+        return null;
     }
 
-    private MovieSummaryResponse findStandardMovieForSlot(TimeSlot slot, List<MovieSummaryResponse> pool, int idx) {
-        MovieSummaryResponse preferred = pool.get(idx % pool.size());
-        if (canFit(preferred, slot))
-            return preferred;
+    private MovieSummaryResponse findRandomMovieForSlot(TimeSlot slot, List<MovieSummaryResponse> pool) {
+        if (pool.isEmpty())
+            return null;
+
+        // Random từ weighted pool - phim có popularity cao xuất hiện nhiều lần hơn
+        int randomIndex = (int) (Math.random() * pool.size());
+        MovieSummaryResponse randomMovie = pool.get(randomIndex);
+
+        if (canFit(randomMovie, slot))
+            return randomMovie;
         return findAny(slot, pool);
     }
 

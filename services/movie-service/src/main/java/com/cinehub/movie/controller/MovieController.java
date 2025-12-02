@@ -8,6 +8,7 @@ import com.cinehub.movie.dto.response.PagedResponse;
 import com.cinehub.movie.entity.MovieStatus;
 import com.cinehub.movie.scheduler.MovieStatusScheduler;
 import com.cinehub.movie.security.AuthChecker;
+import com.cinehub.movie.security.InternalAuthChecker;
 import com.cinehub.movie.service.MovieService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,8 +22,6 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.UUID;
 import java.util.List;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
 @RequestMapping("/api/movies")
@@ -31,6 +30,7 @@ public class MovieController {
 
     private final MovieService movieService;
     private final MovieStatusScheduler movieStatusScheduler;
+    private final InternalAuthChecker internalAuthChecker;
 
     @PostMapping("/bulk-from-tmdb")
     public ResponseEntity<BulkAddMoviesResponse> bulkAddMoviesFromTmdb(
@@ -109,7 +109,6 @@ public class MovieController {
         return ResponseEntity.ok(pages);
     }
 
-    @PostMapping("/status/{id}")
     public ResponseEntity<Void> changeStatus(@PathVariable UUID id,
             @RequestBody ChangeStatusRequest req) {
         AuthChecker.requireManagerOrAdmin();
@@ -133,6 +132,18 @@ public class MovieController {
                 result.getUpcomingToNowPlaying(),
                 result.getNowPlayingToArchived(),
                 "Movie statuses updated successfully"));
+    }
+
+    /**
+     * Internal API: Set movie to NOW_PLAYING when showtime is created
+     */
+    @PostMapping("/{id}/set-now-playing")
+    public ResponseEntity<Void> setMovieToNowPlaying(
+            @PathVariable UUID id,
+            @RequestHeader("X-Internal-Secret") String internalSecret) {
+        internalAuthChecker.requireInternal(internalSecret);
+        movieService.changeStatus(id, MovieStatus.NOW_PLAYING);
+        return ResponseEntity.noContent().build();
     }
 
     public static record ChangeStatusRequest(MovieStatus status) {

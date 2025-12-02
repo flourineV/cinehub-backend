@@ -11,6 +11,8 @@ import com.cinehub.showtime.dto.response.ShowtimesByMovieResponse;
 import com.cinehub.showtime.dto.response.TheaterShowtimesResponse;
 import com.cinehub.showtime.security.AuthChecker;
 import com.cinehub.showtime.service.ShowtimeService;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.format.annotation.DateTimeFormat;
@@ -67,7 +69,8 @@ public class ShowtimeController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/admin/available")
+    // admin
+    @GetMapping("/admin/search")
     public ResponseEntity<PagedResponse<ShowtimeDetailResponse>> getAllAvailableShowtimesForAdmin(
             @RequestParam(required = false) UUID provinceId,
             @RequestParam(required = false) UUID theaterId,
@@ -77,8 +80,8 @@ public class ShowtimeController {
             @RequestParam(required = false) LocalDate selectedDate,
             @RequestParam(required = false) LocalDateTime startOfDay,
             @RequestParam(required = false) LocalDateTime endOfDay,
-            @RequestParam(required = false) LocalTime fromTime,
-            @RequestParam(required = false) LocalTime toTime,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) @Schema(type = "string", format = "time", example = "17:00") LocalTime fromTime,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) @Schema(type = "string", format = "time", example = "21:30") LocalTime toTime,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String sortBy,

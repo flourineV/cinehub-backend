@@ -17,6 +17,19 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, UUID> {
 
     List<Showtime> findByMovieId(UUID movieId);
 
+    // Tìm showtimes overlap: endTime > newStart AND startTime < newEnd
+    @Query("""
+            SELECT s FROM Showtime s
+            WHERE s.room.id = :roomId
+            AND s.endTime > :newStart
+            AND s.startTime < :newEnd
+            """)
+    List<Showtime> findOverlappingShowtimes(
+            @Param("roomId") UUID roomId,
+            @Param("newStart") LocalDateTime newStart,
+            @Param("newEnd") LocalDateTime newEnd);
+
+    // Tìm showtimes trong khoảng thời gian (dùng cho calculateFreeSlots)
     List<Showtime> findByRoomIdAndEndTimeAfterAndStartTimeBefore(
             UUID roomId, LocalDateTime startTime, LocalDateTime endTime);
 

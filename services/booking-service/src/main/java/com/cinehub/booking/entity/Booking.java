@@ -76,6 +76,9 @@ public class Booking {
         if (this.status == null) {
             this.status = BookingStatus.PENDING;
         }
+        if (this.BookingCode == null || this.BookingCode.isEmpty()) {
+            this.BookingCode = generateCode();
+        }
     }
 
     @PreUpdate

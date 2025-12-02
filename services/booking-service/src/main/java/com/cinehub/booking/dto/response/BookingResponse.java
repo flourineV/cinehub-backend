@@ -14,7 +14,6 @@ public class BookingResponse {
     private UUID bookingId;
     private String bookingCode;
     private UUID userId;
-    private String userName;
     private UUID showtimeId;
     private String guestName;
     private String guestEmail;

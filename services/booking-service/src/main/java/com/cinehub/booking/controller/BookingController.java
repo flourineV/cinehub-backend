@@ -72,7 +72,7 @@ public class BookingController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping
+    @GetMapping("/admin/search")
     public ResponseEntity<PagedResponse<BookingResponse>> getAllBookings(
             @RequestParam(required = false) UUID userId,
             @RequestParam(required = false) UUID showtimeId,

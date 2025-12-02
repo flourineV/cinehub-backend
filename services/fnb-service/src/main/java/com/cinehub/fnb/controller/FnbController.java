@@ -4,6 +4,7 @@ import com.cinehub.fnb.dto.request.FnbCalculationRequest;
 import com.cinehub.fnb.dto.request.FnbItemRequest;
 import com.cinehub.fnb.dto.response.FnbCalculationResponse;
 import com.cinehub.fnb.dto.response.FnbItemResponse;
+import com.cinehub.fnb.security.AuthChecker;
 import com.cinehub.fnb.service.FnbService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -47,6 +48,7 @@ public class FnbController {
 
     @PostMapping
     public ResponseEntity<FnbItemResponse> createFnbItem(@Valid @RequestBody FnbItemRequest request) {
+        AuthChecker.requireAdmin();
         try {
             FnbItemResponse response = fnbService.createFnbItem(request);
             return new ResponseEntity<>(response, HttpStatus.CREATED);
@@ -60,6 +62,7 @@ public class FnbController {
     public ResponseEntity<FnbItemResponse> updateFnbItem(
             @PathVariable UUID id,
             @Valid @RequestBody FnbItemRequest request) {
+        AuthChecker.requireAdmin();
         try {
             FnbItemResponse response = fnbService.updateFnbItem(id, request);
             return ResponseEntity.ok(response);
@@ -70,6 +73,7 @@ public class FnbController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteFnbItem(@PathVariable UUID id) {
+        AuthChecker.requireAdmin();
         try {
             fnbService.deleteFnbItem(id);
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);

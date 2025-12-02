@@ -4,6 +4,7 @@ import com.cinehub.showtime.entity.Showtime;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.query.QueryUtils; // Import quan trọng để sort
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -37,100 +38,103 @@ public class ShowtimeRepositoryImpl implements ShowtimeRepositoryCustom {
 
         CriteriaBuilder cb = em.getCriteriaBuilder();
 
-        // --- 1. Build predicates ---
-        List<Predicate> predicates = new ArrayList<>();
-
+        // --- 1. Fetch Content Query ---
         CriteriaQuery<Showtime> cq = cb.createQuery(Showtime.class);
-        Root<Showtime> s = cq.from(Showtime.class);
+        Root<Showtime> root = cq.from(Showtime.class);
 
-        predicates.add(cb.greaterThan(s.get("startTime"), now));
-
-        if (provinceId != null) {
-            predicates.add(cb.equal(s.get("theater").get("province").get("id"), provinceId));
-        }
-        if (theaterId != null) {
-            predicates.add(cb.equal(s.get("theater").get("id"), theaterId));
-        }
-        if (roomId != null) {
-            predicates.add(cb.equal(s.get("room").get("id"), roomId));
-        }
-        if (movieId != null) {
-            predicates.add(cb.equal(s.get("movieId"), movieId));
-        }
-        if (showtimeId != null) {
-            predicates.add(cb.equal(s.get("id"), showtimeId));
-        }
-        if (selectedDate != null && startOfDay != null && endOfDay != null) {
-            predicates.add(cb.between(s.get("startTime"), startOfDay, endOfDay));
-        }
-        if (fromTime != null) {
-            predicates.add(cb.greaterThanOrEqualTo(
-                    cb.function("time", LocalTime.class, s.get("startTime")), fromTime));
-        }
-        if (toTime != null) {
-            predicates.add(cb.lessThanOrEqualTo(
-                    cb.function("time", LocalTime.class, s.get("startTime")), toTime));
-        }
+        // Build predicates reuse logic
+        List<Predicate> predicates = buildPredicates(cb, root, provinceId, theaterId, roomId, movieId, showtimeId,
+                selectedDate, startOfDay, endOfDay, fromTime, toTime, now);
 
         cq.where(predicates.toArray(new Predicate[0]));
 
-        // --- 2. Sort ---
+        // Sort
         if (pageable.getSort().isSorted()) {
-            List<Order> orders = new ArrayList<>();
-            pageable.getSort().forEach(order -> {
-                if (order.isAscending()) {
-                    orders.add(cb.asc(s.get(order.getProperty())));
-                } else {
-                    orders.add(cb.desc(s.get(order.getProperty())));
-                }
-            });
-            cq.orderBy(orders);
+            cq.orderBy(QueryUtils.toOrders(pageable.getSort(), root, cb));
         }
 
-        // --- 3. Fetch content ---
         List<Showtime> content = em.createQuery(cq)
                 .setFirstResult((int) pageable.getOffset())
                 .setMaxResults(pageable.getPageSize())
                 .getResultList();
 
-        // --- 4. Fetch total count separately ---
+        // --- 2. Count Query ---
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<Showtime> countRoot = countQuery.from(Showtime.class);
-        countQuery.select(cb.count(countRoot));
 
-        // Reuse same predicates for count query
-        List<Predicate> countPredicates = new ArrayList<>();
-        countPredicates.add(cb.greaterThan(countRoot.get("startTime"), now));
-        if (provinceId != null) {
-            countPredicates.add(cb.equal(countRoot.get("theater").get("province").get("id"), provinceId));
-        }
-        if (theaterId != null) {
-            countPredicates.add(cb.equal(countRoot.get("theater").get("id"), theaterId));
-        }
-        if (roomId != null) {
-            countPredicates.add(cb.equal(countRoot.get("room").get("id"), roomId));
-        }
-        if (movieId != null) {
-            countPredicates.add(cb.equal(countRoot.get("movieId"), movieId));
-        }
-        if (showtimeId != null) {
-            countPredicates.add(cb.equal(countRoot.get("id"), showtimeId));
-        }
-        if (selectedDate != null && startOfDay != null && endOfDay != null) {
-            countPredicates.add(cb.between(countRoot.get("startTime"), startOfDay, endOfDay));
-        }
-        if (fromTime != null) {
-            countPredicates.add(cb.greaterThanOrEqualTo(
-                    cb.function("time", LocalTime.class, countRoot.get("startTime")), fromTime));
-        }
-        if (toTime != null) {
-            countPredicates.add(cb.lessThanOrEqualTo(
-                    cb.function("time", LocalTime.class, countRoot.get("startTime")), toTime));
-        }
+        // Tái sử dụng hàm buildPredicates cho count query
+        List<Predicate> countPredicates = buildPredicates(cb, countRoot, provinceId, theaterId, roomId, movieId,
+                showtimeId,
+                selectedDate, startOfDay, endOfDay, fromTime, toTime, now);
 
-        countQuery.where(countPredicates.toArray(new Predicate[0]));
+        countQuery.select(cb.count(countRoot)).where(countPredicates.toArray(new Predicate[0]));
         long total = em.createQuery(countQuery).getSingleResult();
 
         return new PageImpl<>(content, pageable, total);
+    }
+
+    /**
+     * Hàm helper để tạo điều kiện lọc chung cho cả select và count
+     */
+    private List<Predicate> buildPredicates(CriteriaBuilder cb, Root<Showtime> root,
+            UUID provinceId, UUID theaterId, UUID roomId, UUID movieId, UUID showtimeId,
+            LocalDate selectedDate, LocalDateTime startOfDay, LocalDateTime endOfDay,
+            LocalTime fromTime, LocalTime toTime, LocalDateTime now) {
+        List<Predicate> predicates = new ArrayList<>();
+
+        // Luôn lấy showtime tương lai (hoặc hiện tại)
+        predicates.add(cb.greaterThan(root.get("startTime"), now));
+
+        if (provinceId != null) {
+            predicates.add(cb.equal(root.get("theater").get("province").get("id"), provinceId));
+        }
+        if (theaterId != null) {
+            predicates.add(cb.equal(root.get("theater").get("id"), theaterId));
+        }
+        if (roomId != null) {
+            predicates.add(cb.equal(root.get("room").get("id"), roomId));
+        }
+        if (movieId != null) {
+            predicates.add(cb.equal(root.get("movieId"), movieId));
+        }
+        if (showtimeId != null) {
+            predicates.add(cb.equal(root.get("id"), showtimeId));
+        }
+        if (selectedDate != null && startOfDay != null && endOfDay != null) {
+            predicates.add(cb.between(root.get("startTime"), startOfDay, endOfDay));
+        }
+
+        // Lọc theo thời gian trong ngày (fromTime, toTime)
+        // Dùng PostgreSQL EXTRACT với format string
+        if (fromTime != null) {
+            int fromMinutes = fromTime.getHour() * 60 + fromTime.getMinute();
+
+            // EXTRACT(HOUR FROM startTime) * 60 + EXTRACT(MINUTE FROM startTime)
+            Expression<Integer> hourExpr = cb.function("date_part", Integer.class,
+                    cb.literal("hour"), root.get("startTime"));
+            Expression<Integer> minuteExpr = cb.function("date_part", Integer.class,
+                    cb.literal("minute"), root.get("startTime"));
+            Expression<Integer> totalMinutes = cb.sum(
+                    cb.prod(hourExpr, 60),
+                    minuteExpr);
+
+            predicates.add(cb.greaterThanOrEqualTo(totalMinutes, fromMinutes));
+        }
+
+        if (toTime != null) {
+            int toMinutes = toTime.getHour() * 60 + toTime.getMinute();
+
+            Expression<Integer> hourExpr = cb.function("date_part", Integer.class,
+                    cb.literal("hour"), root.get("startTime"));
+            Expression<Integer> minuteExpr = cb.function("date_part", Integer.class,
+                    cb.literal("minute"), root.get("startTime"));
+            Expression<Integer> totalMinutes = cb.sum(
+                    cb.prod(hourExpr, 60),
+                    minuteExpr);
+
+            predicates.add(cb.lessThanOrEqualTo(totalMinutes, toMinutes));
+        }
+
+        return predicates;
     }
 }

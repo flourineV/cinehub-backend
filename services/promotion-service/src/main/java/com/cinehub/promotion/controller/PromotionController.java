@@ -3,6 +3,7 @@ package com.cinehub.promotion.controller;
 import com.cinehub.promotion.dto.request.PromotionRequest;
 import com.cinehub.promotion.dto.response.PromotionResponse;
 import com.cinehub.promotion.dto.response.PromotionValidationResponse;
+import com.cinehub.promotion.security.AuthChecker;
 import com.cinehub.promotion.service.PromotionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class PromotionController {
 
     @PostMapping
     public ResponseEntity<PromotionResponse> createPromotion(@Valid @RequestBody PromotionRequest request) {
+        AuthChecker.requireAdmin();
         try {
             PromotionResponse response = promotionService.createPromotion(request);
             return new ResponseEntity<>(response, HttpStatus.CREATED);
@@ -52,6 +54,7 @@ public class PromotionController {
     public ResponseEntity<PromotionResponse> updatePromotion(
             @PathVariable UUID id,
             @Valid @RequestBody PromotionRequest request) {
+        AuthChecker.requireAdmin();
         try {
             PromotionResponse response = promotionService.updatePromotion(id, request);
             return ResponseEntity.ok(response);
@@ -62,6 +65,7 @@ public class PromotionController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePromotion(@PathVariable UUID id) {
+        AuthChecker.requireAdmin();
         try {
             promotionService.deletePromotion(id);
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);

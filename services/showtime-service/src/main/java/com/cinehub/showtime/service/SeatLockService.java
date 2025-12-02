@@ -457,6 +457,37 @@ public class SeatLockService {
                 .build();
     }
 
+    @Transactional
+    public void extendLockForPayment(UUID showtimeId, List<UUID> seatIds, UUID userId, UUID guestSessionId) {
+        for (UUID seatId : seatIds) {
+            String key = key(showtimeId, seatId);
+            String value = redisTemplate.opsForValue().get(key);
+
+            if (value == null) {
+                log.warn("Seat {} is not locked. Cannot extend. Seat may have been released.", seatId);
+                throw new IllegalSeatLockException("Seat " + seatId + " is not locked. Cannot extend.");
+            }
+
+            // Parse current lock to get owner info
+            String[] parts = value.split("\\|");
+            if (parts.length < 2) {
+                throw new IllegalSeatLockException("Invalid lock format for seat " + seatId);
+            }
+
+            String currentOwnerType = parts[0];
+            String currentOwnerIdentifier = parts[1];
+
+            // Extend TTL to 10 minutes (600 seconds) without ownership check
+            // This is safe because the endpoint requires internal authentication
+            long newExpireAt = System.currentTimeMillis() + 600_000L; // 10 minutes
+            String newValue = currentOwnerType + "|" + currentOwnerIdentifier + "|" + newExpireAt;
+
+            redisTemplate.opsForValue().set(key, newValue, 600, TimeUnit.SECONDS);
+            log.info("Extended lock for seat {} (owner: {}/{}) to 10 minutes for payment processing",
+                    seatId, currentOwnerType, currentOwnerIdentifier);
+        }
+    }
+
     private void deleteRedisLocks(UUID showtimeId, List<UUID> seatIds) {
         List<String> keys = seatIds.stream()
                 .map(seatId -> key(showtimeId, seatId))

@@ -1,10 +1,12 @@
 package com.cinehub.showtime.controller;
 
+import com.cinehub.showtime.dto.request.ExtendLockRequest;
 import com.cinehub.showtime.dto.request.SeatLockRequest;
 import com.cinehub.showtime.dto.request.SeatReleaseRequest;
 import com.cinehub.showtime.dto.request.SingleSeatLockRequest;
 import com.cinehub.showtime.dto.response.SeatLockResponse;
 import com.cinehub.showtime.security.AuthChecker;
+import com.cinehub.showtime.security.InternalAuthChecker;
 import com.cinehub.showtime.service.SeatLockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +23,7 @@ import java.util.UUID;
 public class SeatLockController {
 
         private final SeatLockService seatLockService;
+        private final InternalAuthChecker internalAuthChecker;
 
         @PostMapping("/lock-single")
         public ResponseEntity<SeatLockResponse> lockSingleSeat(@RequestBody SingleSeatLockRequest req) {
@@ -68,5 +71,24 @@ public class SeatLockController {
                         @RequestParam UUID showtimeId,
                         @RequestParam UUID seatId) {
                 return ResponseEntity.ok(seatLockService.seatStatus(showtimeId, seatId));
+        }
+
+        @PostMapping("/extend-for-payment")
+        public ResponseEntity<Void> extendLockForPayment(
+                        @RequestBody ExtendLockRequest req,
+                        @RequestHeader("X-Internal-Secret") String internalSecret) {
+
+                internalAuthChecker.requireInternal(internalSecret);
+
+                log.info("API: Extending seat lock for payment - showtime {}, {} seats",
+                                req.getShowtimeId(), req.getSeatIds().size());
+
+                seatLockService.extendLockForPayment(
+                                req.getShowtimeId(),
+                                req.getSeatIds(),
+                                req.getUserId(),
+                                req.getGuestSessionId());
+
+                return ResponseEntity.noContent().build();
         }
 }

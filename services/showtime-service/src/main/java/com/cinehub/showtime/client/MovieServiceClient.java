@@ -2,7 +2,10 @@ package com.cinehub.showtime.client;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -20,6 +23,9 @@ public class MovieServiceClient {
 
     private final RestTemplate restTemplate;
     private static final String MOVIE_SERVICE_URL = "http://movie-service:8083/api/movies";
+
+    @Value("${app.internal.secret-key}")
+    private String internalSecretKey;
 
     public String getMovieTitle(UUID movieId) {
         try {
@@ -54,7 +60,12 @@ public class MovieServiceClient {
     public void updateMovieToNowPlaying(UUID movieId) {
         try {
             String url = MOVIE_SERVICE_URL + "/" + movieId + "/set-now-playing";
-            restTemplate.postForObject(url, null, Void.class);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Internal-Secret", internalSecretKey);
+            HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
+
+            restTemplate.exchange(url, HttpMethod.POST, requestEntity, Void.class);
             log.info("Updated movie {} status to NOW_PLAYING", movieId);
         } catch (Exception e) {
             log.error("Failed to update movie {} status to NOW_PLAYING", movieId, e);
