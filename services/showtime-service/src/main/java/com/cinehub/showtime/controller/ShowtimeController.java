@@ -72,7 +72,6 @@ public class ShowtimeController {
     // admin
     @GetMapping("/admin/search")
     public ResponseEntity<PagedResponse<ShowtimeDetailResponse>> getAllAvailableShowtimesForAdmin(
-            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) UUID provinceId,
             @RequestParam(required = false) UUID theaterId,
             @RequestParam(required = false) UUID roomId,
@@ -94,7 +93,7 @@ public class ShowtimeController {
         LocalDateTime endDateTime = endOfDay != null ? endOfDay.atTime(23, 59, 59) : null;
         
         PagedResponse<ShowtimeDetailResponse> response = showtimeService.getAllAvailableShowtimes(
-                keyword, provinceId, theaterId, roomId, movieId, showtimeId, selectedDate, startDateTime, endDateTime, fromTime,
+                provinceId, theaterId, roomId, movieId, showtimeId, selectedDate, startDateTime, endDateTime, fromTime,
                 toTime, page, size, sortBy, sortType);
         return ResponseEntity.ok(response);
     }
