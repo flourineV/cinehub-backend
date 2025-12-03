@@ -68,4 +68,12 @@ public class TheaterController {
         return ResponseEntity.ok(responseList);
     }
 
+    @GetMapping("/{theaterId}/movies")
+    public ResponseEntity<List<com.cinehub.showtime.dto.response.MovieShowtimesResponse>> getMoviesByTheater(
+            @PathVariable UUID theaterId) {
+        List<com.cinehub.showtime.dto.response.MovieShowtimesResponse> response = theaterService
+                .getMoviesByTheater(theaterId);
+        return ResponseEntity.ok(response);
+    }
+
 }

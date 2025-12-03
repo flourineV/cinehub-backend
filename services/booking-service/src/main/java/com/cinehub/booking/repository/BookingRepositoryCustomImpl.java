@@ -26,99 +26,7 @@ public class BookingRepositoryCustomImpl implements BookingRepositoryCustom {
         CriteriaQuery<Booking> query = cb.createQuery(Booking.class);
         Root<Booking> booking = query.from(Booking.class);
 
-        List<Predicate> predicates = new ArrayList<>();
-
-        // keyword - partial match on userId, showtimeId, bookingCode, guestName
-        if (criteria.getKeyword() != null && !criteria.getKeyword().isBlank()) {
-            String keywordLower = "%" + criteria.getKeyword().toLowerCase() + "%";
-            List<Predicate> keywordPredicates = new ArrayList<>();
-
-            // Match userId as string
-            keywordPredicates.add(cb.like(cb.lower(booking.get("userId").as(String.class)), keywordLower));
-
-            // Match showtimeId as string
-            keywordPredicates.add(cb.like(cb.lower(booking.get("showtimeId").as(String.class)), keywordLower));
-
-            // Match bookingCode
-            keywordPredicates.add(cb.like(cb.lower(booking.get("BookingCode")), keywordLower));
-
-            // Match guestName
-            keywordPredicates.add(cb.like(cb.lower(booking.get("guestName")), keywordLower));
-
-            predicates.add(cb.or(keywordPredicates.toArray(new Predicate[0])));
-        }
-
-        // userId
-        if (criteria.getUserId() != null) {
-            predicates.add(cb.equal(booking.get("userId"), criteria.getUserId()));
-        }
-
-        // userIds (for username search - multiple matching users)
-        if (criteria.getUserIds() != null && !criteria.getUserIds().isEmpty()) {
-            predicates.add(booking.get("userId").in(criteria.getUserIds()));
-        }
-
-        // showtimeId
-        if (criteria.getShowtimeId() != null) {
-            predicates.add(cb.equal(booking.get("showtimeId"), criteria.getShowtimeId()));
-        }
-
-        // movieId
-        if (criteria.getMovieId() != null) {
-            predicates.add(cb.equal(booking.get("movieId"), criteria.getMovieId()));
-        }
-
-        // bookingCode (LIKE search)
-        if (criteria.getBookingCode() != null && !criteria.getBookingCode().isBlank()) {
-            predicates.add(cb.like(
-                    cb.lower(booking.get("BookingCode")),
-                    "%" + criteria.getBookingCode().toLowerCase() + "%"));
-        }
-
-        // status
-        if (criteria.getStatus() != null) {
-            predicates.add(cb.equal(booking.get("status"), criteria.getStatus()));
-        }
-
-        // paymentMethod
-        if (criteria.getPaymentMethod() != null && !criteria.getPaymentMethod().isBlank()) {
-            predicates.add(cb.equal(booking.get("paymentMethod"), criteria.getPaymentMethod()));
-        }
-
-        // guestName (LIKE search)
-        if (criteria.getGuestName() != null && !criteria.getGuestName().isBlank()) {
-            predicates.add(cb.like(
-                    cb.lower(booking.get("guestName")),
-                    "%" + criteria.getGuestName().toLowerCase() + "%"));
-        }
-
-        // guestEmail (LIKE search)
-        if (criteria.getGuestEmail() != null && !criteria.getGuestEmail().isBlank()) {
-            predicates.add(cb.like(
-                    cb.lower(booking.get("guestEmail")),
-                    "%" + criteria.getGuestEmail().toLowerCase() + "%"));
-        }
-
-        // fromDate
-        if (criteria.getFromDate() != null) {
-            predicates.add(cb.greaterThanOrEqualTo(booking.get("createdAt"), criteria.getFromDate()));
-        }
-
-        // toDate
-        if (criteria.getToDate() != null) {
-            predicates.add(cb.lessThanOrEqualTo(booking.get("createdAt"), criteria.getToDate()));
-        }
-
-        // minPrice
-        if (criteria.getMinPrice() != null) {
-            predicates.add(cb.greaterThanOrEqualTo(booking.get("finalPrice"), criteria.getMinPrice()));
-        }
-
-        // maxPrice
-        if (criteria.getMaxPrice() != null) {
-            predicates.add(cb.lessThanOrEqualTo(booking.get("finalPrice"), criteria.getMaxPrice()));
-        }
-
+        List<Predicate> predicates = buildPredicates(cb, booking, criteria);
         query.where(predicates.toArray(new Predicate[0]));
 
         // Apply sorting from Pageable
@@ -141,13 +49,76 @@ public class BookingRepositoryCustomImpl implements BookingRepositoryCustom {
 
         List<Booking> results = typedQuery.getResultList();
 
-        // Count query
+        // Count query - rebuild predicates with new root
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<Booking> countRoot = countQuery.from(Booking.class);
         countQuery.select(cb.count(countRoot));
-        countQuery.where(predicates.toArray(new Predicate[0]));
+        
+        // Rebuild predicates for count query
+        List<Predicate> countPredicates = buildPredicates(cb, countRoot, criteria);
+        countQuery.where(countPredicates.toArray(new Predicate[0]));
+        
         Long total = entityManager.createQuery(countQuery).getSingleResult();
 
         return new PageImpl<>(results, pageable, total);
+    }
+
+    private List<Predicate> buildPredicates(CriteriaBuilder cb, Root<Booking> booking, BookingCriteria criteria) {
+        List<Predicate> predicates = new ArrayList<>();
+
+        if (criteria.getUserId() != null) {
+            predicates.add(cb.equal(booking.get("userId"), criteria.getUserId()));
+        }
+
+        if (criteria.getShowtimeId() != null) {
+            predicates.add(cb.equal(booking.get("showtimeId"), criteria.getShowtimeId()));
+        }
+
+        if (criteria.getBookingCode() != null && !criteria.getBookingCode().isBlank()) {
+            predicates.add(cb.like(
+                cb.lower(booking.get("BookingCode")),
+                "%" + criteria.getBookingCode().toLowerCase() + "%"
+            ));
+        }
+
+        if (criteria.getStatus() != null) {
+            predicates.add(cb.equal(booking.get("status"), criteria.getStatus()));
+        }
+
+        if (criteria.getPaymentMethod() != null && !criteria.getPaymentMethod().isBlank()) {
+            predicates.add(cb.equal(booking.get("paymentMethod"), criteria.getPaymentMethod()));
+        }
+
+        if (criteria.getGuestName() != null && !criteria.getGuestName().isBlank()) {
+            predicates.add(cb.like(
+                cb.lower(booking.get("guestName")),
+                "%" + criteria.getGuestName().toLowerCase() + "%"
+            ));
+        }
+
+        if (criteria.getGuestEmail() != null && !criteria.getGuestEmail().isBlank()) {
+            predicates.add(cb.like(
+                cb.lower(booking.get("guestEmail")),
+                "%" + criteria.getGuestEmail().toLowerCase() + "%"
+            ));
+        }
+
+        if (criteria.getFromDate() != null) {
+            predicates.add(cb.greaterThanOrEqualTo(booking.get("createdAt"), criteria.getFromDate()));
+        }
+
+        if (criteria.getToDate() != null) {
+            predicates.add(cb.lessThanOrEqualTo(booking.get("createdAt"), criteria.getToDate()));
+        }
+
+        if (criteria.getMinPrice() != null) {
+            predicates.add(cb.greaterThanOrEqualTo(booking.get("finalPrice"), criteria.getMinPrice()));
+        }
+
+        if (criteria.getMaxPrice() != null) {
+            predicates.add(cb.lessThanOrEqualTo(booking.get("finalPrice"), criteria.getMaxPrice()));
+        }
+
+        return predicates;
     }
 }

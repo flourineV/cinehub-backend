@@ -189,6 +189,41 @@ public class ShowtimeService {
                                 .build();
         }
 
+        public List<com.cinehub.showtime.dto.response.MovieShowtimesResponse> getMoviesByTheater(UUID theaterId) {
+                LocalDateTime now = LocalDateTime.now();
+                List<Showtime> showtimes = showtimeRepository.findByTheaterIdAndStartTimeAfter(theaterId, now);
+
+                // Group by movieId
+                java.util.Map<UUID, List<Showtime>> showtimesByMovie = showtimes.stream()
+                                .collect(java.util.stream.Collectors.groupingBy(Showtime::getMovieId));
+
+                // Map to response
+                return showtimesByMovie.entrySet().stream()
+                                .map(entry -> {
+                                        UUID movieId = entry.getKey();
+                                        List<Showtime> movieShowtimes = entry.getValue();
+
+                                        List<com.cinehub.showtime.dto.response.MovieShowtimesResponse.ShowtimeInfo> showtimeInfos = movieShowtimes
+                                                        .stream()
+                                                        .map(s -> com.cinehub.showtime.dto.response.MovieShowtimesResponse.ShowtimeInfo
+                                                                        .builder()
+                                                                        .showtimeId(s.getId())
+                                                                        .roomId(s.getRoom().getId())
+                                                                        .roomName(s.getRoom().getName())
+                                                                        .startTime(s.getStartTime())
+                                                                        .endTime(s.getEndTime())
+                                                                        .status(s.getStatus().toString())
+                                                                        .build())
+                                                        .toList();
+
+                                        return com.cinehub.showtime.dto.response.MovieShowtimesResponse.builder()
+                                                        .movieId(movieId)
+                                                        .showtimes(showtimeInfos)
+                                                        .build();
+                                })
+                                .toList();
+        }
+
         public List<TheaterShowtimesResponse> getTheaterShowtimesByMovieAndProvince(UUID movieId, UUID provinceId) {
                 LocalDateTime now = LocalDateTime.now();
                 List<Showtime> showtimes = showtimeRepository.findByMovieAndProvince(movieId, provinceId, now);

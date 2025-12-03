@@ -20,6 +20,15 @@ import java.util.stream.Collectors;
 public class TheaterService {
     private final TheaterRepository theaterRepository;
     private final ProvinceRepository provinceRepository;
+    private final ShowtimeService showtimeService;
+
+    public List<com.cinehub.showtime.dto.response.MovieShowtimesResponse> getMoviesByTheater(UUID theaterId) {
+        // Verify theater exists
+        theaterRepository.findById(theaterId)
+                .orElseThrow(() -> new RuntimeException("Theater not found: " + theaterId));
+
+        return showtimeService.getMoviesByTheater(theaterId);
+    }
 
     public List<TheaterResponse> searchByName(String keyword) {
         if (!StringUtils.hasText(keyword)) {
