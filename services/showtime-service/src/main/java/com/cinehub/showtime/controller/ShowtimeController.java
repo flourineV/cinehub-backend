@@ -77,7 +77,6 @@ public class ShowtimeController {
             @RequestParam(required = false) UUID roomId,
             @RequestParam(required = false) UUID movieId,
             @RequestParam(required = false) UUID showtimeId,
-            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-M-d") LocalDate selectedDate,
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-M-d") LocalDate startOfDay,
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-M-d") LocalDate endOfDay,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) @Schema(type = "string", format = "time", example = "17:00") LocalTime fromTime,
@@ -93,7 +92,7 @@ public class ShowtimeController {
         LocalDateTime endDateTime = endOfDay != null ? endOfDay.atTime(23, 59, 59) : null;
         
         PagedResponse<ShowtimeDetailResponse> response = showtimeService.getAllAvailableShowtimes(
-                provinceId, theaterId, roomId, movieId, showtimeId, selectedDate, startDateTime, endDateTime, fromTime,
+                provinceId, theaterId, roomId, movieId, showtimeId, startDateTime, endDateTime, fromTime,
                 toTime, page, size, sortBy, sortType);
         return ResponseEntity.ok(response);
     }

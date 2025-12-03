@@ -16,7 +16,6 @@ public interface ShowtimeRepositoryCustom {
             UUID roomId,
             UUID movieId,
             UUID showtimeId,
-            LocalDate selectedDate,
             LocalDateTime startOfDay,
             LocalDateTime endOfDay,
             LocalTime fromTime,

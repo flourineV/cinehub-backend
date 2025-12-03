@@ -28,7 +28,6 @@ public class ShowtimeRepositoryImpl implements ShowtimeRepositoryCustom {
             UUID roomId,
             UUID movieId,
             UUID showtimeId,
-            LocalDate selectedDate,
             LocalDateTime startOfDay,
             LocalDateTime endOfDay,
             LocalTime fromTime,
@@ -44,7 +43,7 @@ public class ShowtimeRepositoryImpl implements ShowtimeRepositoryCustom {
 
         // Build predicates reuse logic
         List<Predicate> predicates = buildPredicates(cb, root, provinceId, theaterId, roomId, movieId, showtimeId,
-                selectedDate, startOfDay, endOfDay, fromTime, toTime, now);
+                startOfDay, endOfDay, fromTime, toTime, now);
 
         cq.where(predicates.toArray(new Predicate[0]));
 
@@ -65,7 +64,7 @@ public class ShowtimeRepositoryImpl implements ShowtimeRepositoryCustom {
         // Tái sử dụng hàm buildPredicates cho count query
         List<Predicate> countPredicates = buildPredicates(cb, countRoot, provinceId, theaterId, roomId, movieId,
                 showtimeId,
-                selectedDate, startOfDay, endOfDay, fromTime, toTime, now);
+                startOfDay, endOfDay, fromTime, toTime, now);
 
         countQuery.select(cb.count(countRoot)).where(countPredicates.toArray(new Predicate[0]));
         long total = em.createQuery(countQuery).getSingleResult();
@@ -78,12 +77,9 @@ public class ShowtimeRepositoryImpl implements ShowtimeRepositoryCustom {
      */
     private List<Predicate> buildPredicates(CriteriaBuilder cb, Root<Showtime> root,
             UUID provinceId, UUID theaterId, UUID roomId, UUID movieId, UUID showtimeId,
-            LocalDate selectedDate, LocalDateTime startOfDay, LocalDateTime endOfDay,
+            LocalDateTime startOfDay, LocalDateTime endOfDay,
             LocalTime fromTime, LocalTime toTime, LocalDateTime now) {
         List<Predicate> predicates = new ArrayList<>();
-
-        // Luôn lấy showtime tương lai (hoặc hiện tại)
-        predicates.add(cb.greaterThan(root.get("startTime"), now));
 
         if (provinceId != null) {
             predicates.add(cb.equal(root.get("theater").get("province").get("id"), provinceId));
@@ -100,8 +96,13 @@ public class ShowtimeRepositoryImpl implements ShowtimeRepositoryCustom {
         if (showtimeId != null) {
             predicates.add(cb.equal(root.get("id"), showtimeId));
         }
-        if (selectedDate != null && startOfDay != null && endOfDay != null) {
+        
+        // Nếu có date range filter, dùng nó thay vì filter theo now
+        if (startOfDay != null && endOfDay != null) {
             predicates.add(cb.between(root.get("startTime"), startOfDay, endOfDay));
+        } else {
+            // Chỉ filter theo now khi không có date range
+            predicates.add(cb.greaterThan(root.get("startTime"), now));
         }
 
         // Lọc theo thời gian trong ngày (fromTime, toTime)

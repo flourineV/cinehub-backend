@@ -255,7 +255,7 @@ public class ShowtimeService {
 
         public PagedResponse<ShowtimeDetailResponse> getAllAvailableShowtimes(
                         UUID provinceId, UUID theaterId, UUID roomId, UUID movieId, UUID showtimeId,
-                        LocalDate selectedDate, LocalDateTime startOfDay, LocalDateTime endOfDay,
+                        LocalDateTime startOfDay, LocalDateTime endOfDay,
                         LocalTime fromTime, LocalTime toTime, int page, int size, String sortBy, String sortType) {
 
                 Sort sort = Sort.unsorted();
@@ -269,7 +269,7 @@ public class ShowtimeService {
 
                 Pageable pageable = PageRequest.of(page - 1, size, sort);
                 Page<Showtime> showtimePage = showtimeRepositoryCustom.findAvailableShowtimesWithFiltersDynamic(
-                                provinceId, theaterId, roomId, movieId, showtimeId, selectedDate, startOfDay,
+                                provinceId, theaterId, roomId, movieId, showtimeId, startOfDay,
                                 endOfDay, fromTime, toTime, LocalDateTime.now(), pageable);
 
                 List<ShowtimeDetailResponse> content = showtimePage.getContent().stream()
