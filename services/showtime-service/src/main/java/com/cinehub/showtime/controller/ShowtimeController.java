@@ -72,14 +72,15 @@ public class ShowtimeController {
     // admin
     @GetMapping("/admin/search")
     public ResponseEntity<PagedResponse<ShowtimeDetailResponse>> getAllAvailableShowtimesForAdmin(
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) UUID provinceId,
             @RequestParam(required = false) UUID theaterId,
             @RequestParam(required = false) UUID roomId,
             @RequestParam(required = false) UUID movieId,
             @RequestParam(required = false) UUID showtimeId,
-            @RequestParam(required = false) LocalDate selectedDate,
-            @RequestParam(required = false) LocalDateTime startOfDay,
-            @RequestParam(required = false) LocalDateTime endOfDay,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-M-d") LocalDate selectedDate,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-M-d") LocalDate startOfDay,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-M-d") LocalDate endOfDay,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) @Schema(type = "string", format = "time", example = "17:00") LocalTime fromTime,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) @Schema(type = "string", format = "time", example = "21:30") LocalTime toTime,
             @RequestParam(defaultValue = "1") int page,
@@ -87,8 +88,13 @@ public class ShowtimeController {
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortType) {
         AuthChecker.requireManagerOrAdmin();
+        
+        // Convert LocalDate to LocalDateTime for service layer
+        LocalDateTime startDateTime = startOfDay != null ? startOfDay.atStartOfDay() : null;
+        LocalDateTime endDateTime = endOfDay != null ? endOfDay.atTime(23, 59, 59) : null;
+        
         PagedResponse<ShowtimeDetailResponse> response = showtimeService.getAllAvailableShowtimes(
-                provinceId, theaterId, roomId, movieId, showtimeId, selectedDate, startOfDay, endOfDay, fromTime,
+                keyword, provinceId, theaterId, roomId, movieId, showtimeId, selectedDate, startDateTime, endDateTime, fromTime,
                 toTime, page, size, sortBy, sortType);
         return ResponseEntity.ok(response);
     }
