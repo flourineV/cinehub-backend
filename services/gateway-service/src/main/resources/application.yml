@@ -48,11 +48,17 @@ spring:
                   /api/movies/now-playing,
                   /api/movies/upcoming,
                   /api/movies/search,
-                  /api/movies/tmdb/**,
-                  /api/movies/{uuid},
-                  /api/movies/v3/api-docs,      
-                  /api/movies/v3/api-docs/**,    
+                  /api/movies/tmdb/{tmdbId},
+                  /api/movies/{movieId},
+                  /api/movies/v3/api-docs,
+                  /api/movies/v3/api-docs/swagger-config,
+                  /swagger-ui.html,
                   /swagger-ui/**
+
+        - id: showtime-service-websocket
+          uri: ws://showtime-service:8084
+          predicates:
+            - Path=/ws/showtime/**
 
         - id: showtime-service
           uri: http://showtime-service:8084
@@ -63,19 +69,24 @@ spring:
               args:
                 excludePaths: >
                   /api/showtimes,
-                  /api/showtimes/by-movie/**,
+                  /api/showtimes/by-movie/{movieId},
                   /api/showtimes/by-theater,
                   /api/showtimes/by-movie-and-province,
-                  /api/showtimes/*/seats,
+                  /api/showtimes/{showtimeId}/seats,
                   /api/showtimes/seat-lock/lock-single,
+                  /api/showtimes/seat-lock/lock,
                   /api/showtimes/seat-lock/unlock-single,
+                  /api/showtimes/seat-lock/unlock-batch,
                   /api/showtimes/seat-lock/status,
                   /api/showtimes/provinces,
-                  /api/showtimes/provinces/**,
+                  /api/showtimes/provinces/{provinceId},
+                  /api/showtimes/provinces/{provinceId}/theaters,
                   /api/showtimes/theaters,
-                  /api/showtimes/theaters/**,
-                  /api/showtimes/v3/api-docs,    
-                  /api/showtimes/v3/api-docs/**, 
+                  /api/showtimes/theaters/{theaterId},
+                  /api/showtimes/theaters/{theaterId}/rooms,
+                  /api/showtimes/v3/api-docs,
+                  /api/showtimes/v3/api-docs/swagger-config,
+                  /swagger-ui.html,
                   /swagger-ui/**
 
         - id: booking-service

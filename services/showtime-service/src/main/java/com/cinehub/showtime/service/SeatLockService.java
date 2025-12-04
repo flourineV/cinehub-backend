@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -38,7 +39,7 @@ public class SeatLockService {
     private final ShowtimeSeatRepository showtimeSeatRepository;
     private final SeatLockWebSocketHandler webSocketHandler;
 
-    @Value("${lock.timeout:200}")
+    @Value("${lock.timeout:300}")
     private int lockTimeout;
 
     private static final String UPDATE_LOCK_WITH_TTL_SCRIPT = """
@@ -170,6 +171,67 @@ public class SeatLockService {
         log.info("Published SeatUnlockedEvent for seat {} in showtime {}", seatId, showtimeId);
 
         return response;
+    }
+
+    @Transactional
+    public List<SeatLockResponse> unlockBatchSeats(UUID showtimeId, List<UUID> seatIds, UUID userId, UUID guestSessionId) {
+        List<SeatLockResponse> responses = new ArrayList<>();
+        
+        for (UUID seatId : seatIds) {
+            String key = key(showtimeId, seatId);
+
+            String currentValue = redisTemplate.opsForValue().get(key);
+            if (currentValue != null) {
+                String[] parts = currentValue.split("\\|");
+                if (parts.length >= 2) {
+                    String ownerType = parts[0];
+                    String ownerIdentifier = parts[1];
+
+                    boolean isOwner = false;
+                    if ("USER".equals(ownerType) && userId != null) {
+                        isOwner = ownerIdentifier.equals(userId.toString());
+                    } else if ("GUEST".equals(ownerType) && guestSessionId != null) {
+                        isOwner = ownerIdentifier.equals(guestSessionId.toString());
+                    }
+
+                    if (!isOwner) {
+                        log.warn("Skipping seat {} - not owned by user/guest", seatId);
+                        continue;
+                    }
+                }
+            }
+
+            // Delete Redis lock
+            redisTemplate.delete(key);
+        }
+
+        // Update DB in batch
+        int updatedCount = showtimeSeatRepository.bulkUpdateSeatStatus(
+                showtimeId,
+                seatIds,
+                ShowtimeSeat.SeatStatus.AVAILABLE,
+                LocalDateTime.now());
+
+        log.info("{} seats unlocked (Redis+DB) for showtime {}. DB updated: {}",
+                seatIds.size(), showtimeId, updatedCount);
+
+        // Build responses and broadcast
+        for (UUID seatId : seatIds) {
+            SeatLockResponse response = buildLockResponse(showtimeId, seatId, "AVAILABLE", 0);
+            responses.add(response);
+            webSocketHandler.broadcastToShowtime(showtimeId, response);
+        }
+
+        // Publish event
+        SeatUnlockedEvent event = new SeatUnlockedEvent(
+                null,
+                showtimeId,
+                seatIds,
+                "Manual batch unlock by user");
+        showtimeProducer.sendSeatUnlockedEvent(event);
+        log.info("Published SeatUnlockedEvent for {} seats in showtime {}", seatIds.size(), showtimeId);
+
+        return responses;
     }
 
     @Transactional

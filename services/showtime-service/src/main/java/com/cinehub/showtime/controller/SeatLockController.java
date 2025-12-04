@@ -45,6 +45,18 @@ public class SeatLockController {
                 return ResponseEntity.ok(response);
         }
 
+        @PostMapping("/unlock-batch")
+        public ResponseEntity<List<SeatLockResponse>> unlockBatchSeats(
+                        @RequestParam UUID showtimeId,
+                        @RequestParam List<UUID> seatIds,
+                        @RequestParam(required = false) UUID userId,
+                        @RequestParam(required = false) UUID guestSessionId) {
+                log.info("API: Unlocking {} seats for showtime {}", seatIds.size(), showtimeId);
+                List<SeatLockResponse> responses = seatLockService.unlockBatchSeats(showtimeId, seatIds, userId,
+                                guestSessionId);
+                return ResponseEntity.ok(responses);
+        }
+
         @PostMapping("/lock")
         public ResponseEntity<List<SeatLockResponse>> lockSeats(
                         @RequestBody SeatLockRequest req) {
@@ -58,7 +70,13 @@ public class SeatLockController {
                         @RequestBody SeatReleaseRequest req,
                         @RequestHeader(value = "X-Internal-Secret", required = false) String internalKey) {
 
-                AuthChecker.requireManagerOrAdmin();
+                // Allow either internal service call OR manager/admin role
+                if (internalKey != null && !internalKey.isEmpty()) {
+                        internalAuthChecker.requireInternal(internalKey);
+                } else {
+                        AuthChecker.requireManagerOrAdmin();
+                }
+                
                 log.info("API: Releasing {} seats for booking {} (Reason: {})",
                                 req.getSeatIds().size(), req.getBookingId(), req.getReason());
                 return ResponseEntity.ok(

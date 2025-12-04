@@ -202,7 +202,7 @@ public class BookingServiceImpl implements BookingService {
 
                 UUID bookingId = data.bookingId();
                 if (bookingId == null) {
-                        log.error("SeatUnlockedEvent received without bookingId. Cannot update status.");
+                        log.info("SeatUnlockedEvent received without bookingId (manual unlock). No booking to update.");
                         return;
                 }
 
