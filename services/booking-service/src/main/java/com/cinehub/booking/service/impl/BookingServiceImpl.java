@@ -13,7 +13,6 @@ import com.cinehub.booking.dto.external.MovieTitleResponse;
 import com.cinehub.booking.dto.external.SeatResponse;
 import com.cinehub.booking.dto.external.FnbItemResponse;
 import com.cinehub.booking.dto.external.RankAndDiscountResponse;
-import com.cinehub.booking.dto.external.UserProfileResponse;
 import com.cinehub.booking.dto.request.BookingCriteria;
 import com.cinehub.booking.dto.request.CreateBookingRequest;
 import com.cinehub.booking.entity.*;
@@ -940,5 +939,16 @@ public class BookingServiceImpl implements BookingService {
                                 successCount, failCount, bookingsWithoutMovieId.size());
 
                 return successCount;
+        }
+
+        @Override
+        public boolean hasUserBookedMovie(UUID userId, UUID movieId) {
+
+                List<Booking> bookings = bookingRepository.findByUserId(userId);
+
+                return bookings.stream().anyMatch(b ->
+                        b.getMovieId().equals(movieId) &&
+                        (b.getStatus() == BookingStatus.CONFIRMED)
+                );
         }
 }

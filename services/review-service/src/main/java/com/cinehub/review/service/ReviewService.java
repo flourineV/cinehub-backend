@@ -24,12 +24,19 @@ public class ReviewService implements IReviewService {
 
     private final ReviewRepository reviewRepository;
     private final WebClient userProfileWebClient;
+    private final WebClient bookingWebClient;
 
     @Override
     public ReviewResponse createReview(ReviewRequest request) {
-        // kiểm tra user tồn tại
+        // Kiểm tra user đã đặt vé phim chưa
+        if (!hasUserBookedMovie(request.getMovieId(), request.getUserId())) {
+            throw new RuntimeException("User chưa xem phim này, không thể review!");
+        }
+
+        // Lấy profile người dùng
         UserProfileResponse userProfile = getUserProfile(request.getUserId());
 
+        // Tạo review mới
         Review review = Review.builder()
                 .movieId(request.getMovieId())
                 .userId(request.getUserId())
@@ -52,6 +59,11 @@ public class ReviewService implements IReviewService {
         Review review = reviewRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Review not found"));
 
+        // User phải thực sự đã đặt vé mới được sửa
+        if (!hasUserBookedMovie(review.getMovieId(), review.getUserId())) {
+            throw new RuntimeException("User chưa xem phim này, không thể sửa review!");
+        }
+
         UserProfileResponse userProfile = getUserProfile(request.getUserId());
 
         review.setRating(request.getRating());
@@ -65,6 +77,23 @@ public class ReviewService implements IReviewService {
     @Override
     public void deleteReview(UUID id) {
         reviewRepository.deleteById(id);
+    }
+
+    private boolean hasUserBookedMovie(UUID movieId, UUID userId) {
+        try {
+            return bookingWebClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/bookings/check")
+                            .queryParam("userId", userId)
+                            .queryParam("movieId", movieId)
+                            .build())
+                    .retrieve()
+                    .bodyToMono(Boolean.class)
+                    .block();
+        } catch (Exception e) {
+            log.error("Error calling BookingService", e);
+            throw new RuntimeException("Failed to connect to BookingService");
+        }
     }
 
     @Override

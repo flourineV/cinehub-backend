@@ -118,4 +118,13 @@ public class BookingController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/check")
+    public ResponseEntity<Boolean> checkUserBookedMovie(
+            @RequestParam UUID userId,
+            @RequestParam UUID movieId
+    ) {
+        AuthChecker.requireAuthenticated();
+        boolean hasBooked = bookingService.hasUserBookedMovie(userId, movieId);
+        return ResponseEntity.ok(hasBooked);
+    }
 }
