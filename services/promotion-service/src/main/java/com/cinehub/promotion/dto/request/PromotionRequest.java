@@ -13,6 +13,8 @@ public class PromotionRequest {
     @Size(max = 50, message = "Mã khuyến mãi không được quá 50 ký tự.")
     private String code;
 
+    private com.cinehub.promotion.entity.Promotion.PromotionType promotionType;
+
     @NotNull(message = "Loại chiết khấu không được để trống.")
     private DiscountType discountType;
 
@@ -28,7 +30,11 @@ public class PromotionRequest {
 
     private Boolean isActive = true; // Mặc định là True
 
-    private Boolean isOneTimeUse = false;
+    private com.cinehub.promotion.entity.Promotion.UsageTimeRestriction usageTimeRestriction;
+
+    private String allowedDaysOfWeek; // e.g., "SATURDAY,SUNDAY"
+
+    private String allowedDaysOfMonth; // e.g., "1,2,3,15,20"
 
     @Size(max = 500, message = "Mô tả không được quá 500 ký tự.")
     private String description;

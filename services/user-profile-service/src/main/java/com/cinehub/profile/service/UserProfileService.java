@@ -27,6 +27,7 @@ public class UserProfileService {
     private final UserProfileRepository profileRepository;
     private final UserRankService rankService;
     private final S3Service s3Service;
+    private final LoyaltyHistoryService loyaltyHistoryService;
 
     public UserProfileResponse createProfile(UserProfileRequest request) {
         if (profileRepository.existsByUserId(request.getUserId())) {
@@ -104,13 +105,26 @@ public class UserProfileService {
         UserProfile existing = profileRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Profile not found for userId: " + userId));
 
-        if (addedPoints == null || addedPoints <= 0) {
+        if (addedPoints == null || addedPoints == 0) {
             return mapToResponse(existing);
         }
 
         Integer currentPoints = existing.getLoyaltyPoint() != null ? existing.getLoyaltyPoint() : 0;
         Integer newLoyaltyPoint = currentPoints + addedPoints;
         existing.setLoyaltyPoint(newLoyaltyPoint);
+
+        // Record loyalty history
+        com.cinehub.profile.entity.LoyaltyHistory.TransactionType type = 
+                addedPoints > 0 ? com.cinehub.profile.entity.LoyaltyHistory.TransactionType.EARN 
+                                : com.cinehub.profile.entity.LoyaltyHistory.TransactionType.ADJUSTMENT;
+        
+        loyaltyHistoryService.recordLoyaltyTransaction(
+                userId,
+                null,
+                type,
+                addedPoints,
+                null,
+                addedPoints > 0 ? "Earned points from booking" : "Points adjustment");
 
         // 3. Tìm và Cập nhật Rank (dựa trên newLoyaltyPoint)
         rankService.findRankByLoyaltyPoint(newLoyaltyPoint)

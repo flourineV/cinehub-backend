@@ -104,4 +104,70 @@ public class PromotionClient {
                 .value(BigDecimal.ZERO)
                 .build();
     }
+
+    /**
+     * Check if user can use promotion code
+     */
+    @CircuitBreaker(name = "promotionService", fallbackMethod = "fallbackCanUsePromotion")
+    public Boolean canUsePromotion(UUID userId, String promotionCode) {
+        return promotionWebClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/promotions/usage/can-use")
+                        .queryParam("userId", userId)
+                        .queryParam("promotionCode", promotionCode)
+                        .build())
+                .retrieve()
+                .bodyToMono(Boolean.class)
+                .block();
+    }
+
+    /**
+     * Record promotion usage
+     */
+    @CircuitBreaker(name = "promotionService", fallbackMethod = "fallbackRecordUsage")
+    public void recordPromotionUsage(UUID userId, String promotionCode, UUID bookingId) {
+        java.util.Map<String, Object> request = java.util.Map.of(
+                "userId", userId,
+                "promotionCode", promotionCode,
+                "bookingId", bookingId
+        );
+
+        promotionWebClient.post()
+                .uri("/api/promotions/usage/record")
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(Void.class)
+                .block();
+    }
+
+    /**
+     * Update booking status in promotion usage
+     */
+    @CircuitBreaker(name = "promotionService", fallbackMethod = "fallbackUpdateStatus")
+    public void updatePromotionUsageStatus(UUID bookingId, String bookingStatus) {
+        java.util.Map<String, Object> request = java.util.Map.of(
+                "bookingId", bookingId,
+                "bookingStatus", bookingStatus
+        );
+
+        promotionWebClient.patch()
+                .uri("/api/promotions/usage/update-status")
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(Void.class)
+                .block();
+    }
+
+    public Boolean fallbackCanUsePromotion(UUID userId, String promotionCode, Throwable t) {
+        System.err.println("Circuit Breaker activated for canUsePromotion. Lỗi: " + t.getMessage());
+        return true; // Allow by default on failure
+    }
+
+    public void fallbackRecordUsage(UUID userId, String promotionCode, UUID bookingId, Throwable t) {
+        System.err.println("Circuit Breaker activated for recordPromotionUsage. Lỗi: " + t.getMessage());
+    }
+
+    public void fallbackUpdateStatus(UUID bookingId, String bookingStatus, Throwable t) {
+        System.err.println("Circuit Breaker activated for updatePromotionUsageStatus. Lỗi: " + t.getMessage());
+    }
 }

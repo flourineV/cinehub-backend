@@ -12,11 +12,14 @@ import java.util.UUID;
 public class PromotionResponse {
     private UUID id;
     private String code;
+    private com.cinehub.promotion.entity.Promotion.PromotionType promotionType;
     private DiscountType discountType;
     private BigDecimal discountValue;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private Boolean isActive;
-    private Boolean isOneTimeUse;
+    private com.cinehub.promotion.entity.Promotion.UsageTimeRestriction usageTimeRestriction;
+    private String allowedDaysOfWeek;
+    private String allowedDaysOfMonth;
     private String description;
 }

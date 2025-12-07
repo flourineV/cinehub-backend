@@ -21,17 +21,6 @@ public class PromotionService {
 
     private final PromotionRepository promotionRepository;
 
-    // ---------------------------------------------------------------------
-    // 1. LOGIC KIỂM TRA MÃ KHUYẾN MÃI (CHO BOOKING SERVICE)
-    // ---------------------------------------------------------------------
-
-    /**
-     * Kiểm tra mã khuyến mãi và trả về chi tiết nếu hợp lệ.
-     * 
-     * @param code Mã khuyến mãi.
-     * @return PromotionValidationResponse nếu hợp lệ.
-     * @throws IllegalArgumentException nếu mã không hợp lệ hoặc đã hết hạn.
-     */
     public PromotionValidationResponse validatePromotionCode(String code) {
         LocalDateTime now = LocalDateTime.now();
 
@@ -40,12 +29,82 @@ public class PromotionService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Mã khuyến mãi không hợp lệ, không tồn tại hoặc đã hết hạn."));
 
+        // Validate time restriction
+        if (!isValidTimeRestriction(promotion, now)) {
+            throw new IllegalArgumentException(
+                    "Mã khuyến mãi không áp dụng cho thời điểm hiện tại.");
+        }
+
         return PromotionValidationResponse.builder()
                 .code(promotion.getCode())
                 .discountType(promotion.getDiscountType())
                 .discountValue(promotion.getDiscountValue())
-                .isOneTimeUse(promotion.getIsOneTimeUse())
+                .isOneTimeUse(promotion.isOneTimeUse())
                 .build();
+    }
+
+    private boolean isValidTimeRestriction(Promotion promotion, LocalDateTime now) {
+        if (promotion.getUsageTimeRestriction() == null ||
+                promotion.getUsageTimeRestriction() == Promotion.UsageTimeRestriction.NONE) {
+            return true;
+        }
+
+        java.time.DayOfWeek dayOfWeek = now.getDayOfWeek();
+        int dayOfMonth = now.getDayOfMonth();
+
+        switch (promotion.getUsageTimeRestriction()) {
+            case WEEKEND_ONLY:
+                return dayOfWeek == java.time.DayOfWeek.SATURDAY ||
+                        dayOfWeek == java.time.DayOfWeek.SUNDAY;
+
+            case WEEKDAY_ONLY:
+                return dayOfWeek != java.time.DayOfWeek.SATURDAY &&
+                        dayOfWeek != java.time.DayOfWeek.SUNDAY;
+
+            case CUSTOM_DAYS:
+                return isValidCustomDays(promotion, dayOfWeek, dayOfMonth);
+
+            default:
+                return true;
+        }
+    }
+
+    private boolean isValidCustomDays(Promotion promotion, java.time.DayOfWeek dayOfWeek, int dayOfMonth) {
+        // Check allowed days of week
+        if (promotion.getAllowedDaysOfWeek() != null && !promotion.getAllowedDaysOfWeek().isEmpty()) {
+            String[] allowedDays = promotion.getAllowedDaysOfWeek().split(",");
+            boolean dayOfWeekMatch = false;
+            for (String day : allowedDays) {
+                if (dayOfWeek.name().equalsIgnoreCase(day.trim())) {
+                    dayOfWeekMatch = true;
+                    break;
+                }
+            }
+            if (!dayOfWeekMatch) {
+                return false;
+            }
+        }
+
+        // Check allowed days of month
+        if (promotion.getAllowedDaysOfMonth() != null && !promotion.getAllowedDaysOfMonth().isEmpty()) {
+            String[] allowedDays = promotion.getAllowedDaysOfMonth().split(",");
+            boolean dayOfMonthMatch = false;
+            for (String day : allowedDays) {
+                try {
+                    if (Integer.parseInt(day.trim()) == dayOfMonth) {
+                        dayOfMonthMatch = true;
+                        break;
+                    }
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid day of month format: {}", day);
+                }
+            }
+            if (!dayOfMonthMatch) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     // ---------------------------------------------------------------------
@@ -120,12 +179,16 @@ public class PromotionService {
     private Promotion mapToEntity(PromotionRequest request) {
         return Promotion.builder()
                 .code(request.getCode())
+                .promotionType(request.getPromotionType() != null ? request.getPromotionType()
+                        : Promotion.PromotionType.GENERAL)
                 .discountType(request.getDiscountType())
                 .discountValue(request.getDiscountValue())
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
                 .isActive(request.getIsActive())
-                .isOneTimeUse(request.getIsOneTimeUse())
+                .usageTimeRestriction(request.getUsageTimeRestriction())
+                .allowedDaysOfWeek(request.getAllowedDaysOfWeek())
+                .allowedDaysOfMonth(request.getAllowedDaysOfMonth())
                 .description(request.getDescription())
                 .build();
     }
@@ -134,12 +197,15 @@ public class PromotionService {
         return PromotionResponse.builder()
                 .id(promotion.getId())
                 .code(promotion.getCode())
+                .promotionType(promotion.getPromotionType())
                 .discountType(promotion.getDiscountType())
                 .discountValue(promotion.getDiscountValue())
                 .startDate(promotion.getStartDate())
                 .endDate(promotion.getEndDate())
                 .isActive(promotion.getIsActive())
-                .isOneTimeUse(promotion.getIsOneTimeUse())
+                .usageTimeRestriction(promotion.getUsageTimeRestriction())
+                .allowedDaysOfWeek(promotion.getAllowedDaysOfWeek())
+                .allowedDaysOfMonth(promotion.getAllowedDaysOfMonth())
                 .description(promotion.getDescription())
                 .build();
     }

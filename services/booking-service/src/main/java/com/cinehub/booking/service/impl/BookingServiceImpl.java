@@ -54,7 +54,6 @@ public class BookingServiceImpl implements BookingService {
 
         private final BookingRepository bookingRepository;
         private final BookingSeatRepository bookingSeatRepository;
-        private final UsedPromotionRepository usedPromotionRepository;
         private final BookingPromotionRepository bookingPromotionRepository;
         private final BookingFnbRepository bookingFnbRepository;
 
@@ -217,7 +216,7 @@ public class BookingServiceImpl implements BookingService {
 
                 bookingFnbRepository.deleteByBooking_Id(booking.getId());
                 bookingPromotionRepository.deleteByBooking_Id(booking.getId());
-                usedPromotionRepository.deleteByBooking_Id(booking.getId());
+                // Keep used_promotion record for history
                 bookingSeatRepository.deleteByBooking_Id(booking.getId());
 
                 updateBookingStatus(booking, BookingStatus.EXPIRED);
@@ -266,7 +265,7 @@ public class BookingServiceImpl implements BookingService {
 
                 bookingFnbRepository.deleteByBooking_Id(booking.getId());
                 bookingPromotionRepository.deleteByBooking_Id(booking.getId());
-                usedPromotionRepository.deleteByBooking_Id(booking.getId());
+                // Keep used_promotion record for history
 
                 updateBookingStatus(booking, BookingStatus.CANCELLED);
         }
@@ -421,15 +420,15 @@ public class BookingServiceImpl implements BookingService {
         private void processPromotion(Booking booking, String promoCode) {
 
                 PromotionValidationResponse validationResponse = promotionClient.validatePromotionCode(promoCode);
-                boolean isOneTimeUse = validationResponse.getIsOneTimeUse();
 
                 if (validationResponse == null || validationResponse.getDiscountValue() == null
                                 || validationResponse.getDiscountType() == null) {
                         throw new BookingException("Lỗi xử lý khuyến mãi: Thiếu thông tin loại hoặc giá trị giảm.");
                 }
 
-                if (isOneTimeUse && usedPromotionRepository.existsByUserIdAndPromotionCode(booking.getUserId(),
-                                promoCode)) {
+                // Check if user can use this promotion (handled by promotion-service)
+                Boolean canUse = promotionClient.canUsePromotion(booking.getUserId(), promoCode);
+                if (!canUse) {
                         throw new BookingException("Người dùng đã sử dụng mã khuyến mãi này rồi!");
                 }
 
@@ -466,12 +465,13 @@ public class BookingServiceImpl implements BookingService {
 
                 bookingPromotionRepository.save(bookingPromotion);
 
-                usedPromotionRepository.save(UsedPromotion.builder()
-                                .userId(booking.getUserId())
-                                .promotionCode(promoCode)
-                                .booking(booking)
-                                .usedAt(LocalDateTime.now())
-                                .build());
+                // Record promotion usage in promotion-service
+                try {
+                        promotionClient.recordPromotionUsage(booking.getUserId(), promoCode, booking.getId());
+                } catch (Exception e) {
+                        log.error("Failed to record promotion usage: {}", e.getMessage());
+                        // Don't fail the booking if promotion recording fails
+                }
         }
 
         @Override
@@ -595,6 +595,14 @@ public class BookingServiceImpl implements BookingService {
                 bookingRepository.save(booking);
 
                 log.info("Status updated: Booking {} from {} to {}.", booking.getId(), oldStatus, newStatus);
+
+                // Update promotion usage status in promotion-service
+                try {
+                        promotionClient.updatePromotionUsageStatus(booking.getId(), newStatus.name());
+                } catch (Exception e) {
+                        log.error("Failed to update promotion usage status: {}", e.getMessage());
+                        // Don't fail the booking status update if promotion update fails
+                }
 
                 List<UUID> seatIds = booking.getSeats().stream()
                                 .map(BookingSeat::getSeatId)
