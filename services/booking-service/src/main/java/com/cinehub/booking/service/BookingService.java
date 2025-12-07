@@ -50,4 +50,6 @@ public interface BookingService {
      * @return number of bookings updated
      */
     int backfillMovieIds();
+
+    boolean hasUserBookedMovie(UUID userId, UUID movieId);
 }
