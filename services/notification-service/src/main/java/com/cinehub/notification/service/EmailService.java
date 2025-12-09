@@ -109,4 +109,74 @@ public class EmailService {
 
         mailSender.send(message);
     }
+
+    public void sendPromotionEmail(
+            String to,
+            String promotionCode,
+            String discountType,
+            BigDecimal discountValue,
+            String discountValueDisplay,
+            String description,
+            String promoDisplayUrl,
+            java.time.LocalDateTime startDate,
+            java.time.LocalDateTime endDate,
+            String usageRestriction,
+            String actionUrl,
+            boolean isOneTimeUse) throws MessagingException {
+
+        Context ctx = new Context();
+        ctx.setVariable("name", "Quý khách");
+
+        // Create promotion object for template
+        var promotion = new Object() {
+            public String getCode() {
+                return promotionCode;
+            }
+
+            public String getDescription() {
+                return description;
+            }
+
+            public BigDecimal getDiscountValue() {
+                return discountValue;
+            }
+
+            public java.time.LocalDateTime getStartDate() {
+                return startDate;
+            }
+
+            public java.time.LocalDateTime getEndDate() {
+                return endDate;
+            }
+
+            public boolean isOneTimeUse() {
+                return isOneTimeUse;
+            }
+
+            public Object getDiscountType() {
+                return new Object() {
+                    public String name() {
+                        return discountType;
+                    }
+                };
+            }
+        };
+
+        ctx.setVariable("promotion", promotion);
+        ctx.setVariable("discountValueDisplay", discountValueDisplay);
+        ctx.setVariable("promoDisplayUrl", promoDisplayUrl);
+        ctx.setVariable("usageRestriction", usageRestriction);
+        ctx.setVariable("actionUrl", actionUrl != null ? actionUrl : "https://cinehub.com");
+
+        String html = templateEngine.process("promotion", ctx);
+
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
+
+        helper.setTo(to);
+        helper.setSubject("🎁 CineHub - Ưu đãi đặc biệt dành cho bạn!");
+        helper.setText(html, true);
+
+        mailSender.send(message);
+    }
 }

@@ -51,6 +51,7 @@ public class TheaterService {
                 .address(request.getAddress())
                 .province(province)
                 .description(request.getDescription())
+                .theaterImageUrl(request.getImageUrl())
                 .build();
 
         Theater savedTheater = theaterRepository.save(theater);
@@ -61,7 +62,7 @@ public class TheaterService {
         Theater theater = theaterRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Theater not found"));
         return mapToTheaterResponse(theater);
-    }
+    } // Trong StaffProfileController & StaffProfileService
 
     public List<TheaterResponse> getAllTheaters() {
         return theaterRepository.findAll().stream()
@@ -85,6 +86,7 @@ public class TheaterService {
         theater.setAddress(request.getAddress());
         theater.setProvince(province);
         theater.setDescription(request.getDescription());
+        theater.setTheaterImageUrl(request.getImageUrl());
 
         Theater updatedTheater = theaterRepository.save(theater);
         return mapToTheaterResponse(updatedTheater);
@@ -102,6 +104,7 @@ public class TheaterService {
                 .address(theater.getAddress())
                 .description(theater.getDescription())
                 .provinceName(theater.getProvince().getName())
+                .imageUrl(theater.getTheaterImageUrl())
                 .build();
     }
 }

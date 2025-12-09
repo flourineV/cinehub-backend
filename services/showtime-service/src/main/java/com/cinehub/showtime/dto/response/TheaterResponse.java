@@ -17,4 +17,5 @@ public class TheaterResponse {
     private String address;
     private String description;
     private String provinceName;
+    private String imageUrl;
 }

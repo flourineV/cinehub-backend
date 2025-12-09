@@ -34,4 +34,14 @@ public class AuthChecker {
         }
         return ctx.getUserId().toString();
     }
+
+    public static boolean isManager() {
+        var ctx = UserContext.get();
+        return ctx != null && "MANAGER".equalsIgnoreCase(ctx.getRole());
+    }
+
+    public static boolean isAdmin() {
+        var ctx = UserContext.get();
+        return ctx != null && "ADMIN".equalsIgnoreCase(ctx.getRole());
+    }
 }

@@ -48,9 +48,8 @@ public class Notification {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
-    private NotificationType type; // PAYMENT_SUCCESS, PROMOTION
+    private NotificationType type;
 
-    // ✅ Dùng JSONB cho metadata (PostgreSQL)
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private Map<String, Object> metadata;

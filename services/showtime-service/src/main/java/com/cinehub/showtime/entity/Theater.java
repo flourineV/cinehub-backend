@@ -37,4 +37,7 @@ public class Theater {
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @Column(length = 500)
+    private String theaterImageUrl;
 }

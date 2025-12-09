@@ -1,8 +1,10 @@
 package com.cinehub.showtime.controller;
 
+import com.cinehub.showtime.dto.request.BatchShowtimeRequest;
 import com.cinehub.showtime.dto.request.ShowtimeRequest;
 import com.cinehub.showtime.dto.request.ValidateShowtimeRequest;
 import com.cinehub.showtime.dto.response.AutoGenerateShowtimesResponse;
+import com.cinehub.showtime.dto.response.BatchShowtimeResponse;
 import com.cinehub.showtime.dto.response.PagedResponse;
 import com.cinehub.showtime.dto.response.ShowtimeConflictResponse;
 import com.cinehub.showtime.dto.response.ShowtimeDetailResponse;
@@ -35,6 +37,18 @@ public class ShowtimeController {
     @GetMapping("/{id}")
     public ResponseEntity<ShowtimeResponse> getShowtimeById(@PathVariable UUID id) {
         return ResponseEntity.ok(showtimeService.getShowtimeById(id));
+    }
+
+    @PostMapping
+    public ResponseEntity<ShowtimeResponse> createShowtime(@RequestBody ShowtimeRequest request) {
+        AuthChecker.requireManagerOrAdmin();
+        return ResponseEntity.status(HttpStatus.CREATED).body(showtimeService.createShowtime(request));
+    }
+
+    @PostMapping("/batch")
+    public ResponseEntity<BatchShowtimeResponse> createShowtimesBatch(@RequestBody BatchShowtimeRequest request) {
+        AuthChecker.requireManagerOrAdmin();
+        return ResponseEntity.status(HttpStatus.CREATED).body(showtimeService.createShowtimesBatch(request));
     }
 
     @GetMapping
@@ -86,11 +100,11 @@ public class ShowtimeController {
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortType) {
         AuthChecker.requireManagerOrAdmin();
-        
+
         // Convert LocalDate to LocalDateTime for service layer
         LocalDateTime startDateTime = startOfDay != null ? startOfDay.atStartOfDay() : null;
         LocalDateTime endDateTime = endOfDay != null ? endOfDay.atTime(23, 59, 59) : null;
-        
+
         PagedResponse<ShowtimeDetailResponse> response = showtimeService.getAllAvailableShowtimes(
                 provinceId, theaterId, roomId, movieId, showtimeId, startDateTime, endDateTime, fromTime,
                 toTime, page, size, sortBy, sortType);

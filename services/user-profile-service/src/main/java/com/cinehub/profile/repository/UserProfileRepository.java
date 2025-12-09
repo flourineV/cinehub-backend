@@ -33,6 +33,8 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, UUID> 
 
     Boolean existsByUserId(UUID userId);
 
+    List<UserProfile> findByReceivePromoEmailTrue();
+
     @Query("SELECT p FROM UserProfile p WHERE p.email = :identifier OR p.username = :identifier OR p.phoneNumber = :identifier")
     Optional<UserProfile> findByEmailOrUsernameOrPhoneNumber(@Param("identifier") String identifier);
 

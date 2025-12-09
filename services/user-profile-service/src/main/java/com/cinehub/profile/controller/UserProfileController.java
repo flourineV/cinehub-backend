@@ -7,6 +7,7 @@ import com.cinehub.profile.dto.response.UserProfileResponse;
 import com.cinehub.profile.security.AuthChecker;
 import com.cinehub.profile.security.InternalAuthChecker;
 import com.cinehub.profile.service.UserProfileService;
+import com.cinehub.profile.service.PromotionEmailService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,7 @@ public class UserProfileController {
 
     private final UserProfileService profileService;
     private final InternalAuthChecker internalAuthChecker;
+    private final PromotionEmailService promotionEmailService;
 
     @PostMapping
     public ResponseEntity<UserProfileResponse> createProfile(
@@ -101,5 +103,21 @@ public class UserProfileController {
         List<UUID> userIds = profileService.searchUserIdsByUsername(username);
         return ResponseEntity.ok(userIds);
     }
-}
 
+    @PatchMapping("/{userId}/settings/promo-email")
+    public ResponseEntity<UserProfileResponse> updatePromoEmailPreference(
+            @PathVariable UUID userId,
+            @RequestParam Boolean enable) {
+
+        AuthChecker.requireAuthenticated();
+        return ResponseEntity.ok(profileService.updateUserPromoEmailPreference(userId, enable));
+    }
+
+    @GetMapping("/subscribed-emails")
+    public ResponseEntity<List<String>> getSubscribedUsersEmails(
+            @RequestHeader(value = "X-Internal-Secret", required = false) String internalKey) {
+        internalAuthChecker.requireInternal(internalKey);
+        List<String> emails = promotionEmailService.getSubscribedUsersEmails();
+        return ResponseEntity.ok(emails);
+    }
+}

@@ -13,7 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.UUID;
 import java.math.BigDecimal;
 import com.cinehub.booking.dto.external.RankAndDiscountResponse;
-import com.cinehub.booking.dto.external.UserProfileResponse;
 
 @Service
 @Slf4j

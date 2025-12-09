@@ -1,7 +1,7 @@
 package com.cinehub.notification.service;
 
 import com.cinehub.notification.client.UserProfileClient;
-import com.cinehub.notification.dto.NotificationResponse;
+import com.cinehub.notification.dto.response.NotificationResponse;
 import com.cinehub.notification.entity.Notification;
 import com.cinehub.notification.entity.NotificationType;
 import com.cinehub.notification.events.BookingTicketGeneratedEvent;
@@ -259,6 +259,48 @@ public class NotificationService {
                                 .message(n.getMessage())
                                 .type(n.getType())
                                 .createdAt(n.getCreatedAt())
+                                .build();
+        }
+
+        @Transactional
+        public com.cinehub.notification.dto.response.PromotionNotificationResponse createPromotionNotification(
+                        com.cinehub.notification.dto.request.PromotionNotificationRequest request) {
+                log.info("Sending promotion notification for code: {}", request.getPromotionCode());
+
+                // Fetch subscribed users emails from user-profile-service
+                List<String> subscribedEmails = userProfileClient.getSubscribedUsersEmails();
+                log.info("Found {} subscribed users for promotion notification", subscribedEmails.size());
+
+                int emailsSent = 0;
+                int emailsFailed = 0;
+
+                for (String email : subscribedEmails) {
+                        try {
+                                emailService.sendPromotionEmail(
+                                                email,
+                                                request.getPromotionCode(),
+                                                request.getDiscountType(),
+                                                request.getDiscountValue(),
+                                                request.getDiscountValueDisplay(),
+                                                request.getDescription(),
+                                                request.getPromoDisplayUrl(),
+                                                request.getStartDate(),
+                                                request.getEndDate(),
+                                                request.getUsageRestriction(),
+                                                request.getActionUrl(),
+                                                "FIRST_TIME".equals(request.getPromotionType()));
+                                emailsSent++;
+                        } catch (MessagingException e) {
+                                log.error("Failed to send promotion email to {}: {}", email, e.getMessage());
+                                emailsFailed++;
+                        }
+                }
+
+                return com.cinehub.notification.dto.response.PromotionNotificationResponse.builder()
+                                .message("Promotion notification sent")
+                                .emailsSent(emailsSent)
+                                .emailsFailed(emailsFailed)
+                                .promotionCode(request.getPromotionCode())
                                 .build();
         }
 }

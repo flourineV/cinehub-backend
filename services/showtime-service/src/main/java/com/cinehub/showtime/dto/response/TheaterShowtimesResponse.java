@@ -17,6 +17,7 @@ public class TheaterShowtimesResponse {
     private UUID theaterId;
     private String theaterName;
     private String theaterAddress;
+    private String theaterImageUrl;
     private List<ShowtimeInfo> showtimes;
 
     @Data

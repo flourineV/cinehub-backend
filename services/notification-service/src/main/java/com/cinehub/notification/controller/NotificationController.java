@@ -1,12 +1,16 @@
 package com.cinehub.notification.controller;
 
-import com.cinehub.notification.dto.NotificationResponse;
+import com.cinehub.notification.dto.response.NotificationResponse;
+import com.cinehub.notification.dto.response.PromotionNotificationResponse;
+import com.cinehub.notification.dto.request.PromotionNotificationRequest;
 import com.cinehub.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -23,5 +27,11 @@ public class NotificationController {
     @GetMapping("/user/{userId}")
     public List<NotificationResponse> getByUser(@PathVariable UUID userId) {
         return notificationService.getByUser(userId);
+    }
+
+    @PostMapping("/promotion")
+    public PromotionNotificationResponse createPromotionNotification(
+            @RequestBody PromotionNotificationRequest request) {
+        return notificationService.createPromotionNotification(request);
     }
 }

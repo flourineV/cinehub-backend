@@ -22,4 +22,5 @@ public class PromotionResponse {
     private String allowedDaysOfWeek;
     private String allowedDaysOfMonth;
     private String description;
+    private String promoDisplayUrl;
 }

@@ -4,6 +4,7 @@ import com.cinehub.profile.dto.request.UserProfileRequest;
 import com.cinehub.profile.dto.request.UserProfileUpdateRequest;
 import com.cinehub.profile.dto.response.RankAndDiscountResponse;
 import com.cinehub.profile.dto.response.UserProfileResponse;
+import com.cinehub.profile.dto.response.PromoEmailResponse;
 import com.cinehub.profile.entity.UserProfile;
 import com.cinehub.profile.entity.UserRank;
 import com.cinehub.profile.exception.ResourceNotFoundException;
@@ -114,10 +115,10 @@ public class UserProfileService {
         existing.setLoyaltyPoint(newLoyaltyPoint);
 
         // Record loyalty history
-        com.cinehub.profile.entity.LoyaltyHistory.TransactionType type = 
-                addedPoints > 0 ? com.cinehub.profile.entity.LoyaltyHistory.TransactionType.EARN 
-                                : com.cinehub.profile.entity.LoyaltyHistory.TransactionType.ADJUSTMENT;
-        
+        com.cinehub.profile.entity.LoyaltyHistory.TransactionType type = addedPoints > 0
+                ? com.cinehub.profile.entity.LoyaltyHistory.TransactionType.EARN
+                : com.cinehub.profile.entity.LoyaltyHistory.TransactionType.ADJUSTMENT;
+
         loyaltyHistoryService.recordLoyaltyTransaction(
                 userId,
                 null,
@@ -202,6 +203,29 @@ public class UserProfileService {
                 .toList();
     }
 
+    @Transactional
+    public List<PromoEmailResponse> getUsersOptedInForPromoEmails() {
+        List<UserProfile> profiles = profileRepository.findByReceivePromoEmailTrue();
+
+        return profiles.stream()
+                .map(profile -> {
+                    PromoEmailResponse response = new PromoEmailResponse();
+                    response.setEmail(profile.getEmail());
+                    return response;
+                })
+                .toList();
+    }
+
+    @Transactional
+    public UserProfileResponse updateUserPromoEmailPreference(UUID userId, Boolean receivePromoEmail) {
+        UserProfile existing = profileRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Profile not found for userId: " + userId));
+
+        existing.setReceivePromoEmail(receivePromoEmail != null ? receivePromoEmail : false);
+        profileRepository.save(existing);
+        return mapToResponse(profileRepository.save(existing));
+    }
+
     // --- Phương thức Mapping (Giữ nguyên) ---
     private UserProfileResponse mapToResponse(UserProfile entity) {
         if (entity == null)
@@ -224,6 +248,7 @@ public class UserProfileService {
                 .loyaltyPoint(entity.getLoyaltyPoint())
                 .rankName(rank != null ? rank.getName() : null)
                 .status(entity.getStatus())
+                .receivePromoEmail(entity.getReceivePromoEmail())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();

@@ -31,10 +31,7 @@ public class MovieAndTheaterSearchController {
     private String theaterServiceBase;
 
     @GetMapping
-    public ResponseEntity<JsonNode> search(
-            @RequestParam String keyword,
-            @RequestHeader(value = "X-User-Id", required = false) String xUserId,
-            @RequestHeader(value = "X-User-Role", required = false) String xUserRole) {
+    public ResponseEntity<JsonNode> search(@RequestParam String keyword) {
 
         // validate
         if (keyword == null || keyword.isBlank()) {
@@ -45,17 +42,9 @@ public class MovieAndTheaterSearchController {
 
         List<String> errors = new CopyOnWriteArrayList<>();
 
-        // prepare forwarded internal headers
+        // prepare headers (no auth needed for public search)
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-
-        if (xUserId != null && !xUserId.isBlank())
-            headers.set("X-User-Id", xUserId);
-
-        if (xUserRole != null && !xUserRole.isBlank())
-            headers.set("X-User-Role", xUserRole);
-
-        // no need to forward Authorization
         HttpEntity<Void> entity = new HttpEntity<>(headers);
 
         // ------- MOVIE SERVICE -------
@@ -79,7 +68,7 @@ public class MovieAndTheaterSearchController {
 
         // ------- THEATER SERVICE -------
         CompletableFuture<JsonNode> theatersFuture = CompletableFuture.supplyAsync(() -> {
-            String url = String.format("%s/api/showtimes/theaters/search?keyword=%s",
+            String url = String.format("%s/api/showtimes/theaters/search-by-name?keyword=%s",
                     theaterServiceBase, urlEncode(keyword));
 
             try {

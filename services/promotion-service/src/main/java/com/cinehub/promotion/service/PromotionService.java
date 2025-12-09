@@ -20,6 +20,7 @@ import java.util.UUID;
 public class PromotionService {
 
     private final PromotionRepository promotionRepository;
+    private final PromotionNotificationHelper notificationHelper;
 
     public PromotionValidationResponse validatePromotionCode(String code) {
         LocalDateTime now = LocalDateTime.now();
@@ -132,6 +133,14 @@ public class PromotionService {
         Promotion newPromo = mapToEntity(request);
         Promotion savedPromo = promotionRepository.save(newPromo);
         log.info("⭐ Created new promotion: {}", savedPromo.getCode());
+
+        // Send notification email (async, don't block if fails)
+        try {
+            notificationHelper.sendPromotionNotification(savedPromo);
+        } catch (Exception e) {
+            log.error("Failed to send promotion notification for {}: {}", savedPromo.getCode(), e.getMessage());
+        }
+
         return mapToResponse(savedPromo);
     }
 
@@ -156,6 +165,7 @@ public class PromotionService {
         existingPromo.setEndDate(request.getEndDate());
         existingPromo.setIsActive(request.getIsActive());
         existingPromo.setDescription(request.getDescription());
+        existingPromo.setPromoDisplayUrl(request.getPromoDisplayUrl());
 
         Promotion updatedPromo = promotionRepository.save(existingPromo);
         log.info("🔄 Updated promotion: {}", updatedPromo.getCode());
@@ -190,6 +200,7 @@ public class PromotionService {
                 .allowedDaysOfWeek(request.getAllowedDaysOfWeek())
                 .allowedDaysOfMonth(request.getAllowedDaysOfMonth())
                 .description(request.getDescription())
+                .promoDisplayUrl(request.getPromoDisplayUrl())
                 .build();
     }
 
@@ -207,6 +218,7 @@ public class PromotionService {
                 .allowedDaysOfWeek(promotion.getAllowedDaysOfWeek())
                 .allowedDaysOfMonth(promotion.getAllowedDaysOfMonth())
                 .description(promotion.getDescription())
+                .promoDisplayUrl(promotion.getPromoDisplayUrl())
                 .build();
     }
 }

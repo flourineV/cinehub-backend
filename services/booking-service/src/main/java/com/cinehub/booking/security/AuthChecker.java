@@ -46,4 +46,14 @@ public class AuthChecker {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid user ID format");
         }
     }
+
+    public static boolean isManager() {
+        var ctx = UserContext.get();
+        return ctx != null && "MANAGER".equalsIgnoreCase(ctx.getRole());
+    }
+
+    public static boolean isAdmin() {
+        var ctx = UserContext.get();
+        return ctx != null && "ADMIN".equalsIgnoreCase(ctx.getRole());
+    }
 }

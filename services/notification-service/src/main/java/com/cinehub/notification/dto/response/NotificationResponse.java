@@ -1,4 +1,4 @@
-package com.cinehub.notification.dto;
+package com.cinehub.notification.dto.response;
 
 import com.cinehub.notification.entity.NotificationType;
 import lombok.*;
