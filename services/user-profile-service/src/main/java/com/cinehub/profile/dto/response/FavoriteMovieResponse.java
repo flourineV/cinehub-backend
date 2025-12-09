@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @NoArgsConstructor
@@ -13,6 +14,6 @@ import java.time.LocalDateTime;
 @Builder
 
 public class FavoriteMovieResponse {
-    private Integer tmdbId;
+    private UUID movieId;
     private LocalDateTime addedAt;
 }

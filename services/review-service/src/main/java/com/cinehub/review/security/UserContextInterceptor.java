@@ -19,7 +19,7 @@ public class UserContextInterceptor implements HandlerInterceptor {
                 role,
                 "true".equalsIgnoreCase(authenticated)));
 
-        System.out.printf("[ReviewService] Request from user=%s, role=%s, authenticated=%s%n",
+        System.out.printf("[AuthService] Request from user=%s, role=%s, authenticated=%s%n",
                 userId, role, authenticated);
 
         return true;
@@ -28,6 +28,7 @@ public class UserContextInterceptor implements HandlerInterceptor {
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
             Object handler, Exception ex) {
+        // Clear ThreadLocal để tránh memory leak
         UserContext.clear();
     }
 }

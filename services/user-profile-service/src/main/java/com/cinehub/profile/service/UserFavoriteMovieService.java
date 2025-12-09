@@ -20,33 +20,44 @@ import java.util.stream.Collectors;
 public class UserFavoriteMovieService {
 
     private final UserFavoriteMovieRepository favoriteMovieRepository;
+    private final com.cinehub.profile.repository.UserProfileRepository userProfileRepository;
 
     public FavoriteMovieResponse addFavorite(FavoriteMovieRequest request) {
-        FavoriteMovieId id = new FavoriteMovieId(request.getUserId(), request.getTmdbId());
+        FavoriteMovieId id = new FavoriteMovieId(request.getUserId(), request.getMovieId());
 
-        if (favoriteMovieRepository.existsById_UserIdAndId_TmdbId(request.getUserId(), request.getTmdbId())) {
+        if (favoriteMovieRepository.existsById_UserIdAndId_MovieId(request.getUserId(), request.getMovieId())) {
             throw new RuntimeException("Movie already in favorites");
         }
 
+        // Load UserProfile entity
+        com.cinehub.profile.entity.UserProfile userProfile = userProfileRepository.findByUserId(request.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User profile not found for userId: " + request.getUserId()));
+
         UserFavoriteMovie favorite = UserFavoriteMovie.builder()
                 .id(id)
+                .user(userProfile)
                 .build();
 
         return mapToResponse(favoriteMovieRepository.save(favorite));
     }
 
     public List<FavoriteMovieResponse> getFavoritesByUser(UUID userId) {
-        return favoriteMovieRepository.findByUser_Id(userId)
+        return favoriteMovieRepository.findById_UserId(userId)
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
-    public void removeFavorite(UUID userId, Integer tmdbId) {
-        if (!favoriteMovieRepository.existsById_UserIdAndId_TmdbId(userId, tmdbId)) {
+    public void removeFavorite(UUID userId, UUID movieId) {
+        if (!favoriteMovieRepository.existsById_UserIdAndId_MovieId(userId, movieId)) {
             throw new ResourceNotFoundException("Favorite movie not found for userId: " + userId);
         }
-        favoriteMovieRepository.deleteById_UserIdAndId_TmdbId(userId, tmdbId);
+        favoriteMovieRepository.deleteById_UserIdAndId_MovieId(userId, movieId);
+    }
+
+    public boolean isFavorite(UUID userId, UUID movieId) {
+        return favoriteMovieRepository.existsById_UserIdAndId_MovieId(userId, movieId);
     }
 
     private FavoriteMovieResponse mapToResponse(UserFavoriteMovie entity) {
@@ -54,7 +65,7 @@ public class UserFavoriteMovieService {
             return null;
 
         return FavoriteMovieResponse.builder()
-                .tmdbId(entity.getId().getTmdbId())
+                .movieId(entity.getId().getMovieId())
                 .addedAt(entity.getAddedAt())
                 .build();
     }

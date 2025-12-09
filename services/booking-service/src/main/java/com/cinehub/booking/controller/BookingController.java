@@ -6,6 +6,7 @@ import com.cinehub.booking.dto.request.FinalizeBookingRequest;
 import com.cinehub.booking.dto.response.BookingResponse;
 import com.cinehub.booking.dto.response.PagedResponse;
 import com.cinehub.booking.entity.BookingStatus;
+import com.cinehub.booking.security.InternalAuthChecker;
 import com.cinehub.booking.service.BookingService;
 
 import jakarta.validation.Valid;
@@ -25,6 +26,8 @@ import java.util.UUID;
 @RequestMapping("/api/bookings")
 @RequiredArgsConstructor
 public class BookingController {
+
+    private final InternalAuthChecker internalAuthChecker;
 
     private final BookingService bookingService;
 
@@ -121,9 +124,9 @@ public class BookingController {
     @GetMapping("/check")
     public ResponseEntity<Boolean> checkUserBookedMovie(
             @RequestParam UUID userId,
-            @RequestParam UUID movieId
-    ) {
-        AuthChecker.requireAuthenticated();
+            @RequestParam UUID movieId,
+            @RequestHeader(value = "X-Internal-Secret", required = false) String internalKey) {
+        internalAuthChecker.requireInternal(internalKey);
         boolean hasBooked = bookingService.hasUserBookedMovie(userId, movieId);
         return ResponseEntity.ok(hasBooked);
     }

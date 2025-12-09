@@ -12,6 +12,8 @@ import lombok.*;
 public class ReviewRequest {
     private UUID movieId;
     private UUID userId;
+    private String fullName;
+    private String avatarUrl;
     private int rating;
     private String comment;
 }

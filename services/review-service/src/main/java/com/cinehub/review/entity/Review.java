@@ -1,6 +1,7 @@
 package com.cinehub.review.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -25,6 +26,13 @@ public class Review {
 
     @Column(name = "user_id", nullable = false)
     private UUID userId;
+
+    @Size(max = 100)
+    @Column(name = "full_name")
+    private String fullName;
+
+    @Column(name = "avatar_url", columnDefinition = "TEXT")
+    private String avatarUrl;
 
     @Column(name = "rating", nullable = false)
     private int rating; // 1–5 sao

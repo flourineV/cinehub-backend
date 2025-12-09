@@ -14,6 +14,6 @@ public class FavoriteMovieRequest {
     @NotNull(message = "User ID is required")
     private UUID userId;
 
-    @NotNull(message = "TMDb ID is required")
-    private Integer tmdbId;
+    @NotNull(message = "Movie ID is required")
+    private UUID movieId;
 }

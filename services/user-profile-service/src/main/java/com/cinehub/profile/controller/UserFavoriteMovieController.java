@@ -31,10 +31,16 @@ public class UserFavoriteMovieController {
         return ResponseEntity.ok(favoriteMovieService.getFavoritesByUser(userId));
     }
 
-    @DeleteMapping("/{userId}/{tmdbId}")
-    public ResponseEntity<Void> removeFavorite(@PathVariable UUID userId, @PathVariable Integer tmdbId) {
+    @DeleteMapping("/{userId}/{movieId}")
+    public ResponseEntity<Void> removeFavorite(@PathVariable UUID userId, @PathVariable UUID movieId) {
         AuthChecker.requireAuthenticated();
-        favoriteMovieService.removeFavorite(userId, tmdbId);
+        favoriteMovieService.removeFavorite(userId, movieId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/check/{userId}/{movieId}")
+    public ResponseEntity<Boolean> isFavorite(@PathVariable UUID userId, @PathVariable UUID movieId) {
+        AuthChecker.requireAuthenticated();
+        return ResponseEntity.ok(favoriteMovieService.isFavorite(userId, movieId));
     }
 }

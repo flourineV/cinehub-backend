@@ -10,13 +10,13 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Configuration
 public class WebClientConfig {
 
-    @Value("${user-profile.service.url}")
-    private String userProfileServiceUrl;
-    
+    @Value("${booking.service.url}")
+    private String bookingServiceUrl;
+
     @Bean
-    public WebClient userProfileWebClient() {
+    public WebClient bookingWebClient() {
         return WebClient.builder()
-                .baseUrl(userProfileServiceUrl)
+                .baseUrl(bookingServiceUrl)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .build();
     }

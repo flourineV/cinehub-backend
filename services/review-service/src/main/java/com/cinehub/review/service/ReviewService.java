@@ -2,15 +2,15 @@ package com.cinehub.review.service;
 
 import com.cinehub.review.dto.ReviewRequest;
 import com.cinehub.review.dto.ReviewResponse;
-import com.cinehub.review.dto.UserProfileResponse;
 import com.cinehub.review.entity.Review;
 import com.cinehub.review.entity.ReviewStatus;
 import com.cinehub.review.repository.ReviewRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,8 +23,10 @@ import java.util.stream.Collectors;
 public class ReviewService implements IReviewService {
 
     private final ReviewRepository reviewRepository;
-    private final WebClient userProfileWebClient;
     private final WebClient bookingWebClient;
+
+    @Value("${app.internal.secret-key}")
+    private String internalSecret;
 
     @Override
     public ReviewResponse createReview(ReviewRequest request) {
@@ -32,14 +34,12 @@ public class ReviewService implements IReviewService {
         if (!hasUserBookedMovie(request.getMovieId(), request.getUserId())) {
             throw new RuntimeException("User chưa xem phim này, không thể review!");
         }
-
-        // Lấy profile người dùng
-        UserProfileResponse userProfile = getUserProfile(request.getUserId());
-
         // Tạo review mới
         Review review = Review.builder()
                 .movieId(request.getMovieId())
                 .userId(request.getUserId())
+                .fullName(request.getFullName())
+                .avatarUrl(request.getAvatarUrl())
                 .rating(request.getRating())
                 .comment(request.getComment())
                 .status(ReviewStatus.VISIBLE)
@@ -51,7 +51,7 @@ public class ReviewService implements IReviewService {
         reviewRepository.save(review);
 
         // thêm fullname & avatar từ userProfile
-        return toResponse(review, userProfile);
+        return toResponse(review);
     }
 
     @Override
@@ -64,14 +64,12 @@ public class ReviewService implements IReviewService {
             throw new RuntimeException("User chưa xem phim này, không thể sửa review!");
         }
 
-        UserProfileResponse userProfile = getUserProfile(request.getUserId());
-
         review.setRating(request.getRating());
         review.setComment(request.getComment());
         review.setUpdatedAt(LocalDateTime.now());
         reviewRepository.save(review);
 
-        return toResponse(review, userProfile);
+        return toResponse(review);
     }
 
     @Override
@@ -87,6 +85,7 @@ public class ReviewService implements IReviewService {
                             .queryParam("userId", userId)
                             .queryParam("movieId", movieId)
                             .build())
+                    .header("X-Internal-Secret", internalSecret)
                     .retrieve()
                     .bodyToMono(Boolean.class)
                     .block();
@@ -101,8 +100,7 @@ public class ReviewService implements IReviewService {
         List<Review> reviews = reviewRepository.findByMovieIdAndStatus(movieId, ReviewStatus.VISIBLE);
         return reviews.stream()
                 .map(review -> {
-                    UserProfileResponse profile = getUserProfile(review.getUserId());
-                    return toResponse(review, profile);
+                    return toResponse(review);
                 })
                 .collect(Collectors.toList());
     }
@@ -120,8 +118,7 @@ public class ReviewService implements IReviewService {
         review.setReported(true);
         reviewRepository.save(review);
 
-        UserProfileResponse userProfile = getUserProfile(review.getUserId());
-        return toResponse(review, userProfile);
+        return toResponse(review);
     }
 
     @Override
@@ -131,34 +128,17 @@ public class ReviewService implements IReviewService {
         review.setStatus(ReviewStatus.HIDDEN);
         reviewRepository.save(review);
 
-        UserProfileResponse userProfile = getUserProfile(review.getUserId());
-        return toResponse(review, userProfile);
-    }
-
-    // Gọi UserProfileService để lấy fullname + avatarUrl
-    private UserProfileResponse getUserProfile(UUID userId) {
-        try {
-            return userProfileWebClient.get()
-                    .uri("/profiles/{id}", userId)
-                    .retrieve()
-                    .bodyToMono(UserProfileResponse.class)
-                    .block();
-        } catch (WebClientResponseException.NotFound e) {
-            throw new RuntimeException("User not found: " + userId);
-        } catch (Exception e) {
-            log.error("Error calling UserProfileService", e);
-            throw new RuntimeException("Failed to connect to UserProfileService");
-        }
+        return toResponse(review);
     }
 
     // Convert Entity -> DTO
-    private ReviewResponse toResponse(Review review, UserProfileResponse profile) {
+    private ReviewResponse toResponse(Review review) {
         return ReviewResponse.builder()
                 .id(review.getId())
                 .movieId(review.getMovieId())
                 .userId(review.getUserId())
-                .fullName(profile != null ? profile.getFullName() : null)
-                .avatarUrl(profile != null ? profile.getAvatarUrl() : null)
+                .fullName(review.getFullName())
+                .avatarUrl(review.getAvatarUrl())
                 .rating(review.getRating())
                 .comment(review.getComment())
                 .status(review.getStatus())

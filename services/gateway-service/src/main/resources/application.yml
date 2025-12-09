@@ -157,6 +157,21 @@ spring:
               args:
                 excludePaths: /api/notifications/v3/api-docs/**,/swagger-ui/**
 
+        - id: review-service
+          uri: http://review-service:8091
+          predicates:
+            - Path=/api/reviews/**
+          filters:
+            - name: JwtAuthenticationFilter
+              args:
+                excludePaths: >
+                  /api/reviews/movie/{movieId},
+                  /api/reviews/movie/{movieId}/average-rating,
+                  /api/reviews/v3/api-docs,
+                  /api/reviews/v3/api-docs/**,
+                  /swagger-ui.html,
+                  /swagger-ui/**
+
 # JWT Configuration
 jwt:
   secret: ${JWT_SECRET}
@@ -198,3 +213,5 @@ springdoc:
         url: /api/promotions/v3/api-docs
       - name: notification-service
         url: /api/notifications/v3/api-docs
+      - name: review-service
+        url: /api/reviews/v3/api-docs

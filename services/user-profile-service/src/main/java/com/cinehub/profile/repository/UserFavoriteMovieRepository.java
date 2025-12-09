@@ -11,9 +11,9 @@ import java.util.UUID;
 @Repository
 public interface UserFavoriteMovieRepository extends JpaRepository<UserFavoriteMovie, FavoriteMovieId> {
 
-    List<UserFavoriteMovie> findByUser_Id(UUID userId);
+    List<UserFavoriteMovie> findById_UserId(UUID userId);
 
-    boolean existsById_UserIdAndId_TmdbId(UUID userId, Integer tmdbId);
+    boolean existsById_UserIdAndId_MovieId(UUID userId, UUID movieId);
 
-    void deleteById_UserIdAndId_TmdbId(UUID userId, Integer tmdbId);
+    void deleteById_UserIdAndId_MovieId(UUID userId, UUID movieId);
 }

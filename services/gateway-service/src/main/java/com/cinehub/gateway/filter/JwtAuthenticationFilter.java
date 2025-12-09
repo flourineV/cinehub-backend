@@ -150,6 +150,19 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
             return false;
         }
 
+        // Generic pattern with path variables: /{anything} - matches any single path
+        // segment
+        // Examples: /api/movies/{movieId}, /api/showtimes/tmdb/{tmdbId}
+        if (pattern.contains("/{") && pattern.contains("}")) {
+            // Replace all {variableName} with regex pattern for UUID or any segment
+            String regexPattern = pattern
+                    .replaceAll("\\{[^}]+\\}", "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
+            boolean matches = path.matches(regexPattern);
+            log.debug("Pattern with variables - pattern: '{}', regex: '{}', path: '{}', matches: {}",
+                    pattern, regexPattern, path, matches);
+            return matches;
+        }
+
         // No match
         log.debug("No match - pattern: '{}', path: '{}'", pattern, path);
         return false;

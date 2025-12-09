@@ -135,6 +135,16 @@ services:
     depends_on:
       - rabbitmq
 
+  review-service:
+    build: ./services/review-service
+    env_file:
+      - ./services/review-service/.env
+    container_name: review-service
+    expose:
+      - "8091"
+    networks:
+      - cinehub-net
+
   gateway-service:
     build: ./services/gateway-service
     env_file:
@@ -155,6 +165,7 @@ services:
       - fnb-service
       - promotion-service
       - notification-service
+      - review-service
 
 networks:
   cinehub-net:

@@ -12,5 +12,5 @@ import java.util.UUID;
 @AllArgsConstructor
 public class FavoriteMovieId implements Serializable {
     private UUID userId;
-    private Integer tmdbId;
+    private UUID movieId;
 }
