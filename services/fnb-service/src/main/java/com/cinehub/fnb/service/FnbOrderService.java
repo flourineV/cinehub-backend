@@ -4,10 +4,13 @@ import com.cinehub.fnb.dto.request.FnbOrderRequest;
 import com.cinehub.fnb.dto.response.FnbOrderItemResponse;
 import com.cinehub.fnb.dto.response.FnbOrderResponse;
 import com.cinehub.fnb.entity.*;
+import com.cinehub.fnb.events.FnbOrderCreatedEvent;
+import com.cinehub.fnb.producer.FnbProducer;
 import com.cinehub.fnb.repository.FnbItemRepository;
 import com.cinehub.fnb.repository.FnbOrderRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -16,85 +19,100 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FnbOrderService {
 
-    private final FnbOrderRepository fnbOrderRepository;
-    private final FnbItemRepository fnbItemRepository;
+        private final FnbOrderRepository fnbOrderRepository;
+        private final FnbItemRepository fnbItemRepository;
+        private final FnbProducer fnbProducer;
 
-    @Transactional
-    public FnbOrderResponse createOrder(FnbOrderRequest request) {
-        AtomicReference<BigDecimal> total = new AtomicReference<>(BigDecimal.ZERO);
+        @Transactional
+        public FnbOrderResponse createOrder(FnbOrderRequest request) {
+                AtomicReference<BigDecimal> total = new AtomicReference<>(BigDecimal.ZERO);
 
-        List<FnbOrderItem> orderItems = request.getItems().stream().map(i -> {
-            var item = fnbItemRepository.findById(i.getFnbItemId())
-                    .orElseThrow(() -> new IllegalArgumentException("FNB item not found"));
+                List<FnbOrderItem> orderItems = request.getItems().stream().map(i -> {
+                        var item = fnbItemRepository.findById(i.getFnbItemId())
+                                        .orElseThrow(() -> new IllegalArgumentException("FNB item not found"));
 
-            BigDecimal subtotal = item.getUnitPrice().multiply(BigDecimal.valueOf(i.getQuantity()));
-            total.set(total.get().add(subtotal));
+                        BigDecimal subtotal = item.getUnitPrice().multiply(BigDecimal.valueOf(i.getQuantity()));
+                        total.set(total.get().add(subtotal));
 
-            return FnbOrderItem.builder()
-                    .fnbItemId(item.getId())
-                    .quantity(i.getQuantity())
-                    .unitPrice(item.getUnitPrice())
-                    .totalPrice(subtotal)
-                    .build();
-        }).toList();
+                        return FnbOrderItem.builder()
+                                        .fnbItemId(item.getId())
+                                        .quantity(i.getQuantity())
+                                        .unitPrice(item.getUnitPrice())
+                                        .totalPrice(subtotal)
+                                        .build();
+                }).toList();
 
-        FnbOrder order = FnbOrder.builder()
-                .userId(request.getUserId())
-                .orderCode("FNB-" + System.currentTimeMillis())
-                .status(FnbOrderStatus.PENDING)
-                .paymentMethod(request.getPaymentMethod())
-                .totalAmount(total.get())
-                .createdAt(LocalDateTime.now())
-                .build();
+                FnbOrder order = FnbOrder.builder()
+                                .userId(request.getUserId())
+                                .theaterId(request.getTheaterId())
+                                .orderCode("FNB-" + System.currentTimeMillis())
+                                .status(FnbOrderStatus.PENDING)
+                                .paymentMethod(request.getPaymentMethod())
+                                .totalAmount(total.get())
+                                .createdAt(LocalDateTime.now())
+                                .build();
 
-        orderItems.forEach(i -> i.setOrder(order));
-        order.setItems(orderItems);
+                orderItems.forEach(i -> i.setOrder(order));
+                order.setItems(orderItems);
 
-        FnbOrder saved = fnbOrderRepository.save(order);
-        return mapToResponse(saved);
-    }
+                FnbOrder saved = fnbOrderRepository.save(order);
 
-    public List<FnbOrderResponse> getOrdersByUser(UUID userId) {
-        return fnbOrderRepository.findByUserId(userId).stream()
-                .map(this::mapToResponse)
-                .toList();
-    }
+                // Send event to Payment Service
+                fnbProducer.sendFnbOrderCreatedEvent(new FnbOrderCreatedEvent(
+                                saved.getId(),
+                                saved.getUserId(),
+                                saved.getTheaterId(),
+                                saved.getTotalAmount()));
 
-    public FnbOrderResponse getById(UUID id) {
-        return fnbOrderRepository.findById(id)
-                .map(this::mapToResponse)
-                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
-    }
+                log.info("FnbOrder created: {} | theaterId={} | total={}",
+                                saved.getId(), saved.getTheaterId(), saved.getTotalAmount());
 
-    @Transactional
-    public void cancelOrder(UUID id) {
-        var order = fnbOrderRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
-        order.setStatus(FnbOrderStatus.CANCELLED);
-        fnbOrderRepository.save(order);
-    }
+                return mapToResponse(saved);
+        }
 
-    private FnbOrderResponse mapToResponse(FnbOrder o) {
-        return FnbOrderResponse.builder()
-                .id(o.getId())
-                .userId(o.getUserId())
-                .orderCode(o.getOrderCode())
-                .status(o.getStatus().name())
-                .paymentMethod(o.getPaymentMethod())
-                .totalAmount(o.getTotalAmount())
-                .createdAt(o.getCreatedAt())
-                .items(o.getItems().stream()
-                        .map(i -> FnbOrderItemResponse.builder()
-                                .fnbItemId(i.getFnbItemId())
-                                .quantity(i.getQuantity())
-                                .unitPrice(i.getUnitPrice())
-                                .totalPrice(i.getTotalPrice())
-                                .build())
-                        .toList())
-                .build();
-    }
+        public List<FnbOrderResponse> getOrdersByUser(UUID userId) {
+                return fnbOrderRepository.findByUserId(userId).stream()
+                                .map(this::mapToResponse)
+                                .toList();
+        }
+
+        public FnbOrderResponse getById(UUID id) {
+                return fnbOrderRepository.findById(id)
+                                .map(this::mapToResponse)
+                                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+        }
+
+        @Transactional
+        public void cancelOrder(UUID id) {
+                var order = fnbOrderRepository.findById(id)
+                                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+                order.setStatus(FnbOrderStatus.CANCELLED);
+                fnbOrderRepository.save(order);
+        }
+
+        private FnbOrderResponse mapToResponse(FnbOrder o) {
+                return FnbOrderResponse.builder()
+                                .id(o.getId())
+                                .userId(o.getUserId())
+                                .theaterId(o.getTheaterId())
+                                .orderCode(o.getOrderCode())
+                                .status(o.getStatus().name())
+                                .paymentMethod(o.getPaymentMethod())
+                                .totalAmount(o.getTotalAmount())
+                                .createdAt(o.getCreatedAt())
+                                .items(o.getItems().stream()
+                                                .map(i -> FnbOrderItemResponse.builder()
+                                                                .fnbItemId(i.getFnbItemId())
+                                                                .quantity(i.getQuantity())
+                                                                .unitPrice(i.getUnitPrice())
+                                                                .totalPrice(i.getTotalPrice())
+                                                                .build())
+                                                .toList())
+                                .build();
+        }
 }

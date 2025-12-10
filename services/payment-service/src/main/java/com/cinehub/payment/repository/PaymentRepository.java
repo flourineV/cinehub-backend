@@ -18,5 +18,9 @@ public interface PaymentRepository extends JpaRepository<PaymentTransaction, UUI
 
     List<PaymentTransaction> findByStatus(PaymentStatus status);
 
+    List<PaymentTransaction> findByFnbOrderId(UUID fnbOrderId);
+
     boolean existsByBookingId(UUID bookingId);
+
+    boolean existsByFnbOrderId(UUID fnbOrderId);
 }

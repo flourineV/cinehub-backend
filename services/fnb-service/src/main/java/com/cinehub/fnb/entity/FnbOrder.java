@@ -26,6 +26,9 @@ public class FnbOrder {
     @Column(nullable = false)
     private UUID userId;
 
+    @Column(nullable = false)
+    private UUID theaterId;
+
     @Column(nullable = false, unique = true, length = 50)
     private String orderCode;
 

@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserContext {
+
     private String userId;
     private String role;
     private boolean authenticated;
@@ -24,5 +25,10 @@ public class UserContext {
 
     public static void clear() {
         CONTEXT.remove();
+    }
+
+    public static String getUserId() {
+        UserContext ctx = get();
+        return ctx != null ? UserContext.getUserId() : null;
     }
 }

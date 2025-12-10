@@ -9,7 +9,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -50,6 +53,29 @@ public class PaymentProducer {
                 log.error("Sending PaymentFailedEvent → BookingService | exchange={}, routingKey={}, bookingId={}",
                                 EXCHANGE, ROUTING_KEY, data.bookingId());
 
+                rabbitTemplate.convertAndSend(EXCHANGE, ROUTING_KEY, msg);
+        }
+
+        public void sendPaymentSuccessForFnb(UUID paymentId, UUID fnbOrderId, UUID userId, BigDecimal amount,
+                        String method) {
+                final String EXCHANGE = RabbitConfig.FNB_EXCHANGE;
+                final String ROUTING_KEY = "payment.fnb.success";
+
+                Map<String, Object> data = new HashMap<>();
+                data.put("paymentId", paymentId);
+                data.put("fnbOrderId", fnbOrderId);
+                data.put("userId", userId);
+                data.put("amount", amount);
+                data.put("method", method);
+
+                var msg = new EventMessage<>(
+                                UUID.randomUUID().toString(),
+                                "PaymentSuccessForFnb",
+                                "v1",
+                                Instant.now(),
+                                data);
+
+                log.info("Sending PaymentSuccessForFnb → FnbService | fnbOrderId={}", fnbOrderId);
                 rabbitTemplate.convertAndSend(EXCHANGE, ROUTING_KEY, msg);
         }
 }

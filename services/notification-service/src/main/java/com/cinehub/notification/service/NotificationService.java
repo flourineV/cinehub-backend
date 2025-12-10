@@ -1,6 +1,7 @@
 package com.cinehub.notification.service;
 
 import com.cinehub.notification.client.UserProfileClient;
+import com.cinehub.notification.dto.request.FnbOrderConfirmationRequest;
 import com.cinehub.notification.dto.response.NotificationResponse;
 import com.cinehub.notification.entity.Notification;
 import com.cinehub.notification.entity.NotificationType;
@@ -302,5 +303,69 @@ public class NotificationService {
                                 .emailsFailed(emailsFailed)
                                 .promotionCode(request.getPromotionCode())
                                 .build();
+        }
+
+        public void sendFnbOrderConfirmationEmail(FnbOrderConfirmationRequest request) {
+                log.info("Sending FnB order confirmation email for orderCode: {}", request.getOrderCode());
+
+                try {
+                        emailService.sendFnbOrderConfirmationEmail(
+                                        request.getUserEmail(),
+                                        request.getUserName(),
+                                        request.getOrderCode(),
+                                        request.getTotalAmount(),
+                                        request.getItems());
+                        log.info("✅ FnB order confirmation email sent to: {}", request.getUserEmail());
+                } catch (MessagingException e) {
+                        log.error("❌ Failed to send FnB order confirmation email: {}", e.getMessage(), e);
+                }
+        }
+
+        public void sendFnbOrderConfirmationEmailFromEvent(
+                        com.cinehub.notification.events.FnbOrderConfirmedEvent event) {
+                log.info("Processing FnbOrderConfirmedEvent for orderCode: {}", event.orderCode());
+
+                String userEmail = "user@example.com"; // TODO: Get from UserProfile service
+                String userName = "Customer"; // TODO: Get from UserProfile service
+
+                // Fetch user profile
+                try {
+                        var profile = userProfileClient.getUserProfile(event.userId().toString());
+                        if (profile != null) {
+                                userEmail = profile.email();
+                                userName = (profile.fullName() != null && !profile.fullName().isEmpty())
+                                                ? profile.fullName()
+                                                : profile.username();
+                        } else {
+                                log.warn("User profile not found for userId: {}, using default values",
+                                                event.userId());
+                        }
+                } catch (Exception e) {
+                        log.error("Failed to fetch user profile for userId {}: {}", event.userId(), e.getMessage());
+                }
+
+                // Convert event items to EmailService format
+                List<com.cinehub.notification.dto.request.FnbOrderConfirmationRequest.FnbItemDetail> emailItems = event
+                                .items()
+                                .stream()
+                                .map(item -> new com.cinehub.notification.dto.request.FnbOrderConfirmationRequest.FnbItemDetail(
+                                                item.itemName(),
+                                                item.quantity(),
+                                                item.unitPrice(),
+                                                item.totalPrice()))
+                                .toList();
+
+                // Send email
+                try {
+                        emailService.sendFnbOrderConfirmationEmail(
+                                        userEmail,
+                                        userName,
+                                        event.orderCode(),
+                                        event.totalAmount(),
+                                        emailItems);
+                        log.info("✅ FnB order confirmation email sent to: {}", userEmail);
+                } catch (MessagingException e) {
+                        log.error("❌ Failed to send FnB order confirmation email: {}", e.getMessage(), e);
+                }
         }
 }

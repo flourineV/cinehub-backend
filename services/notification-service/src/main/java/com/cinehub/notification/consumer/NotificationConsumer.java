@@ -3,6 +3,7 @@ package com.cinehub.notification.consumer;
 import com.cinehub.notification.config.RabbitConfig;
 import com.cinehub.notification.events.BookingTicketGeneratedEvent;
 import com.cinehub.notification.events.BookingRefundedEvent;
+import com.cinehub.notification.events.FnbOrderConfirmedEvent;
 import com.cinehub.notification.service.NotificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,8 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -50,6 +53,15 @@ public class NotificationConsumer {
                     log.info("[NotificationConsumer] Processing BookingRefundProcessedEvent | bookingId={}",
                             event.bookingId());
                     notificationService.sendBookingRefundProcessedNotification(event);
+                }
+
+                case RabbitConfig.FNB_ORDER_CONFIRMED_KEY -> {
+                    FnbOrderConfirmedEvent event = objectMapper.convertValue(
+                            dataObj,
+                            FnbOrderConfirmedEvent.class);
+                    log.info("[NotificationConsumer] Processing FnbOrderConfirmedEvent | orderCode={}",
+                            event.orderCode());
+                    notificationService.sendFnbOrderConfirmationEmailFromEvent(event);
                 }
 
                 default -> log.warn("[NotificationConsumer] Received event with unknown RoutingKey: {}", routingKey);

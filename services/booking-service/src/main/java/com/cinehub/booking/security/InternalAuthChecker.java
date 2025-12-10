@@ -16,4 +16,8 @@ public class InternalAuthChecker {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal service key");
         }
     }
+
+    public boolean isInternal(String key) {
+        return internalSecretKey.equals(key);
+    }
 }

@@ -7,6 +7,7 @@ import java.util.UUID;
 @Data
 public class FnbOrderRequest {
     private UUID userId;
+    private UUID theaterId;
     private String paymentMethod;
     private List<FnbOrderItemRequest> items;
 

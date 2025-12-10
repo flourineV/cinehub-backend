@@ -1,6 +1,7 @@
 package com.cinehub.review.repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,4 +15,7 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
 
     @Query("SELECT AVG(r.rating) FROM Review r WHERE r.movieId = :movieId AND r.status = 'VISIBLE'")
     Double findAverageRatingByMovieId(UUID movieId);
+
+    // For UPSERT pattern - check if user already rated this movie
+    Optional<Review> findByMovieIdAndUserId(UUID movieId, UUID userId);
 }

@@ -195,4 +195,105 @@ public class ZaloPayService {
             throw new RuntimeException("Failed to query transaction status");
         }
     }
+
+    @Transactional
+    public ZaloPayCreateOrderResponse createOrderForFnb(UUID fnbOrderId) throws Exception {
+        log.info("💳 Starting ZaloPay order creation for fnbOrderId: {}", fnbOrderId);
+
+        // 1. Check authentication
+        AuthChecker.requireAuthenticated();
+
+        // 2. Get pending FnB payment transaction
+        PaymentTransaction transaction = paymentRepository.findByFnbOrderId(fnbOrderId)
+                .stream()
+                .filter(t -> t.getStatus() == PaymentStatus.PENDING)
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("No PENDING transaction found for FnB order " + fnbOrderId));
+
+        // 3. Create app_trans_id (must be < 40 chars)
+        String today = new SimpleDateFormat("yyMMdd").format(new Date());
+        String shortId = UUID.randomUUID().toString().substring(0, 8);
+        String appTransId = today + "_FNB_" + shortId;
+
+        // Update DB
+        transaction.setTransactionRef(appTransId);
+        transaction.setMethod("ZALOPAY");
+        paymentRepository.save(transaction);
+
+        // 4. Prepare payment data
+        long appTime = System.currentTimeMillis();
+        long amount = transaction.getAmount().longValue();
+        String appUser = "CineHub_User";
+
+        // embed_data: contains redirecturl
+        Map<String, String> embedDataMap = new HashMap<>();
+        embedDataMap.put("redirecturl", zaloPayConfig.getRedirectUrl());
+        String embedData = objectMapper.writeValueAsString(embedDataMap);
+
+        String item = "[]";
+        String description = "CineHub - Thanh toan bap nuoc #" + shortId;
+        String bankCode = "";
+
+        // 5. Create MAC signature (HMAC-SHA256)
+        String dataToHash = zaloPayConfig.getAppId() + "|" + appTransId + "|" + appUser + "|" + amount + "|" +
+                appTime + "|" + embedData + "|" + item;
+
+        String mac = HMACUtil.HMacHexStringEncode(HMACUtil.HMACSHA256, zaloPayConfig.getKey1(), dataToHash);
+
+        // 6. Send FORM-URLENCODED request
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        MultiValueMap<String, String> requestBody = new LinkedMultiValueMap<>();
+        requestBody.add("app_id", zaloPayConfig.getAppId());
+        requestBody.add("app_user", appUser);
+        requestBody.add("app_time", String.valueOf(appTime));
+        requestBody.add("amount", String.valueOf(amount));
+        requestBody.add("app_trans_id", appTransId);
+        requestBody.add("embed_data", embedData);
+        requestBody.add("item", item);
+        requestBody.add("bank_code", bankCode);
+        requestBody.add("description", description);
+        requestBody.add("callback_url", zaloPayConfig.getCallbackUrl());
+        requestBody.add("mac", mac);
+        requestBody.add("expire_duration_seconds", "600");
+
+        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(requestBody, headers);
+
+        String createEndpoint = zaloPayConfig.getEndpoint() + "/create";
+
+        log.info("🚀 Sending FnB Payment Request to ZaloPay: {}", requestBody);
+
+        try {
+            Map responseMap = restTemplate.postForObject(createEndpoint, entity, Map.class);
+
+            if (responseMap == null) {
+                throw new RuntimeException("No response from ZaloPay");
+            }
+
+            int returnCode = (int) responseMap.get("return_code");
+
+            if (returnCode != 1) {
+                String subMsg = (String) responseMap.get("sub_return_message");
+                int subCode = (int) responseMap.get("sub_return_code");
+                log.error("❌ ZaloPay Error: {} - {}", subCode, subMsg);
+                throw new RuntimeException("ZaloPay failed: " + subMsg);
+            }
+
+            String orderUrl = (String) responseMap.get("order_url");
+
+            log.info("✅ ZaloPay FnB Order Created: {}", orderUrl);
+
+            ZaloPayCreateOrderResponse response = new ZaloPayCreateOrderResponse();
+            response.setReturnCode(returnCode);
+            response.setOrderUrl(orderUrl);
+            response.setSubReturnMessage("Success");
+
+            return response;
+
+        } catch (Exception e) {
+            log.error("🔥 Exception calling ZaloPay for FnB: ", e);
+            throw new RuntimeException("Failed to initiate FnB payment with ZaloPay: " + e.getMessage());
+        }
+    }
 }

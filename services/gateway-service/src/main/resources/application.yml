@@ -21,6 +21,9 @@ spring:
                   /api/auth/signin,
                   /api/auth/signup,
                   /api/auth/refreshtoken,
+                  /api/auth/send-otp,
+                  /api/auth/resend-otp,
+                  /api/auth/reset-password,
                   /api/auth/v3/api-docs,
                   /api/auth/v3/api-docs/**,
                   /swagger-ui/**
@@ -141,21 +144,16 @@ spring:
           filters:
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: >
-                  /api/promotions,
-                  /api/promotions/validate,
-                  /api/promotions/*,
-                  /api/promotions/v3/api-docs/**, 
-                  /swagger-ui/**
+                excludePaths: /api/promotions,/api/promotions/validate,/api/promotions/active,/api/promotions/v3/api-docs/**,/swagger-ui/**
 
         - id: notification-service
           uri: http://notification-service:8090
           predicates:
-            - Path=/api/notifications/**
+            - Path=/api/notifications/**,/api/contact/**
           filters:
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: /api/notifications/v3/api-docs/**,/swagger-ui/**
+                excludePaths: /api/contact/send,/api/notifications/v3/api-docs/**,/swagger-ui/**
 
         - id: review-service
           uri: http://review-service:8091

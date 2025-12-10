@@ -18,6 +18,10 @@ public class RabbitConfig {
     public static final String BOOKING_TICKET_GENERATED_KEY = "booking.ticket.generated";
     public static final String BOOKING_REFUND_PROCESSED_KEY = "booking.refund.processed";
 
+    // from fnb
+    public static final String FNB_EXCHANGE = "fnb.exchange";
+    public static final String FNB_ORDER_CONFIRMED_KEY = "fnb.order.confirmed";
+
     @Bean
     public Queue notificationQueue() {
         return new Queue(NOTIFICATION_QUEUE, true);
@@ -26,6 +30,11 @@ public class RabbitConfig {
     @Bean
     public DirectExchange bookingExchange() {
         return new DirectExchange(BOOKING_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public TopicExchange fnbExchange() {
+        return new TopicExchange(FNB_EXCHANGE, true, false);
     }
 
     @Bean
@@ -40,6 +49,13 @@ public class RabbitConfig {
         return BindingBuilder.bind(notificationQueue)
                 .to(bookingExchange)
                 .with(BOOKING_REFUND_PROCESSED_KEY);
+    }
+
+    @Bean
+    public Binding fnbNotificationBinding(Queue notificationQueue, TopicExchange fnbExchange) {
+        return BindingBuilder.bind(notificationQueue)
+                .to(fnbExchange)
+                .with(FNB_ORDER_CONFIRMED_KEY);
     }
 
     @Bean

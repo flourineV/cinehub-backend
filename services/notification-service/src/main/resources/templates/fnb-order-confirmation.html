@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FnB Order Confirmation</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 20px auto;
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 28px;
+      }
+      .content {
+        padding: 30px;
+      }
+      .order-info {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+      }
+      .order-info h2 {
+        margin-top: 0;
+        color: #333;
+      }
+      .order-code {
+        font-size: 24px;
+        font-weight: bold;
+        color: #667eea;
+        margin: 10px 0;
+      }
+      .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      .items-table th {
+        background: #667eea;
+        color: white;
+        padding: 12px;
+        text-align: left;
+      }
+      .items-table td {
+        padding: 12px;
+        border-bottom: 1px solid #ddd;
+      }
+      .total-row {
+        background: #f8f9fa;
+        font-weight: bold;
+        font-size: 18px;
+      }
+      .footer {
+        background: #f8f9fa;
+        padding: 20px;
+        text-align: center;
+        color: #666;
+        font-size: 14px;
+      }
+      .button {
+        display: inline-block;
+        background: #667eea;
+        color: white;
+        padding: 12px 30px;
+        text-decoration: none;
+        border-radius: 5px;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🍿 Xác Nhận Đơn Hàng Bắp Nước</h1>
+      </div>
+
+      <div class="content">
+        <p>Xin chào <strong th:text="${userName}">Customer</strong>,</p>
+        <p>
+          Cảm ơn bạn đã đặt hàng tại CineHub! Đơn hàng của bạn đã được xác nhận
+          và thanh toán thành công.
+        </p>
+
+        <div class="order-info">
+          <h2>Thông tin đơn hàng</h2>
+          <p>
+            Mã đơn hàng:
+            <span class="order-code" th:text="${orderCode}">FNB-123456</span>
+          </p>
+          <p>Vui lòng mang mã này đến quầy để nhận hàng!</p>
+        </div>
+
+        <h3>Chi tiết đơn hàng:</h3>
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Món</th>
+              <th>Số lượng</th>
+              <th>Đơn giá</th>
+              <th>Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr th:each="item : ${items}">
+              <td th:text="${item.itemName}">Bắp rang bơ</td>
+              <td th:text="${item.quantity}">1</td>
+              <td
+                th:text="${#numbers.formatDecimal(item.unitPrice, 0, 'COMMA', 0, 'POINT')} + ' đ'"
+              >
+                50,000 đ
+              </td>
+              <td
+                th:text="${#numbers.formatDecimal(item.totalPrice, 0, 'COMMA', 0, 'POINT')} + ' đ'"
+              >
+                50,000 đ
+              </td>
+            </tr>
+            <tr class="total-row">
+              <td colspan="3">Tổng cộng:</td>
+              <td
+                th:text="${#numbers.formatDecimal(totalAmount, 0, 'COMMA', 0, 'POINT')} + ' đ'"
+              >
+                150,000 đ
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p style="margin-top: 30px">
+          <strong>Lưu ý:</strong> Vui lòng xuất trình mã đơn hàng tại quầy bắp
+          nước để nhận món. Đơn hàng có hiệu lực trong vòng 24 giờ kể từ lúc
+          đặt.
+        </p>
+      </div>
+
+      <div class="footer">
+        <p>Cảm ơn bạn đã tin tưởng CineHub!</p>
+        <p>Nếu có bất kỳ thắc mắc nào, vui lòng liên hệ: support@cinehub.com</p>
+      </div>
+    </div>
+  </body>
+</html>

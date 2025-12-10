@@ -13,6 +13,7 @@ import java.util.UUID;
 public class FnbOrderResponse {
     private UUID id;
     private UUID userId;
+    private UUID theaterId;
     private String orderCode;
     private BigDecimal totalAmount;
     private String status;

@@ -7,6 +7,7 @@ import com.cinehub.payment.entity.PaymentTransaction;
 import com.cinehub.payment.entity.PaymentStatus;
 import com.cinehub.payment.events.BookingCreatedEvent;
 import com.cinehub.payment.events.BookingFinalizedEvent;
+import com.cinehub.payment.events.FnbOrderCreatedEvent;
 import com.cinehub.payment.events.PaymentSuccessEvent;
 import com.cinehub.payment.events.SeatUnlockedEvent;
 import com.cinehub.payment.events.PaymentFailedEvent;
@@ -21,6 +22,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.Optional;
@@ -57,6 +59,31 @@ public class PaymentService {
                 log.info("PENDING Transaction created for bookingId: {}", event.bookingId());
         }
 
+        // Tạo Transaction khi FnbOrder vừa tạo
+        @Transactional
+        public void createPendingTransactionForFnb(FnbOrderCreatedEvent event) {
+                // Kiểm tra xem đã tồn tại chưa để tránh duplicate
+                if (paymentRepository.existsByFnbOrderId(event.fnbOrderId())) {
+                        log.warn("Transaction already exists for fnbOrderId: {}. Skipping.", event.fnbOrderId());
+                        return;
+                }
+
+                PaymentTransaction pendingTxn = PaymentTransaction.builder()
+                                .fnbOrderId(event.fnbOrderId())
+                                .userId(event.userId())
+                                .showtimeId(null) // FnB standalone không có showtime
+                                .seatIds(new ArrayList<>()) // Không có ghế
+                                .amount(event.totalAmount())
+                                .method("UNKNOWN")
+                                .status(PaymentStatus.PENDING)
+                                .transactionRef("TXN_FNB_" + UUID.randomUUID())
+                                .build();
+
+                paymentRepository.save(pendingTxn);
+                log.info("PENDING Transaction created for fnbOrderId: {} | amount={}",
+                                event.fnbOrderId(), event.totalAmount());
+        }
+
         @Transactional
         public void confirmPaymentSuccess(String appTransId, String merchantTransId, long amountPaid) {
 
@@ -79,9 +106,10 @@ public class PaymentService {
                 txn.setMethod("ZALOPAY"); // Hoặc lấy từ callback
                 paymentRepository.save(txn);
 
-                log.info("💰 Payment SUCCESS for bookingId: {}", txn.getBookingId());
+                log.info("💰 Payment SUCCESS for bookingId: {} | fnbOrderId: {}",
+                                txn.getBookingId(), txn.getFnbOrderId());
 
-                // Bắn Event báo cho Booking Service biết để xuất vé
+                // Bắn Event báo cho Booking Service hoặc FnB Service
                 PaymentSuccessEvent successEvent = new PaymentSuccessEvent(
                                 txn.getId(),
                                 txn.getBookingId(),
@@ -92,6 +120,16 @@ public class PaymentService {
                                 txn.getSeatIds(),
                                 "Payment confirmed via ZaloPay Callback");
                 paymentProducer.sendPaymentSuccessEvent(successEvent);
+
+                // Nếu là FnB order, gửi event riêng cho FnB Service
+                if (txn.getFnbOrderId() != null) {
+                        paymentProducer.sendPaymentSuccessForFnb(
+                                        txn.getId(),
+                                        txn.getFnbOrderId(),
+                                        txn.getUserId(),
+                                        txn.getAmount(),
+                                        "ZALOPAY");
+                }
         }
 
         @Transactional

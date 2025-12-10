@@ -30,16 +30,17 @@ public class PaymentTransaction {
         @GeneratedValue
         private UUID id;
 
-        @Column(nullable = false)
+        @Column(nullable = true)
         private UUID bookingId;
+
+        @Column(nullable = true)
+        private UUID fnbOrderId;
 
         @Column(nullable = false)
         private UUID userId;
 
-        @Column(nullable = false)
-        private UUID showtimeId;
-
-        // 💺 Lưu danh sách ghế theo BookingCreatedEvent
+        @Column(nullable = true)
+        private UUID showtimeId; // 💺 Lưu danh sách ghế theo BookingCreatedEvent
         @ElementCollection(fetch = FetchType.EAGER)
         @CollectionTable(name = "payment_seat_ids", joinColumns = @JoinColumn(name = "payment_id"))
         @Column(name = "seat_id", nullable = false)

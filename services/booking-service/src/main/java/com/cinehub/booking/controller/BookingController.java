@@ -126,7 +126,10 @@ public class BookingController {
             @RequestParam UUID userId,
             @RequestParam UUID movieId,
             @RequestHeader(value = "X-Internal-Secret", required = false) String internalKey) {
-        internalAuthChecker.requireInternal(internalKey);
+        if (!internalAuthChecker.isInternal(internalKey)) {
+            AuthChecker.requireAuthenticated();
+        }
+        ;
         boolean hasBooked = bookingService.hasUserBookedMovie(userId, movieId);
         return ResponseEntity.ok(hasBooked);
     }

@@ -48,6 +48,17 @@ public class PaymentController {
         }
     }
 
+    @PostMapping("/create-zalopay-url-fnb")
+    public ResponseEntity<?> createZaloPayUrlForFnb(@RequestParam UUID fnbOrderId) {
+        try {
+            ZaloPayCreateOrderResponse response = zaloPayService.createOrderForFnb(fnbOrderId);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error creating ZaloPay order for FnB", e);
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
+    }
+
     @PostMapping("/callback")
     public ResponseEntity<Map<String, Object>> callback(@RequestBody ZaloCallbackDTO callbackDTO) {
         Map<String, Object> result = new HashMap<>();

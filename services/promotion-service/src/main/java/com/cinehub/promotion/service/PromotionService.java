@@ -108,22 +108,34 @@ public class PromotionService {
         return true;
     }
 
-    // ---------------------------------------------------------------------
-    // 2. CRUD CHO ADMIN/STAFF
-    // ---------------------------------------------------------------------
-
-    /**
-     * Lấy tất cả các chương trình khuyến mãi.
-     */
     public List<PromotionResponse> getAllPromotions() {
         return promotionRepository.findAll().stream()
+                .filter(p -> p.getIsActive() != null && p.getIsActive())
                 .map(this::mapToResponse)
                 .toList();
     }
 
-    /**
-     * Tạo mới một chương trình khuyến mãi.
-     */
+    public List<PromotionResponse> getActivePromotions() {
+        LocalDateTime now = LocalDateTime.now();
+        return promotionRepository.findAll().stream()
+                .filter(p -> p.getIsActive() != null && p.getIsActive())
+                .filter(p -> p.getStartDate() != null && p.getStartDate().isBefore(now))
+                .filter(p -> p.getEndDate() != null && p.getEndDate().isAfter(now))
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    public List<PromotionResponse> getAllPromotionsForAdmin(String code, String discountType, String promotionType,
+            Boolean isActive) {
+        return promotionRepository.findAll().stream()
+                .filter(p -> code == null || p.getCode().toLowerCase().contains(code.toLowerCase()))
+                .filter(p -> discountType == null || p.getDiscountType().name().equalsIgnoreCase(discountType))
+                .filter(p -> promotionType == null || p.getPromotionType().name().equalsIgnoreCase(promotionType))
+                .filter(p -> isActive == null || p.getIsActive().equals(isActive))
+                .map(this::mapToResponse)
+                .toList();
+    }
+
     @Transactional
     public PromotionResponse createPromotion(PromotionRequest request) {
         if (promotionRepository.findByCode(request.getCode()).isPresent()) {
@@ -134,7 +146,6 @@ public class PromotionService {
         Promotion savedPromo = promotionRepository.save(newPromo);
         log.info("⭐ Created new promotion: {}", savedPromo.getCode());
 
-        // Send notification email (async, don't block if fails)
         try {
             notificationHelper.sendPromotionNotification(savedPromo);
         } catch (Exception e) {
@@ -144,9 +155,6 @@ public class PromotionService {
         return mapToResponse(savedPromo);
     }
 
-    /**
-     * Cập nhật chương trình khuyến mãi.
-     */
     @Transactional
     public PromotionResponse updatePromotion(UUID id, PromotionRequest request) {
         Promotion existingPromo = promotionRepository.findById(id)
@@ -172,9 +180,6 @@ public class PromotionService {
         return mapToResponse(updatedPromo);
     }
 
-    /**
-     * Xóa chương trình khuyến mãi.
-     */
     @Transactional
     public void deletePromotion(UUID id) {
         if (!promotionRepository.existsById(id)) {

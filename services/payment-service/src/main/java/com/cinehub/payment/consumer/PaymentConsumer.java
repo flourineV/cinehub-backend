@@ -3,6 +3,7 @@ package com.cinehub.payment.consumer;
 import com.cinehub.payment.config.RabbitConfig;
 import com.cinehub.payment.events.BookingCreatedEvent;
 import com.cinehub.payment.events.BookingFinalizedEvent;
+import com.cinehub.payment.events.FnbOrderCreatedEvent;
 import com.cinehub.payment.events.SeatUnlockedEvent;
 import com.cinehub.payment.service.PaymentService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -54,6 +55,14 @@ public class PaymentConsumer {
                             event.bookingId(), event.showtimeId(), event.seatIds());
                     paymentService.updateStatus(event);
                 }
+
+                case RabbitConfig.FNB_ORDER_CREATED_KEY -> {
+                    FnbOrderCreatedEvent event = objectMapper.convertValue(dataObj, FnbOrderCreatedEvent.class);
+                    log.info("[PaymentConsumer] Processing FnbOrderCreatedEvent | fnbOrderId={} | total={}",
+                            event.fnbOrderId(), event.totalAmount());
+                    paymentService.createPendingTransactionForFnb(event);
+                }
+
                 default -> log.warn("Received event with unknown Routing Key: {}", routingKey);
             }
 

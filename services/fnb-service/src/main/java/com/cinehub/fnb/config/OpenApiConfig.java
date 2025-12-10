@@ -11,13 +11,13 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @OpenAPIDefinition(info = @Info(title = "CineHub Service API", version = "v1.0"),
 
-        servers = {
-                @Server(url = "/", description = "Default Server URL")
-        },
+                servers = {
+                                @Server(url = "/", description = "Default Server URL")
+                },
 
-        security = {
-                @SecurityRequirement(name = "bearerAuth")
-        })
+                security = {
+                                @SecurityRequirement(name = "bearerAuth")
+                })
 
 @SecurityScheme(name = "bearerAuth", type = SecuritySchemeType.HTTP, scheme = "bearer", bearerFormat = "JWT")
 public class OpenApiConfig {

@@ -16,12 +16,18 @@ public class RabbitConfig {
     // showtime exchange
     public static final String SHOWTIME_EXCHANGE = "showtime.exchange";
 
+    // fnb exchange
+    public static final String FNB_EXCHANGE = "fnb.exchange";
+
     // routing key from payment queue to connect booking exchange
     public static final String BOOKING_CREATED_KEY = "booking.created";
     public static final String BOOKING_FINALIZED_KEY = "booking.finalized";
 
     // routing key from payment queue to connect showtime exchange
     public static final String SEAT_UNLOCK_ROUTING_KEY = "seat.unlocked";
+
+    // routing key from payment queue to connect fnb exchange
+    public static final String FNB_ORDER_CREATED_KEY = "fnb.order.created";
 
     // payment exchange
     public static final String PAYMENT_EXCHANGE = "payment.exchange";
@@ -55,6 +61,11 @@ public class RabbitConfig {
     }
 
     @Bean
+    public TopicExchange fnbExchange() {
+        return new TopicExchange(FNB_EXCHANGE, true, false);
+    }
+
+    @Bean
     public Binding bookingToPaymentBinding(Queue paymentQueue, DirectExchange bookingExchange) {
         // Payment chỉ cần lắng nghe BookingCreated để bắt đầu giao dịch
         return BindingBuilder.bind(paymentQueue)
@@ -74,6 +85,13 @@ public class RabbitConfig {
         return BindingBuilder.bind(paymentQueue)
                 .to(showtimeExchange)
                 .with(SEAT_UNLOCK_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding fnbOrderCreatedBinding(Queue paymentQueue, TopicExchange fnbExchange) {
+        return BindingBuilder.bind(paymentQueue)
+                .to(fnbExchange)
+                .with(FNB_ORDER_CREATED_KEY);
     }
 
     @Bean

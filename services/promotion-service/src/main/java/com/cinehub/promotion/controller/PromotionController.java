@@ -38,6 +38,22 @@ public class PromotionController {
         return ResponseEntity.ok(promotionService.getAllPromotions());
     }
 
+    @GetMapping("/active")
+    public ResponseEntity<List<PromotionResponse>> getActivePromotions() {
+        return ResponseEntity.ok(promotionService.getActivePromotions());
+    }
+
+    @GetMapping("/admin/all")
+    public ResponseEntity<List<PromotionResponse>> getAllPromotionsForAdmin(
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) String discountType,
+            @RequestParam(required = false) String promotionType,
+            @RequestParam(required = false) Boolean isActive) {
+        AuthChecker.requireManagerOrAdmin();
+        return ResponseEntity
+                .ok(promotionService.getAllPromotionsForAdmin(code, discountType, promotionType, isActive));
+    }
+
     @PostMapping
     public ResponseEntity<PromotionResponse> createPromotion(@Valid @RequestBody PromotionRequest request) {
         AuthChecker.requireAdmin();
