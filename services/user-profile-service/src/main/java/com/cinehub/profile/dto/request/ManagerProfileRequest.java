@@ -15,8 +15,8 @@ public class ManagerProfileRequest {
     @NotNull(message = "Manager profile ID is required")
     private UUID userProfileId;
 
-    @NotNull(message = "ManagedCinemaId is required")
-    private UUID managedCinemaId;
+    @NotNull(message = "ManagedCinemaName is required")
+    private String managedCinemaName;
 
     @NotNull(message = "Work startDate is required")
     private LocalDate hireDate;

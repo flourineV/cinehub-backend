@@ -25,8 +25,8 @@ public class ManagerProfile {
     @JoinColumn(name = "user_profile_id", nullable = false, unique = true, foreignKey = @ForeignKey(name = "fk_manager_user"))
     private UserProfile userProfile;
 
-    @Column(name = "managed_cinema_id")
-    private UUID managedCinemaId;
+    @Column(name = "managed_cinema_name")
+    private String managedCinemaName;
 
     @Column(name = "hire_date")
     private LocalDate hireDate;

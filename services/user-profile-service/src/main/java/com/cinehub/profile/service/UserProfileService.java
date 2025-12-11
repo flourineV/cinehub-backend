@@ -226,8 +226,19 @@ public class UserProfileService {
         return mapToResponse(profileRepository.save(existing));
     }
 
+    @Transactional
+    public UserProfileResponse updateUserStatus(UUID userId, String status) {
+        UserProfile existing = profileRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Profile not found for userId: " + userId));
+
+        UserProfile.UserStatus newStatus = UserProfile.UserStatus.valueOf(status.toUpperCase());
+        existing.setStatus(newStatus);
+        profileRepository.save(existing);
+        return mapToResponse(existing);
+    }
+
     // --- Phương thức Mapping (Giữ nguyên) ---
-    private UserProfileResponse mapToResponse(UserProfile entity) {
+    public UserProfileResponse mapToResponse(UserProfile entity) {
         if (entity == null)
             return null;
 

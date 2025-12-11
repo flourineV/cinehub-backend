@@ -37,11 +37,31 @@ public class UserProfileController {
             @PathVariable UUID userId,
             @RequestHeader(value = "X-Internal-Secret", required = false) String internalKey) {
 
-        // Allow either authenticated user or internal service call
-        if (internalKey == null) {
-            AuthChecker.requireAuthenticated();
-        } else {
+        // Allow internal service call
+        if (internalKey != null) {
             internalAuthChecker.requireInternal(internalKey);
+            return profileService.getProfileByUserId(userId)
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        }
+
+        // Require authentication for user/admin/manager access
+        AuthChecker.requireAuthenticated();
+
+        // Admin and Manager can view any profile
+        String userRole = AuthChecker.getRoleOrNull();
+
+        if ("ADMIN".equalsIgnoreCase(userRole) || "MANAGER".equalsIgnoreCase(userRole)) {
+            return profileService.getProfileByUserId(userId)
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        }
+
+        // Regular users can only view their own profile
+        UUID currentUserId = UUID.fromString(AuthChecker.getUserIdOrThrow());
+
+        if (!currentUserId.equals(userId)) {
+            return ResponseEntity.status(403).build();
         }
 
         return profileService.getProfileByUserId(userId)
@@ -111,6 +131,15 @@ public class UserProfileController {
 
         AuthChecker.requireAuthenticated();
         return ResponseEntity.ok(profileService.updateUserPromoEmailPreference(userId, enable));
+    }
+
+    @PatchMapping("/{userId}/status")
+    public ResponseEntity<UserProfileResponse> updateUserStatus(
+            @PathVariable UUID userId,
+            @RequestParam String status) {
+
+        AuthChecker.requireAdmin();
+        return ResponseEntity.ok(profileService.updateUserStatus(userId, status));
     }
 
     @GetMapping("/subscribed-emails")

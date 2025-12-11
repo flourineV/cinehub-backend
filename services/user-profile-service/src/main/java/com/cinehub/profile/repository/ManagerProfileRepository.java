@@ -16,7 +16,7 @@ public interface ManagerProfileRepository extends JpaRepository<ManagerProfile, 
 
     Optional<ManagerProfile> findByUserProfile_Id(UUID userProfileId);
 
-    List<ManagerProfile> findByManagedCinemaId(UUID cinemaId);
+    List<ManagerProfile> findByManagedCinemaName(String cinemaName);
 
     boolean existsByUserProfile_Id(UUID userProfileId);
 }

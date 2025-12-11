@@ -55,30 +55,21 @@ public class UserStatsService {
                                 .build();
 
                 // --- Staff/Manager per cinema ---
-                Map<UUID, Long> managerCountMap = managerRepository.findAll().stream()
-                                .filter(m -> m.getManagedCinemaId() != null)
-                                .collect(Collectors.groupingBy(ManagerProfile::getManagedCinemaId,
+                Map<String, Long> managerCountMap = managerRepository.findAll().stream()
+                                .filter(m -> m.getManagedCinemaName() != null)
+                                .collect(Collectors.groupingBy(ManagerProfile::getManagedCinemaName,
                                                 Collectors.counting()));
 
-                Map<UUID, Long> staffCountMap = staffRepository.findAll().stream()
-                                .filter(s -> s.getCinemaId() != null)
-                                .collect(Collectors.groupingBy(StaffProfile::getCinemaId, Collectors.counting()));
+                Map<String, Long> staffCountMap = staffRepository.findAll().stream()
+                                .filter(s -> s.getCinemaName() != null)
+                                .collect(Collectors.groupingBy(StaffProfile::getCinemaName, Collectors.counting()));
 
-                Set<UUID> allCinemaIds = new HashSet<>();
-                allCinemaIds.addAll(managerCountMap.keySet());
-                allCinemaIds.addAll(staffCountMap.keySet());
-
-                List<UserStatsResponse.CinemaStaffCount> staffCounts = allCinemaIds.stream()
-                                .map(id -> UserStatsResponse.CinemaStaffCount.builder()
-                                                .cinemaId(id.toString())
-                                                .managerCount(managerCountMap.getOrDefault(id, 0L))
-                                                .staffCount(staffCountMap.getOrDefault(id, 0L))
-                                                .build())
-                                .toList();
+                Set<String> allCinemaNames = new HashSet<>();
+                allCinemaNames.addAll(managerCountMap.keySet());
+                allCinemaNames.addAll(staffCountMap.keySet());
 
                 return UserStatsResponse.builder()
                                 .rankDistribution(rankDistribution)
-                                .staffCounts(staffCounts)
                                 .build();
         }
 }

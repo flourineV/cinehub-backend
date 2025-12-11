@@ -18,6 +18,6 @@ public interface StaffProfileRepository extends JpaRepository<StaffProfile, UUID
 
     boolean existsByUserProfile_Id(UUID userProfileId);
 
-    List<StaffProfile> findByCinemaId(UUID cinemaId);
+    List<StaffProfile> findByCinemaName(String cinemaName);
 
 }

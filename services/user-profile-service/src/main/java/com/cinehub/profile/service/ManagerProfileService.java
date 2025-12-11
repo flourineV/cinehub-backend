@@ -1,5 +1,6 @@
 package com.cinehub.profile.service;
 
+import com.cinehub.profile.dto.response.ManagerProfileResponse;
 import com.cinehub.profile.entity.ManagerProfile;
 import com.cinehub.profile.entity.UserProfile;
 import com.cinehub.profile.exception.ResourceNotFoundException;
@@ -20,8 +21,9 @@ public class ManagerProfileService {
 
     private final ManagerProfileRepository managerRepository;
     private final UserProfileRepository userProfileRepository;
+    private final UserProfileService userProfileService;
 
-    public ManagerProfile createManager(UUID userProfileId, UUID managedCinemaId, LocalDate hireDate) {
+    public ManagerProfileResponse createManager(UUID userProfileId, String managedCinemaName, LocalDate hireDate) {
         UserProfile profile = userProfileRepository.findById(userProfileId)
                 .orElseThrow(() -> new ResourceNotFoundException("User profile not found: " + userProfileId));
 
@@ -31,27 +33,33 @@ public class ManagerProfileService {
 
         ManagerProfile manager = ManagerProfile.builder()
                 .userProfile(profile)
-                .managedCinemaId(managedCinemaId)
+                .managedCinemaName(managedCinemaName)
                 .hireDate(hireDate)
                 .build();
 
-        return managerRepository.save(manager);
+        ManagerProfile saved = managerRepository.save(manager);
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)
-    public ManagerProfile getManagerByUserProfileId(UUID userProfileId) {
-        return managerRepository.findByUserProfile_Id(userProfileId)
+    public ManagerProfileResponse getManagerByUserProfileId(UUID userProfileId) {
+        ManagerProfile manager = managerRepository.findByUserProfile_Id(userProfileId)
                 .orElseThrow(() -> new ResourceNotFoundException("Manager not found for user: " + userProfileId));
+        return toResponse(manager);
     }
 
     @Transactional(readOnly = true)
-    public List<ManagerProfile> getAllManagers() {
-        return managerRepository.findAll();
+    public List<ManagerProfileResponse> getAllManagers() {
+        return managerRepository.findAll().stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<ManagerProfile> getManagersByCinema(UUID cinemaId) {
-        return managerRepository.findByManagedCinemaId(cinemaId);
+    public List<ManagerProfileResponse> getManagersByCinema(String cinemaName) {
+        return managerRepository.findByManagedCinemaName(cinemaName).stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     public void deleteManager(UUID managerId) {
@@ -59,5 +67,17 @@ public class ManagerProfileService {
             throw new ResourceNotFoundException("Manager not found with id: " + managerId);
         }
         managerRepository.deleteById(managerId);
+    }
+
+    private ManagerProfileResponse toResponse(ManagerProfile manager) {
+        return ManagerProfileResponse.builder()
+                .id(manager.getId())
+                .userProfileId(manager.getUserProfile().getId())
+                .userProfile(userProfileService.mapToResponse(manager.getUserProfile()))
+                .managedCinemaName(manager.getManagedCinemaName())
+                .hireDate(manager.getHireDate())
+                .createdAt(manager.getCreatedAt())
+                .updatedAt(manager.getUpdatedAt())
+                .build();
     }
 }

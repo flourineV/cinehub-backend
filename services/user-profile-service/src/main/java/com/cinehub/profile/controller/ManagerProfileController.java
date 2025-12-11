@@ -1,7 +1,7 @@
 package com.cinehub.profile.controller;
 
 import com.cinehub.profile.dto.request.ManagerProfileRequest; // Import DTO
-import com.cinehub.profile.entity.ManagerProfile;
+import com.cinehub.profile.dto.response.ManagerProfileResponse;
 import com.cinehub.profile.security.AuthChecker;
 import com.cinehub.profile.service.ManagerProfileService;
 import jakarta.validation.Valid; // Import Valid
@@ -20,35 +20,35 @@ public class ManagerProfileController {
     private final ManagerProfileService managerService;
 
     @PostMapping
-    public ResponseEntity<ManagerProfile> createManager(@RequestBody @Valid ManagerProfileRequest request) {
+    public ResponseEntity<ManagerProfileResponse> createManager(@RequestBody @Valid ManagerProfileRequest request) {
 
         AuthChecker.requireAdmin();
 
         // Lấy dữ liệu từ Request Body (DTO) truyền vào Service
-        ManagerProfile created = managerService.createManager(
+        ManagerProfileResponse created = managerService.createManager(
                 request.getUserProfileId(),
-                request.getManagedCinemaId(),
+                request.getManagedCinemaName(),
                 request.getHireDate());
 
         return ResponseEntity.ok(created);
     }
 
     @GetMapping("/user/{userProfileId}")
-    public ResponseEntity<ManagerProfile> getManagerByUser(@PathVariable UUID userProfileId) {
+    public ResponseEntity<ManagerProfileResponse> getManagerByUser(@PathVariable UUID userProfileId) {
         AuthChecker.requireAdmin();
         return ResponseEntity.ok(managerService.getManagerByUserProfileId(userProfileId));
     }
 
     @GetMapping
-    public ResponseEntity<List<ManagerProfile>> getAllManagers() {
+    public ResponseEntity<List<ManagerProfileResponse>> getAllManagers() {
         AuthChecker.requireAdmin();
         return ResponseEntity.ok(managerService.getAllManagers());
     }
 
-    @GetMapping("/cinema/{cinemaId}")
-    public ResponseEntity<List<ManagerProfile>> getManagersByCinema(@PathVariable UUID cinemaId) {
+    @GetMapping("/cinema/{cinemaName}")
+    public ResponseEntity<List<ManagerProfileResponse>> getManagersByCinema(@PathVariable String cinemaName) {
         AuthChecker.requireAdmin();
-        return ResponseEntity.ok(managerService.getManagersByCinema(cinemaId));
+        return ResponseEntity.ok(managerService.getManagersByCinema(cinemaName));
     }
 
     @DeleteMapping("/{managerId}")

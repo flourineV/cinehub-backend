@@ -34,4 +34,9 @@ public class AuthChecker {
         }
         return ctx.getUserId().toString();
     }
+
+    public static String getRoleOrNull() {
+        var ctx = UserContext.get();
+        return ctx != null ? ctx.getRole() : null;
+    }
 }

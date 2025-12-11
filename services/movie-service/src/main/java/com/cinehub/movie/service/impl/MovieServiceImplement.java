@@ -336,7 +336,8 @@ public class MovieServiceImplement implements MovieService {
             String sortType) {
 
         String sortField = (sortBy != null && !sortBy.isBlank()) ? sortBy : "createdAt";
-        List<String> allowedSort = List.of("createdAt", "title", "status");
+        List<String> allowedSort = List.of("createdAt", "title", "status", "popularity", "startDate", "endDate",
+                "time");
         if (!allowedSort.contains(sortField)) {
             sortField = "createdAt";
         }

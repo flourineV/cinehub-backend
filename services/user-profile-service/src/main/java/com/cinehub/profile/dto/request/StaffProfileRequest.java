@@ -15,9 +15,9 @@ public class StaffProfileRequest {
     @NotNull(message = "Staff profile ID is required")
     private UUID userProfileId;
 
-    @NotNull(message = "CinemaId is required")
-    private UUID cinemaId;
+    @NotNull(message = "CinemaName is required")
+    private String cinemaName;
 
-    @NotNull(message = "Work startDate is required")
-    private LocalDate startDate;
+    @NotNull(message = "HireDate is required")
+    private LocalDate hireDate;
 }
