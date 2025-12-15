@@ -112,6 +112,9 @@ services:
       - "8088"
     networks:
       - cinehub-net
+    depends_on:
+      - redis
+      - rabbitmq
 
   promotion-service:
     build: ./services/promotion-service

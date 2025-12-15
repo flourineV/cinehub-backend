@@ -7,6 +7,7 @@ import com.cinehub.showtime.dto.request.ShowtimeRequest;
 import com.cinehub.showtime.dto.request.ValidateShowtimeRequest;
 import com.cinehub.showtime.dto.response.AutoGenerateShowtimesResponse;
 import com.cinehub.showtime.dto.response.BatchShowtimeResponse;
+import com.cinehub.showtime.dto.response.MovieWithTheatersResponse;
 import com.cinehub.showtime.dto.response.PagedResponse;
 import com.cinehub.showtime.dto.response.ShowtimeConflictResponse;
 import com.cinehub.showtime.dto.response.ShowtimeDetailResponse;
@@ -249,6 +250,90 @@ public class ShowtimeService {
                                                         .theaterAddress(theater.getAddress())
                                                         .theaterImageUrl(theater.getTheaterImageUrl())
                                                         .showtimes(showtimeInfos)
+                                                        .build();
+                                })
+                                .collect(Collectors.toList());
+        }
+
+        public List<MovieWithTheatersResponse> getMoviesWithTheatersByDate(
+                        LocalDate date, UUID movieId, UUID theaterId) {
+                LocalDateTime startOfDay = date.atStartOfDay();
+                LocalDateTime endOfDay = date.atTime(23, 59, 59);
+                LocalDateTime now = LocalDateTime.now();
+
+                // Query showtimes
+                List<Showtime> showtimes;
+                if (movieId != null && theaterId != null) {
+                        showtimes = showtimeRepository.findByMovieIdAndTheaterIdAndStartTimeBetween(
+                                        movieId, theaterId, startOfDay, endOfDay);
+                } else if (movieId != null) {
+                        showtimes = showtimeRepository.findByMovieIdAndStartTimeBetween(
+                                        movieId, startOfDay, endOfDay);
+                } else if (theaterId != null) {
+                        showtimes = showtimeRepository.findByTheaterIdAndStartTimeBetween(
+                                        theaterId, startOfDay, endOfDay);
+                } else {
+                        showtimes = showtimeRepository.findByStartTimeBetween(startOfDay, endOfDay);
+                }
+
+                // Filter only available showtimes (startTime > now)
+                showtimes = showtimes.stream()
+                                .filter(s -> s.getStartTime().isAfter(now))
+                                .collect(Collectors.toList());
+
+                // Group by movieId
+                Map<UUID, List<Showtime>> showtimesByMovie = showtimes.stream()
+                                .collect(Collectors.groupingBy(Showtime::getMovieId));
+
+                return showtimesByMovie.entrySet().stream()
+                                .map(movieEntry -> {
+                                        UUID currentMovieId = movieEntry.getKey();
+                                        List<Showtime> movieShowtimes = movieEntry.getValue();
+
+                                        // Get movie info from first showtime
+                                        Showtime firstShowtime = movieShowtimes.get(0);
+
+                                        // Group by theater
+                                        Map<UUID, List<Showtime>> showtimesByTheater = movieShowtimes.stream()
+                                                        .collect(Collectors.groupingBy(s -> s.getTheater().getId()));
+
+                                        List<MovieWithTheatersResponse.TheaterWithShowtimes> theaters = showtimesByTheater
+                                                        .entrySet().stream()
+                                                        .map(theaterEntry -> {
+                                                                List<Showtime> theaterShowtimes = theaterEntry
+                                                                                .getValue();
+                                                                Theater theater = theaterShowtimes.get(0).getTheater();
+
+                                                                List<MovieWithTheatersResponse.ShowtimeDetail> showtimeDetails = theaterShowtimes
+                                                                                .stream()
+                                                                                .sorted(Comparator.comparing(
+                                                                                                Showtime::getStartTime))
+                                                                                .map(st -> MovieWithTheatersResponse.ShowtimeDetail
+                                                                                                .builder()
+                                                                                                .showtimeId(st.getId())
+                                                                                                .roomName(st.getRoom()
+                                                                                                                .getName())
+                                                                                                .startTime(st
+                                                                                                                .getStartTime())
+                                                                                                .endTime(st.getEndTime())
+                                                                                                .build())
+                                                                                .collect(Collectors.toList());
+
+                                                                return MovieWithTheatersResponse.TheaterWithShowtimes
+                                                                                .builder()
+                                                                                .theaterId(theater.getId())
+                                                                                .theaterName(theater.getName())
+                                                                                .theaterAddress(theater.getAddress())
+                                                                                .showtimes(showtimeDetails)
+                                                                                .build();
+                                                        })
+                                                        .sorted(Comparator.comparing(
+                                                                        MovieWithTheatersResponse.TheaterWithShowtimes::getTheaterName))
+                                                        .collect(Collectors.toList());
+
+                                        return MovieWithTheatersResponse.builder()
+                                                        .movieId(currentMovieId)
+                                                        .theaters(theaters)
                                                         .build();
                                 })
                                 .collect(Collectors.toList());

@@ -31,6 +31,6 @@ public class FnbOrderItem {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal unitPrice;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(name = "total_price", precision = 10, scale = 2, insertable = false, updatable = false)
     private BigDecimal totalPrice;
 }

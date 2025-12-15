@@ -34,10 +34,7 @@ public class Review {
     @Column(name = "avatar_url", columnDefinition = "TEXT")
     private String avatarUrl;
 
-    @Column(name = "rating", nullable = false)
-    private int rating; // 1–5 sao
-
-    @Column(name = "comment", length = 1000)
+    @Column(name = "comment", length = 1000, nullable = false)
     private String comment;
 
     @Enumerated(EnumType.STRING)

@@ -1,6 +1,7 @@
 package com.cinehub.promotion.dto.response;
 
 import com.cinehub.promotion.entity.DiscountType;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Builder;
 import lombok.Data;
 import java.math.BigDecimal;
@@ -15,7 +16,11 @@ public class PromotionResponse {
     private com.cinehub.promotion.entity.Promotion.PromotionType promotionType;
     private DiscountType discountType;
     private BigDecimal discountValue;
+
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
     private LocalDateTime startDate;
+
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
     private LocalDateTime endDate;
     private Boolean isActive;
     private com.cinehub.promotion.entity.Promotion.UsageTimeRestriction usageTimeRestriction;

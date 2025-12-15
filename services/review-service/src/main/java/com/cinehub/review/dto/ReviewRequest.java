@@ -14,6 +14,5 @@ public class ReviewRequest {
     private UUID userId;
     private String fullName;
     private String avatarUrl;
-    private int rating;
-    private String comment;
+    private String comment; // Only comment, no rating
 }

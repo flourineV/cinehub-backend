@@ -1,5 +1,6 @@
 package com.cinehub.booking.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -14,6 +15,10 @@ public class RefundVoucherResponse {
     private UUID userId;
     private BigDecimal value;
     private Boolean isUsed;
+
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
     private LocalDateTime createdAt;
+
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
     private LocalDateTime expiredAt;
 }

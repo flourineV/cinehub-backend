@@ -1,11 +1,14 @@
 package com.cinehub.review.service;
 
+import com.cinehub.review.dto.AverageRatingResponse;
 import com.cinehub.review.dto.RatingRequest;
 import com.cinehub.review.dto.RatingResponse;
 import com.cinehub.review.dto.ReviewRequest;
 import com.cinehub.review.dto.ReviewResponse;
+import com.cinehub.review.entity.Rating;
 import com.cinehub.review.entity.Review;
 import com.cinehub.review.entity.ReviewStatus;
+import com.cinehub.review.repository.RatingRepository;
 import com.cinehub.review.repository.ReviewRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +29,7 @@ import java.util.stream.Collectors;
 public class ReviewService implements IReviewService {
 
     private final ReviewRepository reviewRepository;
+    private final RatingRepository ratingRepository;
     private final WebClient bookingWebClient;
 
     @Value("${app.internal.secret-key}")
@@ -37,13 +41,18 @@ public class ReviewService implements IReviewService {
         if (!hasUserBookedMovie(request.getMovieId(), request.getUserId())) {
             throw new RuntimeException("User chưa xem phim này, không thể review!");
         }
-        // Tạo review mới
+
+        // Validate comment is not empty
+        if (request.getComment() == null || request.getComment().trim().isEmpty()) {
+            throw new RuntimeException("Comment không được để trống!");
+        }
+
+        // Create new review (comment only, no unique constraint)
         Review review = Review.builder()
                 .movieId(request.getMovieId())
                 .userId(request.getUserId())
                 .fullName(request.getFullName())
                 .avatarUrl(request.getAvatarUrl())
-                .rating(request.getRating())
                 .comment(request.getComment())
                 .status(ReviewStatus.VISIBLE)
                 .reported(false)
@@ -52,6 +61,7 @@ public class ReviewService implements IReviewService {
                 .build();
 
         reviewRepository.save(review);
+        log.info("Created comment for user {} on movie {}", request.getUserId(), request.getMovieId());
 
         // thêm fullname & avatar từ userProfile
         return toResponse(review);
@@ -67,7 +77,11 @@ public class ReviewService implements IReviewService {
             throw new RuntimeException("User chưa xem phim này, không thể sửa review!");
         }
 
-        review.setRating(request.getRating());
+        // Update comment only
+        if (request.getComment() == null || request.getComment().trim().isEmpty()) {
+            throw new RuntimeException("Comment không được để trống!");
+        }
+
         review.setComment(request.getComment());
         review.setUpdatedAt(LocalDateTime.now());
         reviewRepository.save(review);
@@ -84,7 +98,7 @@ public class ReviewService implements IReviewService {
         try {
             return bookingWebClient.get()
                     .uri(uriBuilder -> uriBuilder
-                            .path("/bookings/check")
+                            .path("/check")
                             .queryParam("userId", userId)
                             .queryParam("movieId", movieId)
                             .build())
@@ -109,9 +123,13 @@ public class ReviewService implements IReviewService {
     }
 
     @Override
-    public Double getAverageRating(UUID movieId) {
-        Double avg = reviewRepository.findAverageRatingByMovieId(movieId);
-        return avg != null ? avg : 0.0;
+    public AverageRatingResponse getAverageRating(UUID movieId) {
+        Double avg = ratingRepository.findAverageRatingByMovieId(movieId);
+        Long count = ratingRepository.countRatingsByMovieId(movieId);
+        return AverageRatingResponse.builder()
+                .averageRating(avg != null ? avg : 0.0)
+                .ratingCount(count != null ? count : 0L)
+                .build();
     }
 
     @Override
@@ -143,40 +161,37 @@ public class ReviewService implements IReviewService {
         }
 
         // Check if rating already exists
-        Optional<Review> existingReview = reviewRepository.findByMovieIdAndUserId(movieId, request.getUserId());
+        Optional<Rating> existingRating = ratingRepository.findByMovieIdAndUserId(movieId, request.getUserId());
 
-        Review review;
-        if (existingReview.isPresent()) {
+        Rating rating;
+        if (existingRating.isPresent()) {
             // UPDATE existing rating
-            review = existingReview.get();
-            review.setRating(request.getRating());
-            review.setUpdatedAt(LocalDateTime.now());
+            rating = existingRating.get();
+            rating.setRating(request.getRating());
+            rating.setUpdatedAt(LocalDateTime.now());
             log.info("Updating rating for user {} on movie {}", request.getUserId(), movieId);
         } else {
-            // CREATE new rating (without comment)
-            review = Review.builder()
+            // CREATE new rating
+            rating = Rating.builder()
                     .movieId(movieId)
                     .userId(request.getUserId())
                     .fullName(request.getFullName())
                     .avatarUrl(request.getAvatarUrl())
                     .rating(request.getRating())
-                    .comment(null) // No comment for rating-only
-                    .status(ReviewStatus.VISIBLE)
-                    .reported(false)
                     .createdAt(LocalDateTime.now())
                     .updatedAt(LocalDateTime.now())
                     .build();
             log.info("Creating new rating for user {} on movie {}", request.getUserId(), movieId);
         }
 
-        reviewRepository.save(review);
-        return toRatingResponse(review);
+        ratingRepository.save(rating);
+        return toRatingResponse(rating);
     }
 
     @Override
     public RatingResponse getMyRating(UUID movieId, UUID userId) {
-        Optional<Review> review = reviewRepository.findByMovieIdAndUserId(movieId, userId);
-        return review.map(this::toRatingResponse).orElse(null);
+        Optional<Rating> rating = ratingRepository.findByMovieIdAndUserId(movieId, userId);
+        return rating.map(this::toRatingResponse).orElse(null);
     }
 
     // Convert Entity -> DTO
@@ -187,7 +202,6 @@ public class ReviewService implements IReviewService {
                 .userId(review.getUserId())
                 .fullName(review.getFullName())
                 .avatarUrl(review.getAvatarUrl())
-                .rating(review.getRating())
                 .comment(review.getComment())
                 .status(review.getStatus())
                 .reported(review.isReported())
@@ -196,16 +210,16 @@ public class ReviewService implements IReviewService {
                 .build();
     }
 
-    private RatingResponse toRatingResponse(Review review) {
+    private RatingResponse toRatingResponse(Rating rating) {
         return RatingResponse.builder()
-                .id(review.getId())
-                .movieId(review.getMovieId())
-                .userId(review.getUserId())
-                .fullName(review.getFullName())
-                .avatarUrl(review.getAvatarUrl())
-                .rating(review.getRating())
-                .createdAt(review.getCreatedAt())
-                .updatedAt(review.getUpdatedAt())
+                .id(rating.getId())
+                .movieId(rating.getMovieId())
+                .userId(rating.getUserId())
+                .fullName(rating.getFullName())
+                .avatarUrl(rating.getAvatarUrl())
+                .rating(rating.getRating())
+                .createdAt(rating.getCreatedAt())
+                .updatedAt(rating.getUpdatedAt())
                 .build();
     }
 }

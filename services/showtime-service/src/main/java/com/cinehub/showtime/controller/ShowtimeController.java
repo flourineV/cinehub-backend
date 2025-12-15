@@ -5,6 +5,7 @@ import com.cinehub.showtime.dto.request.ShowtimeRequest;
 import com.cinehub.showtime.dto.request.ValidateShowtimeRequest;
 import com.cinehub.showtime.dto.response.AutoGenerateShowtimesResponse;
 import com.cinehub.showtime.dto.response.BatchShowtimeResponse;
+import com.cinehub.showtime.dto.response.MovieWithTheatersResponse;
 import com.cinehub.showtime.dto.response.PagedResponse;
 import com.cinehub.showtime.dto.response.ShowtimeConflictResponse;
 import com.cinehub.showtime.dto.response.ShowtimeDetailResponse;
@@ -140,6 +141,16 @@ public class ShowtimeController {
             @RequestParam UUID provinceId) {
         List<TheaterShowtimesResponse> response = showtimeService
                 .getTheaterShowtimesByMovieAndProvince(movieId, provinceId);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/movies-with-theaters")
+    public ResponseEntity<List<MovieWithTheatersResponse>> getMoviesWithTheatersByDate(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date,
+            @RequestParam(required = false) UUID movieId,
+            @RequestParam(required = false) UUID theaterId) {
+        List<MovieWithTheatersResponse> response = showtimeService
+                .getMoviesWithTheatersByDate(date, movieId, theaterId);
         return ResponseEntity.ok(response);
     }
 }

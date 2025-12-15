@@ -1,5 +1,6 @@
 package com.cinehub.review.controller;
 
+import com.cinehub.review.dto.AverageRatingResponse;
 import com.cinehub.review.dto.RatingRequest;
 import com.cinehub.review.dto.RatingResponse;
 import com.cinehub.review.dto.ReviewRequest;
@@ -47,7 +48,7 @@ public class ReviewController {
     }
 
     @GetMapping("/movie/{movieId}/average-rating")
-    public ResponseEntity<Double> getAverageRating(@PathVariable UUID movieId) {
+    public ResponseEntity<AverageRatingResponse> getAverageRating(@PathVariable UUID movieId) {
         // Public endpoint - no auth required
         return ResponseEntity.ok(reviewService.getAverageRating(movieId));
     }

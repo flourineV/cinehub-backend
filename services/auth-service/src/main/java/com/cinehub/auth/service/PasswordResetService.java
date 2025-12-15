@@ -35,7 +35,12 @@ public class PasswordResetService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Email not registered");
         }
 
-        otpRepository.deleteAllByEmail(email);
+        // Check if there's already a valid OTP
+        Optional<PasswordResetOtp> existingOtp = otpRepository.findLatestValidOtp(email, LocalDateTime.now());
+        if (existingOtp.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "OTP đã được gửi và vẫn còn hiệu lực. Vui lòng sử dụng endpoint /resend-otp nếu chưa nhận được.");
+        }
 
         String otp = String.format("%06d", new Random().nextInt(1000000));
 
@@ -62,7 +67,25 @@ public class PasswordResetService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "OTP vẫn còn hiệu lực, hãy thử lại sau.");
         }
 
-        sendOtp(email);
+        // Delete all old OTPs before creating new one
+        otpRepository.deleteAllByEmail(email);
+
+        String otp = String.format("%06d", new Random().nextInt(1000000));
+
+        PasswordResetOtp otpEntity = PasswordResetOtp.builder()
+                .email(email)
+                .otp(otp)
+                .expiresAt(LocalDateTime.now().plusMinutes(otpExpirationMinutes))
+                .build();
+
+        otpRepository.save(otpEntity);
+
+        // Gửi email OTP
+        emailService.sendEmail(
+                email,
+                "CineHub - Xác thực đặt lại mật khẩu",
+                "Mã OTP của bạn là: " + otp + "\n\n" +
+                        "Mã này sẽ hết hạn sau " + otpExpirationMinutes + " phút.");
     }
 
     public void resetPassword(ResetPasswordRequest request) {

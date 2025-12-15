@@ -34,6 +34,7 @@ public class PaymentService {
 
         private final PaymentProducer paymentProducer;
         private final PaymentRepository paymentRepository;
+        private final com.cinehub.payment.adapter.client.UserProfileClient userProfileClient;
 
         // 1. Tạo Transaction khi Booking vừa tạo (Giữ nguyên)
         @Transactional
@@ -121,8 +122,18 @@ public class PaymentService {
                                 "Payment confirmed via ZaloPay Callback");
                 paymentProducer.sendPaymentSuccessEvent(successEvent);
 
-                // Nếu là FnB order, gửi event riêng cho FnB Service
+                // Nếu là FnB order, gửi event riêng cho FnB Service và tích điểm loyalty
                 if (txn.getFnbOrderId() != null) {
+                        // Tích điểm loyalty cho FnB: 1,000 VND = 1 điểm
+                        java.math.BigDecimal divisor = new java.math.BigDecimal("1000");
+                        int pointsEarned = txn.getAmount().divide(divisor, 0, java.math.RoundingMode.DOWN).intValue();
+
+                        if (pointsEarned > 0) {
+                                log.info("💎 Earning {} loyalty points for FnB order {} (amount: {})",
+                                                pointsEarned, txn.getFnbOrderId(), txn.getAmount());
+                                userProfileClient.updateLoyaltyPoints(txn.getUserId(), pointsEarned);
+                        }
+
                         paymentProducer.sendPaymentSuccessForFnb(
                                         txn.getId(),
                                         txn.getFnbOrderId(),

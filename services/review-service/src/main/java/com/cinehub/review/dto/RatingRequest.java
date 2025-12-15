@@ -18,5 +18,5 @@ public class RatingRequest {
 
     @Min(1)
     @Max(5)
-    private int rating;
+    private Integer rating;
 }

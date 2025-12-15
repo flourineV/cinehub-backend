@@ -240,11 +240,14 @@ public class BookingServiceImpl implements BookingService {
                 updateBookingStatus(booking, BookingStatus.CONFIRMED);
 
                 if (booking.getUserId() != null) {
-                        BigDecimal divisor = new BigDecimal("10000");
+                        // Tích điểm: 1,000 VND = 1 điểm (Silver 1000 điểm = 1 triệu, Gold 5000 điểm = 5
+                        // triệu)
+                        BigDecimal divisor = new BigDecimal("1000");
                         int pointsEarned = booking.getFinalPrice().divide(divisor, 0, RoundingMode.DOWN).intValue();
 
                         if (pointsEarned > 0) {
-                                // Gọi Client (đã được bọc try-catch safe bên trong Client)
+                                log.info("💎 Earning {} loyalty points for booking {} (amount: {})",
+                                                pointsEarned, booking.getId(), booking.getFinalPrice());
                                 userProfileClient.updateLoyaltyPoints(booking.getUserId(), pointsEarned);
                         }
                 }
@@ -434,12 +437,23 @@ public class BookingServiceImpl implements BookingService {
                 BigDecimal totalBeforeDiscount = booking.getTotalPrice();
                 BigDecimal discountValue = validationResponse.getDiscountValue();
                 DiscountType discountType = validationResponse.getDiscountType();
+
+                log.info("🎟️ Processing promotion: code={}, type={}, value={}, totalPrice={}",
+                                promoCode, discountType, discountValue, totalBeforeDiscount);
+
                 BigDecimal calculatedDiscountAmount;
 
                 if (discountType == DiscountType.PERCENTAGE) {
-                        calculatedDiscountAmount = totalBeforeDiscount.multiply(discountValue);
+                        // Percentage is stored as whole number (e.g., 25 for 25%, 30 for 30%)
+                        // Need to divide by 100 to get the decimal multiplier
+                        calculatedDiscountAmount = totalBeforeDiscount
+                                        .multiply(discountValue)
+                                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                        log.info("📊 Calculated PERCENTAGE discount: {} * {}% / 100 = {}",
+                                        totalBeforeDiscount, discountValue, calculatedDiscountAmount);
                 } else if (discountType == DiscountType.FIXED_AMOUNT) {
                         calculatedDiscountAmount = discountValue;
+                        log.info("💵 Using FIXED_AMOUNT discount: {}", calculatedDiscountAmount);
                 } else {
                         calculatedDiscountAmount = BigDecimal.ZERO;
                 }
@@ -447,9 +461,11 @@ public class BookingServiceImpl implements BookingService {
                 BigDecimal discountAmount = calculatedDiscountAmount.setScale(2, RoundingMode.HALF_UP);
                 BigDecimal newFinalPrice = totalBeforeDiscount.subtract(discountAmount);
 
-                if (newFinalPrice.compareTo(BigDecimal.ZERO) < 0) {
-                        newFinalPrice = BigDecimal.ZERO;
-                        discountAmount = totalBeforeDiscount;
+                // Validate: không cho phép discount 100% (finalPrice = 0) vì ZaloPay không chấp
+                // nhận
+                if (newFinalPrice.compareTo(BigDecimal.ZERO) <= 0) {
+                        throw new BookingException(
+                                        "Khuyến mãi này không thể áp dụng vì sẽ làm tổng tiền = 0. Vui lòng chọn khuyến mãi khác hoặc không dùng khuyến mãi.");
                 }
 
                 booking.setDiscountAmount(discountAmount);
@@ -954,9 +970,7 @@ public class BookingServiceImpl implements BookingService {
 
                 List<Booking> bookings = bookingRepository.findByUserId(userId);
 
-                return bookings.stream().anyMatch(b ->
-                        b.getMovieId().equals(movieId) &&
-                        (b.getStatus() == BookingStatus.CONFIRMED)
-                );
+                return bookings.stream().anyMatch(b -> b.getMovieId().equals(movieId) &&
+                                (b.getStatus() == BookingStatus.CONFIRMED));
         }
 }

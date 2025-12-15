@@ -11,12 +11,14 @@ import com.cinehub.fnb.repository.FnbOrderRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
@@ -27,6 +29,7 @@ public class FnbOrderService {
         private final FnbOrderRepository fnbOrderRepository;
         private final FnbItemRepository fnbItemRepository;
         private final FnbProducer fnbProducer;
+        private final StringRedisTemplate redisTemplate;
 
         @Transactional
         public FnbOrderResponse createOrder(FnbOrderRequest request) {
@@ -43,7 +46,7 @@ public class FnbOrderService {
                                         .fnbItemId(item.getId())
                                         .quantity(i.getQuantity())
                                         .unitPrice(item.getUnitPrice())
-                                        .totalPrice(subtotal)
+                                        // totalPrice is auto-calculated by database (generated column)
                                         .build();
                 }).toList();
 
@@ -61,6 +64,11 @@ public class FnbOrderService {
                 order.setItems(orderItems);
 
                 FnbOrder saved = fnbOrderRepository.save(order);
+
+                // Create Redis key with 5-minute TTL for auto-cancellation
+                String redisKey = "fnb_order:" + saved.getId();
+                redisTemplate.opsForValue().set(redisKey, "PENDING", 5, TimeUnit.MINUTES);
+                log.info("Created Redis TTL key: {} (expires in 5 minutes)", redisKey);
 
                 // Send event to Payment Service
                 fnbProducer.sendFnbOrderCreatedEvent(new FnbOrderCreatedEvent(
@@ -96,6 +104,11 @@ public class FnbOrderService {
         }
 
         private FnbOrderResponse mapToResponse(FnbOrder o) {
+                // Calculate expiration time for PENDING orders (5 minutes TTL)
+                LocalDateTime expiresAt = o.getStatus() == FnbOrderStatus.PENDING
+                                ? o.getCreatedAt().plusMinutes(5)
+                                : null;
+
                 return FnbOrderResponse.builder()
                                 .id(o.getId())
                                 .userId(o.getUserId())
@@ -105,6 +118,7 @@ public class FnbOrderService {
                                 .paymentMethod(o.getPaymentMethod())
                                 .totalAmount(o.getTotalAmount())
                                 .createdAt(o.getCreatedAt())
+                                .expiresAt(expiresAt)
                                 .items(o.getItems().stream()
                                                 .map(i -> FnbOrderItemResponse.builder()
                                                                 .fnbItemId(i.getFnbItemId())

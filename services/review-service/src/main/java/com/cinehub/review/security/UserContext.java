@@ -1,10 +1,8 @@
 package com.cinehub.review.security;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserContext {
@@ -27,8 +25,34 @@ public class UserContext {
         CONTEXT.remove();
     }
 
+    // Static method to get userId from ThreadLocal
     public static String getUserId() {
         UserContext ctx = get();
-        return ctx != null ? UserContext.getUserId() : null;
+        return ctx != null ? ctx.userId : null;
+    }
+
+    // Instance getters/setters
+    public String getUserIdInstance() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public boolean isAuthenticated() {
+        return authenticated;
+    }
+
+    public void setAuthenticated(boolean authenticated) {
+        this.authenticated = authenticated;
     }
 }

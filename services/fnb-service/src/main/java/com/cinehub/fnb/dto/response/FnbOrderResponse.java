@@ -1,5 +1,6 @@
 package com.cinehub.fnb.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Builder;
 import lombok.Data;
 
@@ -18,6 +19,12 @@ public class FnbOrderResponse {
     private BigDecimal totalAmount;
     private String status;
     private String paymentMethod;
+
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
     private LocalDateTime createdAt;
+
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
+    private LocalDateTime expiresAt; // PENDING orders expire after 5 minutes
+
     private List<FnbOrderItemResponse> items;
 }

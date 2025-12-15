@@ -1,5 +1,6 @@
 package com.cinehub.review.service;
 
+import com.cinehub.review.dto.AverageRatingResponse;
 import com.cinehub.review.dto.RatingRequest;
 import com.cinehub.review.dto.RatingResponse;
 import com.cinehub.review.dto.ReviewRequest;
@@ -16,7 +17,7 @@ public interface IReviewService {
 
     List<ReviewResponse> getReviewsByMovie(UUID movieId);
 
-    Double getAverageRating(UUID movieId);
+    AverageRatingResponse getAverageRating(UUID movieId);
 
     ReviewResponse reportReview(UUID id);
 

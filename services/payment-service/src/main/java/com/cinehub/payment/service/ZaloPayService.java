@@ -48,6 +48,13 @@ public class ZaloPayService {
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("No PENDING transaction found for booking " + bookingId));
 
+        // 2.5. Validate amount - ZaloPay requires amount > 0
+        if (transaction.getAmount() == null || transaction.getAmount().longValue() <= 0) {
+            log.error("❌ Cannot create ZaloPay order with zero or negative amount for bookingId: {}", bookingId);
+            throw new RuntimeException("Payment amount must be greater than 0. Current amount: " +
+                    (transaction.getAmount() != null ? transaction.getAmount() : "null"));
+        }
+
         // 3. Extend seat lock to 10 minutes before creating payment order
         try {
             showtimeServiceClient.extendSeatLockForPayment(
@@ -117,7 +124,16 @@ public class ZaloPayService {
 
         String createEndpoint = zaloPayConfig.getEndpoint() + "/create";
 
-        log.info("🚀 Sending Form Request to ZaloPay: {}", requestBody);
+        log.info("🚀 Sending Form Request to ZaloPay:");
+        log.info("   app_id: {}", zaloPayConfig.getAppId());
+        log.info("   app_trans_id: {}", appTransId);
+        log.info("   amount: {}", amount);
+        log.info("   app_time: {}", appTime);
+        log.info("   description: {}", description);
+        log.info("   embed_data: {}", embedData);
+        log.info("   callback_url: {}", zaloPayConfig.getCallbackUrl());
+        log.info("   mac: {}", mac);
+        log.info("   Full request body: {}", requestBody);
 
         try {
             // Hứng kết quả về dạng Map để linh hoạt
@@ -203,12 +219,38 @@ public class ZaloPayService {
         // 1. Check authentication
         AuthChecker.requireAuthenticated();
 
-        // 2. Get pending FnB payment transaction
-        PaymentTransaction transaction = paymentRepository.findByFnbOrderId(fnbOrderId)
-                .stream()
-                .filter(t -> t.getStatus() == PaymentStatus.PENDING)
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("No PENDING transaction found for FnB order " + fnbOrderId));
+        // 2. Get pending FnB payment transaction with retry (wait for RabbitMQ event
+        // processing)
+        PaymentTransaction transaction = null;
+        int maxRetries = 5;
+        int retryDelay = 200; // ms
+
+        for (int i = 0; i < maxRetries; i++) {
+            Optional<PaymentTransaction> found = paymentRepository.findByFnbOrderId(fnbOrderId)
+                    .stream()
+                    .filter(t -> t.getStatus() == PaymentStatus.PENDING)
+                    .findFirst();
+
+            if (found.isPresent()) {
+                transaction = found.get();
+                break;
+            }
+
+            if (i < maxRetries - 1) {
+                log.info("⏳ Waiting for FnB transaction to be created (retry {}/{})", i + 1, maxRetries);
+                try {
+                    Thread.sleep(retryDelay);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Interrupted while waiting for transaction", e);
+                }
+            }
+        }
+
+        if (transaction == null) {
+            throw new RuntimeException(
+                    "No PENDING transaction found for FnB order " + fnbOrderId + " after " + maxRetries + " retries");
+        }
 
         // 3. Create app_trans_id (must be < 40 chars)
         String today = new SimpleDateFormat("yyMMdd").format(new Date());

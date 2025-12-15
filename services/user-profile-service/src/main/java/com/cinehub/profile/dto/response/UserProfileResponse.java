@@ -2,6 +2,7 @@ package com.cinehub.profile.dto.response;
 
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -33,6 +34,10 @@ public class UserProfileResponse {
     private String rankName;
     private UserStatus status;
     private Boolean receivePromoEmail;
+
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
     private LocalDateTime createdAt;
+
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
     private LocalDateTime updatedAt;
 }

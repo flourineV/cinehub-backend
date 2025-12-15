@@ -1,6 +1,7 @@
 package com.cinehub.payment.dto.response;
 
 import com.cinehub.payment.entity.PaymentStatus;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -18,6 +19,10 @@ public class PaymentResponse {
     private String method;
     private PaymentStatus status;
     private String transactionRef;
+
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
     private LocalDateTime createdAt;
+
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
     private LocalDateTime updatedAt;
 }
