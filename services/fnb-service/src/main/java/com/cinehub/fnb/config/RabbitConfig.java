@@ -14,9 +14,9 @@ public class RabbitConfig {
     public static final String FNB_ORDER_CREATED_KEY = "fnb.order.created";
     public static final String FNB_ORDER_CONFIRMED_KEY = "fnb.order.confirmed";
     public static final String PAYMENT_FNB_SUCCESS_KEY = "payment.fnb.success";
+    public static final String PAYMENT_FNB_FAILED_KEY = "payment.fnb.failed";
 
-    // Queue for Payment Service to listen
-    public static final String PAYMENT_QUEUE = "payment.queue";
+    public static final String PAYMENT_EXCHANGE = "payment.exchange";
 
     // Queue for FnB Service to listen payment events
     public static final String FNB_QUEUE = "fnb.queue";
@@ -24,6 +24,11 @@ public class RabbitConfig {
     @Bean
     public TopicExchange fnbExchange() {
         return new TopicExchange(FNB_EXCHANGE);
+    }
+
+    @Bean
+    public DirectExchange paymentExchange() {
+        return new DirectExchange(PAYMENT_EXCHANGE, true, false);
     }
 
     @Bean
@@ -44,21 +49,19 @@ public class RabbitConfig {
         return template;
     }
 
-    // Bind payment queue to receive FnB events
-    @Bean
-    public Binding fnbToPaymentBinding() {
-        return BindingBuilder
-                .bind(new Queue(PAYMENT_QUEUE, true))
-                .to(fnbExchange())
-                .with(FNB_ORDER_CREATED_KEY);
-    }
-
-    // Bind fnb queue to receive payment success events
     @Bean
     public Binding paymentSuccessToFnbBinding() {
         return BindingBuilder
                 .bind(fnbQueue())
                 .to(fnbExchange())
                 .with(PAYMENT_FNB_SUCCESS_KEY);
+    }
+
+    @Bean
+    public Binding paymentFailedToFnbBinding() {
+        return BindingBuilder
+                .bind(fnbQueue())
+                .to(fnbExchange())
+                .with(PAYMENT_FNB_FAILED_KEY);
     }
 }

@@ -1,5 +1,6 @@
 package com.cinehub.profile.controller;
 
+import com.cinehub.profile.dto.request.UpdateLoyaltyRequest;
 import com.cinehub.profile.dto.request.UserProfileRequest;
 import com.cinehub.profile.dto.request.UserProfileUpdateRequest;
 import com.cinehub.profile.dto.response.RankAndDiscountResponse;
@@ -80,10 +81,10 @@ public class UserProfileController {
     @PatchMapping("/{userId}/loyalty")
     public ResponseEntity<UserProfileResponse> updateLoyalty(
             @PathVariable UUID userId,
-            @RequestBody Integer loyaltyPoint,
+            @RequestBody UpdateLoyaltyRequest request,
             @RequestHeader(value = "X-Internal-Secret", required = false) String internalKey) {
         internalAuthChecker.requireInternal(internalKey);
-        return ResponseEntity.ok(profileService.updateLoyaltyAndRank(userId, loyaltyPoint));
+        return ResponseEntity.ok(profileService.updateLoyaltyAndRank(userId, request));
     }
 
     @DeleteMapping("/{userId}")

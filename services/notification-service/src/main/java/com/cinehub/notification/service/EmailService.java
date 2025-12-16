@@ -73,6 +73,7 @@ public class EmailService {
             String to,
             String userName,
             UUID bookingId,
+            String bookingCode,
             String movieTitle,
             String cinemaName,
             String roomName,
@@ -88,6 +89,7 @@ public class EmailService {
 
         Context ctx = new Context();
         ctx.setVariable("userName", userName);
+        ctx.setVariable("bookingCode", bookingCode);
         ctx.setVariable("movieTitle", movieTitle);
         ctx.setVariable("cinemaName", cinemaName);
         ctx.setVariable("roomName", roomName);

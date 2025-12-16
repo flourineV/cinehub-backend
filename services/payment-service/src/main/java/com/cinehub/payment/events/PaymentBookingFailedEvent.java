@@ -5,9 +5,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Gửi sang Booking khi thanh toán thành công.
+ * Gửi sang Booking khi thanh toán thất bại.
  */
-public record PaymentSuccessEvent(
+public record PaymentBookingFailedEvent(
         UUID paymentId,
         UUID bookingId,
         UUID showtimeId,
@@ -15,5 +15,5 @@ public record PaymentSuccessEvent(
         BigDecimal amount,
         String method,
         List<UUID> seatIds,
-        String message) {
+        String reason) {
 }

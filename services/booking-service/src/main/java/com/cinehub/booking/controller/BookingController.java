@@ -133,4 +133,15 @@ public class BookingController {
         boolean hasBooked = bookingService.hasUserBookedMovie(userId, movieId);
         return ResponseEntity.ok(hasBooked);
     }
+
+    @GetMapping("/count")
+    public ResponseEntity<Long> getBookingCountByUserId(
+            @RequestParam UUID userId,
+            @RequestHeader(value = "X-Internal-Secret", required = false) String internalKey) {
+        if (!internalAuthChecker.isInternal(internalKey)) {
+            AuthChecker.requireAuthenticated();
+        }
+        long count = bookingService.getBookingCountByUserId(userId);
+        return ResponseEntity.ok(count);
+    }
 }

@@ -32,18 +32,19 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
         return (exchange, chain) -> {
             ServerHttpRequest request = exchange.getRequest();
             String path = request.getURI().getPath();
+            String method = request.getMethod().name();
 
-            log.info("JwtFilter checking path: {}", path);
+            log.info("JwtFilter checking: {} {}", method, path);
 
             if (config.excludePaths != null) {
                 log.info("Exclude paths configured: {}", config.excludePaths);
                 for (String exclude : config.excludePaths) {
-                    if (matchesPath(path, exclude)) {
-                        log.info("Path {} matched exclude pattern: {}, skipping auth", path, exclude);
+                    if (matchesPathAndMethod(path, method, exclude)) {
+                        log.info("{} {} matched exclude pattern: {}, skipping auth", method, path, exclude);
                         return chain.filter(exchange);
                     }
                 }
-                log.info("Path {} did not match any exclude patterns", path);
+                log.info("{} {} did not match any exclude patterns", method, path);
             } else {
                 log.warn("No exclude paths configured for this route");
             }
@@ -84,6 +85,37 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
         };
     }
 
+    private boolean matchesPathAndMethod(String path, String method, String pattern) {
+        // Support METHOD:/path format (e.g., GET:/api/bookings, POST:/api/movies/*)
+        if (pattern.contains(":")) {
+            String[] parts = pattern.split(":", 2);
+            String methodPattern = parts[0].trim();
+            String pathPattern = parts[1].trim();
+
+            // Check method match (support multiple methods: GET,POST:/path)
+            if (methodPattern.contains(",")) {
+                boolean methodMatch = false;
+                for (String m : methodPattern.split(",")) {
+                    if (m.trim().equalsIgnoreCase(method)) {
+                        methodMatch = true;
+                        break;
+                    }
+                }
+                if (!methodMatch)
+                    return false;
+            } else {
+                if (!methodPattern.equalsIgnoreCase(method))
+                    return false;
+            }
+
+            // Check path match
+            return matchesPath(path, pathPattern);
+        }
+
+        // No method specified, match any method
+        return matchesPath(path, pattern);
+    }
+
     private boolean matchesPath(String path, String pattern) {
         // Exact match
         if (path.equals(pattern)) {
@@ -96,6 +128,14 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
             String prefix = pattern.substring(0, pattern.length() - 3);
             boolean matches = path.startsWith(prefix);
             log.debug("Pattern /** - prefix: '{}', path: '{}', matches: {}", prefix, path, matches);
+            return matches;
+        }
+
+        // Single wildcard pattern: /prefix/*/suffix
+        if (pattern.contains("*")) {
+            String regex = pattern.replace("*", "[^/]+");
+            boolean matches = path.matches(regex);
+            log.debug("Pattern * - regex: '{}', path: '{}', matches: {}", regex, path, matches);
             return matches;
         }
 

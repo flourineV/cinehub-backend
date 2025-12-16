@@ -8,9 +8,11 @@ import com.cinehub.payment.entity.PaymentStatus;
 import com.cinehub.payment.events.BookingCreatedEvent;
 import com.cinehub.payment.events.BookingFinalizedEvent;
 import com.cinehub.payment.events.FnbOrderCreatedEvent;
-import com.cinehub.payment.events.PaymentSuccessEvent;
+import com.cinehub.payment.events.PaymentBookingSuccessEvent;
+import com.cinehub.payment.events.PaymentFnbSuccessEvent;
 import com.cinehub.payment.events.SeatUnlockedEvent;
-import com.cinehub.payment.events.PaymentFailedEvent;
+import com.cinehub.payment.events.PaymentBookingFailedEvent;
+import com.cinehub.payment.events.PaymentFnbFailedEvent;
 import com.cinehub.payment.producer.PaymentProducer;
 import com.cinehub.payment.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
@@ -110,22 +112,24 @@ public class PaymentService {
                 log.info("💰 Payment SUCCESS for bookingId: {} | fnbOrderId: {}",
                                 txn.getBookingId(), txn.getFnbOrderId());
 
-                // Bắn Event báo cho Booking Service hoặc FnB Service
-                PaymentSuccessEvent successEvent = new PaymentSuccessEvent(
-                                txn.getId(),
-                                txn.getBookingId(),
-                                txn.getShowtimeId(),
-                                txn.getUserId(),
-                                txn.getAmount(),
-                                "ZALOPAY",
-                                txn.getSeatIds(),
-                                "Payment confirmed via ZaloPay Callback");
-                paymentProducer.sendPaymentSuccessEvent(successEvent);
+                // Bắn Event báo cho Booking Service (chỉ khi có bookingId)
+                if (txn.getBookingId() != null) {
+                        PaymentBookingSuccessEvent bookingSuccessEvent = new PaymentBookingSuccessEvent(
+                                        txn.getId(),
+                                        txn.getBookingId(),
+                                        txn.getShowtimeId(),
+                                        txn.getUserId(),
+                                        txn.getAmount(),
+                                        "ZALOPAY",
+                                        txn.getSeatIds(),
+                                        "Payment confirmed via ZaloPay Callback");
+                        paymentProducer.sendPaymentBookingSuccessEvent(bookingSuccessEvent);
+                }
 
                 // Nếu là FnB order, gửi event riêng cho FnB Service và tích điểm loyalty
                 if (txn.getFnbOrderId() != null) {
-                        // Tích điểm loyalty cho FnB: 1,000 VND = 1 điểm
-                        java.math.BigDecimal divisor = new java.math.BigDecimal("1000");
+                        // Tích điểm loyalty cho FnB: 10,000 VND = 1 điểm
+                        java.math.BigDecimal divisor = new java.math.BigDecimal("10000");
                         int pointsEarned = txn.getAmount().divide(divisor, 0, java.math.RoundingMode.DOWN).intValue();
 
                         if (pointsEarned > 0) {
@@ -134,12 +138,14 @@ public class PaymentService {
                                 userProfileClient.updateLoyaltyPoints(txn.getUserId(), pointsEarned);
                         }
 
-                        paymentProducer.sendPaymentSuccessForFnb(
+                        PaymentFnbSuccessEvent fnbSuccessEvent = new PaymentFnbSuccessEvent(
                                         txn.getId(),
                                         txn.getFnbOrderId(),
                                         txn.getUserId(),
                                         txn.getAmount(),
-                                        "ZALOPAY");
+                                        "ZALOPAY",
+                                        "Payment confirmed via ZaloPay Callback");
+                        paymentProducer.sendPaymentFnbSuccessEvent(fnbSuccessEvent);
                 }
         }
 
@@ -194,7 +200,7 @@ public class PaymentService {
                 log.info("💤 Transaction marked as EXPIRED for bookingId {}", event.bookingId());
 
                 // ✅ (Tuỳ chọn) phát event cho booking-service hoặc notification-service
-                PaymentFailedEvent expiredEvent = new PaymentFailedEvent(
+                PaymentBookingFailedEvent expiredEvent = new PaymentBookingFailedEvent(
                                 txn.getId(),
                                 txn.getBookingId(),
                                 txn.getUserId(),
@@ -204,7 +210,7 @@ public class PaymentService {
                                 txn.getSeatIds(),
                                 "Payment expired: " + event.reason());
 
-                paymentProducer.sendPaymentFailedEvent(expiredEvent);
+                paymentProducer.sendPaymentBookingFailedEvent(expiredEvent);
         }
 
         public List<PaymentTransactionResponse> getPaymentsByUserId(UUID userId) {

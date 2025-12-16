@@ -21,8 +21,8 @@ public class RabbitConfig {
     public static final String PAYMENT_EXCHANGE = "payment.exchange";
 
     // routing key from booking exchange
-    public static final String PAYMENT_SUCCESS_KEY = "payment.success";
-    public static final String PAYMENT_FAILED_KEY = "payment.failed";
+    public static final String PAYMENT_BOOKING_SUCCESS_KEY = "payment.booking.success";
+    public static final String PAYMENT_BOOKING_FAILED_KEY = "payment.booking.failed";
 
     // booking exchange
     public static final String BOOKING_EXCHANGE = "booking.exchange";
@@ -79,14 +79,14 @@ public class RabbitConfig {
     public Binding paymentSuccessBinding(Queue bookingQueue, DirectExchange paymentExchange) {
         return BindingBuilder.bind(bookingQueue)
                 .to(paymentExchange)
-                .with(PAYMENT_SUCCESS_KEY);
+                .with(PAYMENT_BOOKING_SUCCESS_KEY);
     }
 
     @Bean
     public Binding paymentFailedBinding(Queue bookingQueue, DirectExchange paymentExchange) {
         return BindingBuilder.bind(bookingQueue)
                 .to(paymentExchange)
-                .with(PAYMENT_FAILED_KEY);
+                .with(PAYMENT_BOOKING_FAILED_KEY);
     }
 
     @Bean

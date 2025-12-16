@@ -3,14 +3,17 @@ package com.cinehub.promotion.service;
 import com.cinehub.promotion.dto.request.PromotionRequest;
 import com.cinehub.promotion.dto.response.PromotionResponse;
 import com.cinehub.promotion.dto.response.PromotionValidationResponse;
+import com.cinehub.promotion.dto.response.UserPromotionsResponse;
 import com.cinehub.promotion.entity.Promotion;
 import com.cinehub.promotion.repository.PromotionRepository;
+import com.cinehub.promotion.repository.UsedPromotionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,6 +23,7 @@ import java.util.UUID;
 public class PromotionService {
 
     private final PromotionRepository promotionRepository;
+    private final UsedPromotionRepository usedPromotionRepository;
     private final PromotionNotificationHelper notificationHelper;
 
     public PromotionValidationResponse validatePromotionCode(String code) {
@@ -123,6 +127,51 @@ public class PromotionService {
                 .filter(p -> p.getEndDate() != null && p.getEndDate().isAfter(now))
                 .map(this::mapToResponse)
                 .toList();
+    }
+
+    /**
+     * Get promotions classified by applicability for a specific user
+     */
+    public UserPromotionsResponse getActivePromotionsForUser(UUID userId) {
+        LocalDateTime now = LocalDateTime.now();
+
+        List<Promotion> activePromotions = promotionRepository.findAll().stream()
+                .filter(p -> p.getIsActive() != null && p.getIsActive())
+                .filter(p -> p.getStartDate() != null && p.getStartDate().isBefore(now))
+                .filter(p -> p.getEndDate() != null && p.getEndDate().isAfter(now))
+                .toList();
+
+        List<UserPromotionsResponse.ApplicablePromotionResponse> applicable = new ArrayList<>();
+        List<UserPromotionsResponse.NotApplicablePromotionResponse> notApplicable = new ArrayList<>();
+
+        for (Promotion promotion : activePromotions) {
+            // Check if user already used this promotion (for one-time use)
+            if (promotion.isOneTimeUse() &&
+                    usedPromotionRepository.existsByUserIdAndPromotionCode(userId, promotion.getCode())) {
+                notApplicable.add(UserPromotionsResponse.NotApplicablePromotionResponse.builder()
+                        .promotion(mapToResponse(promotion))
+                        .build());
+                continue;
+            }
+
+            // Check time restrictions
+            if (!isValidTimeRestriction(promotion, now)) {
+                notApplicable.add(UserPromotionsResponse.NotApplicablePromotionResponse.builder()
+                        .promotion(mapToResponse(promotion))
+                        .build());
+                continue;
+            }
+
+            // If all checks pass, it's applicable
+            applicable.add(UserPromotionsResponse.ApplicablePromotionResponse.builder()
+                    .promotion(mapToResponse(promotion))
+                    .build());
+        }
+
+        return UserPromotionsResponse.builder()
+                .applicable(applicable)
+                .notApplicable(notApplicable)
+                .build();
     }
 
     public List<PromotionResponse> getAllPromotionsForAdmin(String code, String discountType, String promotionType,

@@ -84,7 +84,7 @@ public class FnbOrderService {
         }
 
         public List<FnbOrderResponse> getOrdersByUser(UUID userId) {
-                return fnbOrderRepository.findByUserId(userId).stream()
+                return fnbOrderRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
                                 .map(this::mapToResponse)
                                 .toList();
         }

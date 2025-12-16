@@ -1,12 +1,15 @@
 package com.cinehub.profile.service;
 
 import com.cinehub.profile.dto.response.UserStatsResponse;
+import com.cinehub.profile.dto.response.UserPersonalStatsResponse;
 import com.cinehub.profile.entity.ManagerProfile;
 import com.cinehub.profile.entity.StaffProfile;
 import com.cinehub.profile.entity.UserProfile;
 import com.cinehub.profile.repository.ManagerProfileRepository;
 import com.cinehub.profile.repository.StaffProfileRepository;
 import com.cinehub.profile.repository.UserProfileRepository;
+import com.cinehub.profile.repository.UserFavoriteMovieRepository;
+import com.cinehub.profile.adapter.client.BookingClient;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +25,8 @@ public class UserStatsService {
         private final UserProfileRepository userProfileRepository;
         private final ManagerProfileRepository managerRepository;
         private final StaffProfileRepository staffRepository;
+        private final UserFavoriteMovieRepository favoriteMovieRepository;
+        private final BookingClient bookingClient;
 
         @Transactional
         public UserStatsResponse getOverviewStats() {
@@ -70,6 +75,20 @@ public class UserStatsService {
 
                 return UserStatsResponse.builder()
                                 .rankDistribution(rankDistribution)
+                                .build();
+        }
+
+        public UserPersonalStatsResponse getUserPersonalStats(UUID userId) {
+                UserProfile profile = userProfileRepository.findByUserId(userId)
+                                .orElseThrow(() -> new RuntimeException("User profile not found"));
+
+                long favoriteMoviesCount = favoriteMovieRepository.countById_UserId(userId);
+                long bookingsCount = bookingClient.getBookingCountByUserId(userId);
+
+                return UserPersonalStatsResponse.builder()
+                                .totalBookings(bookingsCount)
+                                .totalFavoriteMovies(favoriteMoviesCount)
+                                .loyaltyPoints(profile.getLoyaltyPoint())
                                 .build();
         }
 }

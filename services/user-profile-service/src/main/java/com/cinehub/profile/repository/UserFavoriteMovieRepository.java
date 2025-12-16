@@ -13,6 +13,8 @@ public interface UserFavoriteMovieRepository extends JpaRepository<UserFavoriteM
 
     List<UserFavoriteMovie> findById_UserId(UUID userId);
 
+    long countById_UserId(UUID userId);
+
     boolean existsById_UserIdAndId_MovieId(UUID userId, UUID movieId);
 
     void deleteById_UserIdAndId_MovieId(UUID userId, UUID movieId);

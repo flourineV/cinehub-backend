@@ -1,10 +1,13 @@
-package com.cinehub.booking.events.payment; // hoặc com.cinehub.payment.events
+package com.cinehub.payment.events;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-public record PaymentFailedEvent(
+/**
+ * Event gửi sang Booking Service khi thanh toán booking thành công.
+ */
+public record PaymentBookingSuccessEvent(
         UUID paymentId,
         UUID bookingId,
         UUID showtimeId,
@@ -12,5 +15,5 @@ public record PaymentFailedEvent(
         BigDecimal amount,
         String method,
         List<UUID> seatIds,
-        String reason) {
+        String message) {
 }

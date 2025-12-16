@@ -33,8 +33,10 @@ public class RabbitConfig {
     public static final String PAYMENT_EXCHANGE = "payment.exchange";
 
     // routing key from payment exchange
-    public static final String PAYMENT_SUCCESS_KEY = "payment.success";
-    public static final String PAYMENT_FAILED_KEY = "payment.failed";
+    public static final String PAYMENT_BOOKING_SUCCESS_KEY = "payment.booking.success";
+    public static final String PAYMENT_BOOKING_FAILED_KEY = "payment.booking.failed";
+    public static final String PAYMENT_FNB_SUCCESS_KEY = "payment.fnb.success";
+    public static final String PAYMENT_FNB_FAILED_KEY = "payment.fnb.failed";
 
     // payment queue
     public static final String PAYMENT_QUEUE = "payment.queue";

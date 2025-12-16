@@ -24,70 +24,69 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class LoyaltyHistoryService {
 
-    private final LoyaltyHistoryRepository loyaltyHistoryRepository;
-    private final UserProfileRepository userProfileRepository;
+        private final LoyaltyHistoryRepository loyaltyHistoryRepository;
+        private final UserProfileRepository userProfileRepository;
 
-    @Transactional
-    public void recordLoyaltyTransaction(
-            UUID userId,
-            UUID bookingId,
-            LoyaltyHistory.TransactionType type,
-            Integer pointsChange,
-            BigDecimal amountSpent,
-            String description) {
+        @Transactional
+        public void recordLoyaltyTransaction(
+                        UUID userId,
+                        UUID bookingId,
+                        String bookingCode,
+                        Integer pointsChange,
+                        BigDecimal amountSpent,
+                        String description) {
 
-        UserProfile user = userProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("User profile not found"));
+                UserProfile user = userProfileRepository.findByUserId(userId)
+                                .orElseThrow(() -> new RuntimeException("User profile not found"));
 
-        Integer pointsBefore = user.getLoyaltyPoint();
-        Integer pointsAfter = pointsBefore + pointsChange;
+                Integer pointsBefore = user.getLoyaltyPoint();
+                Integer pointsAfter = pointsBefore + pointsChange;
 
-        LoyaltyHistory history = LoyaltyHistory.builder()
-                .user(user)
-                .bookingId(bookingId)
-                .type(type)
-                .pointsChange(pointsChange)
-                .pointsBefore(pointsBefore)
-                .pointsAfter(pointsAfter)
-                .amountSpent(amountSpent)
-                .description(description)
-                .build();
+                LoyaltyHistory history = LoyaltyHistory.builder()
+                                .user(user)
+                                .bookingId(bookingId)
+                                .bookingCode(bookingCode)
+                                .pointsChange(pointsChange)
+                                .pointsBefore(pointsBefore)
+                                .pointsAfter(pointsAfter)
+                                .amountSpent(amountSpent)
+                                .description(description)
+                                .build();
 
-        loyaltyHistoryRepository.save(history);
+                loyaltyHistoryRepository.save(history);
 
-        log.info("Recorded loyalty transaction for user {}: {} points ({})", 
-                userId, pointsChange, type);
-    }
+                log.info("Recorded loyalty transaction for user {}: {} points ({})",
+                                userId, pointsChange);
+        }
 
-    public PagedLoyaltyHistoryResponse getUserLoyaltyHistory(UUID userId, int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size);
-        Page<LoyaltyHistory> historyPage = loyaltyHistoryRepository
-                .findByUser_UserIdOrderByCreatedAtDesc(userId, pageable);
+        public PagedLoyaltyHistoryResponse getUserLoyaltyHistory(UUID userId, int page, int size) {
+                Pageable pageable = PageRequest.of(page - 1, size);
+                Page<LoyaltyHistory> historyPage = loyaltyHistoryRepository
+                                .findByUser_UserIdOrderByCreatedAtDesc(userId, pageable);
 
-        List<LoyaltyHistoryResponse> content = historyPage.getContent().stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+                List<LoyaltyHistoryResponse> content = historyPage.getContent().stream()
+                                .map(this::mapToResponse)
+                                .collect(Collectors.toList());
 
-        return PagedLoyaltyHistoryResponse.builder()
-                .data(content)
-                .page(page)
-                .size(size)
-                .totalElements(historyPage.getTotalElements())
-                .totalPages(historyPage.getTotalPages())
-                .build();
-    }
+                return PagedLoyaltyHistoryResponse.builder()
+                                .data(content)
+                                .page(page)
+                                .size(size)
+                                .totalElements(historyPage.getTotalElements())
+                                .totalPages(historyPage.getTotalPages())
+                                .build();
+        }
 
-    private LoyaltyHistoryResponse mapToResponse(LoyaltyHistory history) {
-        return LoyaltyHistoryResponse.builder()
-                .id(history.getId())
-                .bookingId(history.getBookingId())
-                .type(history.getType().name())
-                .pointsChange(history.getPointsChange())
-                .pointsBefore(history.getPointsBefore())
-                .pointsAfter(history.getPointsAfter())
-                .amountSpent(history.getAmountSpent())
-                .description(history.getDescription())
-                .createdAt(history.getCreatedAt())
-                .build();
-    }
+        private LoyaltyHistoryResponse mapToResponse(LoyaltyHistory history) {
+                return LoyaltyHistoryResponse.builder()
+                                .id(history.getId())
+                                .bookingId(history.getBookingId())
+                                .pointsChange(history.getPointsChange())
+                                .pointsBefore(history.getPointsBefore())
+                                .pointsAfter(history.getPointsAfter())
+                                .amountSpent(history.getAmountSpent())
+                                .description(history.getDescription())
+                                .createdAt(history.getCreatedAt())
+                                .build();
+        }
 }

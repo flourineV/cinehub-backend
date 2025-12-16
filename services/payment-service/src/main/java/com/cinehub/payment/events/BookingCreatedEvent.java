@@ -5,9 +5,11 @@ import java.util.List;
 import java.util.UUID;
 
 public record BookingCreatedEvent(
-                UUID bookingId,
-                UUID userId,
-                UUID showtimeId,
-                List<UUID> seatIds,
-                BigDecimal totalPrice) {
+        UUID bookingId,
+        UUID userId,
+        String guestName,
+        String guestEmail,
+        UUID showtimeId,
+        List<UUID> seatIds,
+        BigDecimal totalPrice) {
 }

@@ -48,12 +48,14 @@ spring:
             - name: JwtAuthenticationFilter
               args:
                 excludePaths: >
-                  /api/movies/now-playing,
-                  /api/movies/upcoming,
-                  /api/movies/search,
-                  /api/movies/tmdb/*,
+                  GET:/api/movies/*,
+                  GET:/api/movies/now-playing,
+                  GET:/api/movies/upcoming,
+                  GET:/api/movies/search,
+                  GET:/api/movies/available-for-range,
+                  GET:/api/movies/tmdb/**,
                   /api/movies/v3/api-docs,
-                  /api/movies/v3/api-docs/swagger-config,
+                  /api/movies/v3/api-docs/**,
                   /swagger-ui.html,
                   /swagger-ui/**
 
@@ -99,7 +101,12 @@ spring:
           filters:
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: /api/bookings/v3/api-docs,/api/bookings/v3/api-docs/**,/swagger-ui/**
+                excludePaths: >
+                  POST:/api/bookings,
+                  PATCH:/api/bookings/*/finalize,
+                  /api/bookings/v3/api-docs,
+                  /api/bookings/v3/api-docs/**,
+                  /swagger-ui/**
 
         - id: payment-service
           uri: http://payment-service:8086
@@ -108,7 +115,14 @@ spring:
           filters:
             - name: JwtAuthenticationFilter
               args:
-                excludePaths: /api/payments/callback,/api/payments/v3/api-docs,/api/payments/v3/api-docs/**,/swagger-ui/**
+                excludePaths: >
+                  /api/payments/callback,
+                  POST:/api/payments/create-zalopay-url,
+                  POST:/api/payments/create-zalopay-url-fnb,
+                  GET:/api/payments/check-status,
+                  /api/payments/v3/api-docs,
+                  /api/payments/v3/api-docs/**,
+                  /swagger-ui/**
 
         - id: pricing-service
           uri: http://pricing-service:8087

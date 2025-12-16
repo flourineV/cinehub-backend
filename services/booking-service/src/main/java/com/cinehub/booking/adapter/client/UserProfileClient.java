@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.UUID;
 import java.math.BigDecimal;
 import com.cinehub.booking.dto.external.RankAndDiscountResponse;
+import com.cinehub.booking.dto.request.UpdateLoyaltyRequest;
 
 @Service
 @Slf4j
@@ -40,24 +41,33 @@ public class UserProfileClient {
     }
 
     @CircuitBreaker(name = "userProfileService", fallbackMethod = "fallbackUpdateLoyalty")
-    public void updateLoyaltyPoints(UUID userId, Integer points) {
+    public void updateLoyaltyPoints(UUID userId, UUID bookingId, String bookingCode, Integer points, BigDecimal amountSpent) {
         try {
+            UpdateLoyaltyRequest request = new UpdateLoyaltyRequest(
+                    points, 
+                    bookingId, 
+                    bookingCode,
+                    amountSpent, 
+                    "Earned points from booking"
+            );
+            
             userProfileWebClient.patch()
                     .uri("/api/profiles/profiles/{userId}/loyalty", userId)
                     .header("X-Internal-Secret", internalSecret)
-                    .bodyValue(points)
+                    .bodyValue(request)
                     .retrieve()
                     .toBodilessEntity()
                     .block();
 
-            log.info("Sent update loyalty points request for user {}: +{} points", userId, points);
+            log.info("Sent update loyalty points request for user {}: +{} points, bookingCode: {}, amount: {}", 
+                    userId, points, bookingCode, amountSpent);
         } catch (Exception e) {
             log.error("Failed to update loyalty points for user {}: {}", userId, e.getMessage());
 
         }
     }
 
-    public void fallbackUpdateLoyalty(UUID userId, Integer points, Throwable t) {
+    public void fallbackUpdateLoyalty(UUID userId, UUID bookingId, String bookingCode, Integer points, BigDecimal amountSpent, Throwable t) {
         log.error("Circuit Breaker: Failed to update loyalty for user {}. Service might be down. Error: {}", userId,
                 t.getMessage());
     }

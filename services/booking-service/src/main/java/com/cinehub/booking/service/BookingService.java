@@ -8,8 +8,8 @@ import com.cinehub.booking.dto.request.FinalizeBookingRequest;
 import com.cinehub.booking.dto.response.BookingResponse;
 import com.cinehub.booking.dto.response.PagedResponse;
 import com.cinehub.booking.entity.BookingStatus;
-import com.cinehub.booking.events.payment.PaymentFailedEvent;
-import com.cinehub.booking.events.payment.PaymentSuccessEvent;
+import com.cinehub.booking.events.payment.PaymentBookingFailedEvent;
+import com.cinehub.booking.events.payment.PaymentBookingSuccessEvent;
 import com.cinehub.booking.events.showtime.SeatUnlockedEvent;
 import com.cinehub.booking.events.showtime.ShowtimeSuspendedEvent;
 
@@ -19,9 +19,9 @@ public interface BookingService {
 
     void handleSeatUnlocked(SeatUnlockedEvent data);
 
-    void handlePaymentSuccess(PaymentSuccessEvent data);
+    void handlePaymentSuccess(PaymentBookingSuccessEvent data);
 
-    void handlePaymentFailed(PaymentFailedEvent data);
+    void handlePaymentFailed(PaymentBookingFailedEvent data);
 
     BookingResponse finalizeBooking(UUID bookingId, FinalizeBookingRequest request);
 
@@ -52,4 +52,6 @@ public interface BookingService {
     int backfillMovieIds();
 
     boolean hasUserBookedMovie(UUID userId, UUID movieId);
+
+    long getBookingCountByUserId(UUID userId);
 }

@@ -2,8 +2,10 @@ package com.cinehub.payment.producer;
 
 import com.cinehub.payment.config.RabbitConfig;
 import com.cinehub.payment.events.EventMessage;
-import com.cinehub.payment.events.PaymentSuccessEvent; // Event mới
-import com.cinehub.payment.events.PaymentFailedEvent;
+import com.cinehub.payment.events.PaymentBookingSuccessEvent;
+import com.cinehub.payment.events.PaymentFnbSuccessEvent;
+import com.cinehub.payment.events.PaymentBookingFailedEvent;
+import com.cinehub.payment.events.PaymentFnbFailedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -22,26 +24,26 @@ public class PaymentProducer {
 
         private final RabbitTemplate rabbitTemplate;
 
-        public void sendPaymentSuccessEvent(PaymentSuccessEvent data) {
+        public void sendPaymentBookingSuccessEvent(PaymentBookingSuccessEvent data) {
                 final String EXCHANGE = RabbitConfig.PAYMENT_EXCHANGE;
-                final String ROUTING_KEY = RabbitConfig.PAYMENT_SUCCESS_KEY;
+                final String ROUTING_KEY = RabbitConfig.PAYMENT_BOOKING_SUCCESS_KEY;
 
                 var msg = new EventMessage<>(
                                 UUID.randomUUID().toString(),
-                                "PaymentSuccess",
+                                "PaymentBookingSuccess",
                                 "v1",
                                 Instant.now(),
                                 data);
 
-                log.info("Sending PaymentSuccessEvent → BookingService | exchange={}, routingKey={}, bookingId={}",
+                log.info("Sending PaymentBookingSuccessEvent → BookingService | exchange={}, routingKey={}, bookingId={}",
                                 EXCHANGE, ROUTING_KEY, data.bookingId());
 
                 rabbitTemplate.convertAndSend(EXCHANGE, ROUTING_KEY, msg);
         }
 
-        public void sendPaymentFailedEvent(PaymentFailedEvent data) {
+        public void sendPaymentBookingFailedEvent(PaymentBookingFailedEvent data) {
                 final String EXCHANGE = RabbitConfig.PAYMENT_EXCHANGE;
-                final String ROUTING_KEY = RabbitConfig.PAYMENT_FAILED_KEY;
+                final String ROUTING_KEY = RabbitConfig.PAYMENT_BOOKING_FAILED_KEY;
 
                 var msg = new EventMessage<>(
                                 UUID.randomUUID().toString(),
@@ -56,26 +58,33 @@ public class PaymentProducer {
                 rabbitTemplate.convertAndSend(EXCHANGE, ROUTING_KEY, msg);
         }
 
-        public void sendPaymentSuccessForFnb(UUID paymentId, UUID fnbOrderId, UUID userId, BigDecimal amount,
-                        String method) {
+        public void sendPaymentFnbSuccessEvent(PaymentFnbSuccessEvent data) {
                 final String EXCHANGE = RabbitConfig.FNB_EXCHANGE;
-                final String ROUTING_KEY = "payment.fnb.success";
-
-                Map<String, Object> data = new HashMap<>();
-                data.put("paymentId", paymentId);
-                data.put("fnbOrderId", fnbOrderId);
-                data.put("userId", userId);
-                data.put("amount", amount);
-                data.put("method", method);
+                final String ROUTING_KEY = RabbitConfig.PAYMENT_FNB_SUCCESS_KEY;
 
                 var msg = new EventMessage<>(
                                 UUID.randomUUID().toString(),
-                                "PaymentSuccessForFnb",
+                                "PaymentFnbSuccess",
                                 "v1",
                                 Instant.now(),
                                 data);
 
-                log.info("Sending PaymentSuccessForFnb → FnbService | fnbOrderId={}", fnbOrderId);
+                log.info("Sending PaymentFnbSuccessEvent → FnbService | fnbOrderId={}", data.fnbOrderId());
+                rabbitTemplate.convertAndSend(EXCHANGE, ROUTING_KEY, msg);
+        }
+
+        public void sendPaymentFnbFailedEvent(PaymentFnbFailedEvent data) {
+                final String EXCHANGE = RabbitConfig.FNB_EXCHANGE;
+                final String ROUTING_KEY = RabbitConfig.PAYMENT_FNB_FAILED_KEY;
+
+                var msg = new EventMessage<>(
+                                UUID.randomUUID().toString(),
+                                "PaymentFnbFailed",
+                                "v1",
+                                Instant.now(),
+                                data);
+
+                log.info("Sending PaymentFnbFailedEvent → FnbService | fnbOrderId={}", data.fnbOrderId());
                 rabbitTemplate.convertAndSend(EXCHANGE, ROUTING_KEY, msg);
         }
 }

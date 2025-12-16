@@ -29,14 +29,13 @@ public class UserFavoriteMovieService {
             throw new RuntimeException("Movie already in favorites");
         }
 
-        // Load UserProfile entity
-        com.cinehub.profile.entity.UserProfile userProfile = userProfileRepository.findByUserId(request.getUserId())
+        // Verify user profile exists
+        userProfileRepository.findByUserId(request.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "User profile not found for userId: " + request.getUserId()));
 
         UserFavoriteMovie favorite = UserFavoriteMovie.builder()
                 .id(id)
-                .user(userProfile)
                 .build();
 
         return mapToResponse(favoriteMovieRepository.save(favorite));

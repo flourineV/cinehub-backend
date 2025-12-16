@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface FnbOrderRepository extends JpaRepository<FnbOrder, UUID> {
-    List<FnbOrder> findByUserId(UUID userId);
+    List<FnbOrder> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
     List<FnbOrder> findByUserIdAndStatus(UUID userId, FnbOrderStatus status);
 

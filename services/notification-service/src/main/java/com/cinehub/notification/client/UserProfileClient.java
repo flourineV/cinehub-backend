@@ -2,6 +2,7 @@ package com.cinehub.notification.client;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -16,10 +17,14 @@ public class UserProfileClient {
 
     private final WebClient userProfileWebClient;
 
+    @Value("${internal.secret.key}")
+    private String internalSecret;
+
     public UserProfileResponse getUserProfile(String userId) {
         try {
             return userProfileWebClient.get()
                     .uri("/api/profiles/profiles/{userId}", userId)
+                    .header("X-Internal-Secret", internalSecret)
                     .retrieve()
                     .bodyToMono(UserProfileResponse.class)
                     .block();
@@ -33,6 +38,7 @@ public class UserProfileClient {
         try {
             return userProfileWebClient.get()
                     .uri("/api/profiles/profiles/subscribed-emails")
+                    .header("X-Internal-Secret", internalSecret)
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<List<String>>() {
                     })

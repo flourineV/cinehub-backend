@@ -31,15 +31,6 @@ public class Notification {
     @Column(nullable = false)
     private UUID userId;
 
-    @Column
-    private UUID bookingId;
-
-    @Column
-    private UUID paymentId;
-
-    @Column(precision = 10, scale = 2)
-    private BigDecimal amount;
-
     @Column(nullable = false, length = 255)
     private String title;
 

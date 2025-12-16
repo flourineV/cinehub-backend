@@ -27,9 +27,8 @@ public class LoyaltyHistory {
     @Column(name = "booking_id")
     private UUID bookingId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private TransactionType type;
+    @Column(name = "booking_code")
+    private String bookingCode;
 
     @Column(name = "points_change", nullable = false)
     private Integer pointsChange;
@@ -49,11 +48,4 @@ public class LoyaltyHistory {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-
-    public enum TransactionType {
-        EARN,       // Kiếm điểm từ booking
-        REDEEM,     // Đổi điểm lấy voucher
-        REFUND,     // Hoàn điểm khi refund booking
-        ADJUSTMENT  // Admin điều chỉnh
-    }
 }

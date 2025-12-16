@@ -11,7 +11,9 @@ import java.util.UUID;
 
 public interface BookingRepository extends JpaRepository<Booking, UUID>, BookingRepositoryCustom {
 
-        List<Booking> findByUserId(UUID userId);
+        List<Booking> findByUserIdOrderByCreatedAtDesc(UUID userId);
+
+        long countByUserId(UUID userId);
 
         @Query("""
                         SELECT COUNT(b) FROM Booking b

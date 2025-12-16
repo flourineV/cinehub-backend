@@ -8,5 +8,6 @@ public record BookingSeatMappedEvent(
         UUID showtimeId,
         List<UUID> seatIds,
         UUID userId,
-        UUID guestSessionId) {
+        String guestName,
+        String guestEmail) {
 }

@@ -3,6 +3,7 @@ package com.cinehub.promotion.controller;
 import com.cinehub.promotion.dto.request.PromotionRequest;
 import com.cinehub.promotion.dto.response.PromotionResponse;
 import com.cinehub.promotion.dto.response.PromotionValidationResponse;
+import com.cinehub.promotion.dto.response.UserPromotionsResponse;
 import com.cinehub.promotion.security.AuthChecker;
 import com.cinehub.promotion.service.PromotionService;
 import jakarta.validation.Valid;
@@ -41,6 +42,12 @@ public class PromotionController {
     @GetMapping("/active")
     public ResponseEntity<List<PromotionResponse>> getActivePromotions() {
         return ResponseEntity.ok(promotionService.getActivePromotions());
+    }
+
+    @GetMapping("/active-for-user")
+    public ResponseEntity<UserPromotionsResponse> getActivePromotionsForUser(
+            @RequestParam UUID userId) {
+        return ResponseEntity.ok(promotionService.getActivePromotionsForUser(userId));
     }
 
     @GetMapping("/admin/all")

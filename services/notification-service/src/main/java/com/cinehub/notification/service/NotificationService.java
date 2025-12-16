@@ -154,25 +154,26 @@ public class NotificationService {
                                         event.paymentMethod());
 
                         Map<String, Object> metadata = Map.ofEntries(
-                                        Map.entry("bookingId", event.bookingId()),
-                                        Map.entry("userId", event.userId()),
+                                        Map.entry("bookingId", event.bookingId().toString()),
+                                        Map.entry("bookingCode", event.bookingCode()),
+                                        Map.entry("userId", event.userId().toString()),
                                         Map.entry("movieTitle", event.movieTitle()),
                                         Map.entry("cinemaName", event.cinemaName()),
                                         Map.entry("roomName", event.roomName()),
-                                        Map.entry("showDateTime", event.showDateTime()),
-                                        Map.entry("seats", event.seats()),
-                                        Map.entry("fnbs", event.fnbs()),
-                                        Map.entry("promotion", event.promotion()),
+                                        Map.entry("showDateTime", event.showDateTime().toString()),
+                                        Map.entry("seats", event.seats() != null ? event.seats().toString() : ""),
+                                        Map.entry("fnbs", event.fnbs() != null ? event.fnbs().toString() : ""),
+                                        Map.entry("promotionCode",
+                                                        event.promotion() != null ? event.promotion().code() : ""),
                                         Map.entry("rankName", event.rankName()),
-                                        Map.entry("rankDiscountAmount", event.rankDiscountAmount()),
-                                        Map.entry("totalPrice", event.totalPrice()),
-                                        Map.entry("finalPrice", event.finalPrice()),
+                                        Map.entry("rankDiscountAmount", event.rankDiscountAmount().toString()),
+                                        Map.entry("totalPrice", event.totalPrice().toString()),
+                                        Map.entry("finalPrice", event.finalPrice().toString()),
                                         Map.entry("paymentMethod", event.paymentMethod()),
                                         Map.entry("createdAt", event.createdAt().toString()));
 
                         Notification notification = Notification.builder()
                                         .userId(event.userId())
-                                        .bookingId(event.bookingId())
                                         .title(title)
                                         .message(message)
                                         .type(NotificationType.BOOKING_TICKET)
@@ -182,7 +183,7 @@ public class NotificationService {
                         notificationRepository.save(notification);
                         log.info("Notification (BOOKING_TICKET) saved for user {}", userEmail);
                 } catch (Exception e) {
-                        log.error("Lỗi khi lưu notification vé xem phim: {}", e.getMessage());
+                        log.error("Lỗi khi lưu notification vé xem phim: ", e);
                 }
 
                 try {
@@ -190,6 +191,7 @@ public class NotificationService {
                                         userEmail,
                                         userName,
                                         event.bookingId(),
+                                        event.bookingCode(),
                                         event.movieTitle(),
                                         event.cinemaName(),
                                         event.roomName(),
@@ -225,9 +227,6 @@ public class NotificationService {
 
                 Notification notification = Notification.builder()
                                 .userId(userId)
-                                .bookingId(bookingId)
-                                .paymentId(paymentId)
-                                .amount(amount)
                                 .title(title != null ? title : "Thông báo từ CineHub")
                                 .message(message)
                                 .type(type)
@@ -256,7 +255,6 @@ public class NotificationService {
                 return NotificationResponse.builder()
                                 .id(n.getId())
                                 .userId(n.getUserId())
-                                .bookingId(n.getBookingId())
                                 .message(n.getMessage())
                                 .type(n.getType())
                                 .createdAt(n.getCreatedAt())

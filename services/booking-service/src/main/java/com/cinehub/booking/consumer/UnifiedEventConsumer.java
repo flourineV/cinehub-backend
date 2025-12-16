@@ -1,8 +1,8 @@
 package com.cinehub.booking.consumer;
 
 import com.cinehub.booking.config.RabbitConfig;
-import com.cinehub.booking.events.payment.PaymentSuccessEvent;
-import com.cinehub.booking.events.payment.PaymentFailedEvent;
+import com.cinehub.booking.events.payment.PaymentBookingSuccessEvent;
+import com.cinehub.booking.events.payment.PaymentBookingFailedEvent;
 import com.cinehub.booking.events.showtime.SeatUnlockedEvent;
 import com.cinehub.booking.service.impl.BookingServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,18 +44,22 @@ public class UnifiedEventConsumer {
                     bookingService.handleSeatUnlocked(data);
                 }
 
-                case RabbitConfig.PAYMENT_SUCCESS_KEY -> {
-                    PaymentSuccessEvent data = objectMapper.convertValue(dataObj, PaymentSuccessEvent.class);
-                    log.info("Processing PaymentSuccess for booking {}", data.bookingId());
+                case RabbitConfig.PAYMENT_BOOKING_SUCCESS_KEY -> {
+                    PaymentBookingSuccessEvent data = objectMapper.convertValue(dataObj,
+                            PaymentBookingSuccessEvent.class);
+                    log.info("Processing PaymentBookingSuccess for booking {}", data.bookingId());
+                    // Skip if bookingId is null (FnB standalone order)
                     bookingService.handlePaymentSuccess(data);
                 }
-                case RabbitConfig.PAYMENT_FAILED_KEY -> {
-                    PaymentFailedEvent data = objectMapper.convertValue(dataObj, PaymentFailedEvent.class);
+                case RabbitConfig.PAYMENT_BOOKING_FAILED_KEY -> {
+                    PaymentBookingFailedEvent data = objectMapper.convertValue(dataObj,
+                            PaymentBookingFailedEvent.class);
                     log.info("Processing PaymentFailed for booking {}", data.bookingId());
                     bookingService.handlePaymentFailed(data);
                 }
                 case RabbitConfig.SHOWTIME_SUSPENDED_KEY -> {
-                    com.cinehub.booking.events.showtime.ShowtimeSuspendedEvent data = objectMapper.convertValue(dataObj, com.cinehub.booking.events.showtime.ShowtimeSuspendedEvent.class);
+                    com.cinehub.booking.events.showtime.ShowtimeSuspendedEvent data = objectMapper.convertValue(dataObj,
+                            com.cinehub.booking.events.showtime.ShowtimeSuspendedEvent.class);
                     log.info("Processing ShowtimeSuspended for showtime {}", data.showtimeId());
                     bookingService.handleShowtimeSuspended(data);
                 }

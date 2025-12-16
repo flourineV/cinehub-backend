@@ -63,6 +63,22 @@ public class FnbConsumer {
                             sendOrderConfirmationEmail(order);
                         },
                         () -> log.warn("⚠️ FnbOrder {} not found", fnbOrderId));
+            } else if (RabbitConfig.PAYMENT_FNB_FAILED_KEY.equals(routingKey)) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> data = (Map<String, Object>) dataObj;
+
+                UUID fnbOrderId = UUID.fromString(data.get("fnbOrderId").toString());
+                String reason = data.get("reason").toString();
+
+                log.info("[FnbConsumer] Processing PaymentFailed | fnbOrderId={} | reason={}", fnbOrderId, reason);
+
+                fnbOrderRepository.findById(fnbOrderId).ifPresentOrElse(
+                        order -> {
+                            order.setStatus(FnbOrderStatus.CANCELLED);
+                            fnbOrderRepository.save(order);
+                            log.error("❌ FnbOrder {} cancelled due to payment failure: {}", fnbOrderId, reason);
+                        },
+                        () -> log.warn("⚠️ FnbOrder {} not found", fnbOrderId));
             } else {
                 log.warn("Unknown routing key: {}", routingKey);
             }

@@ -6,8 +6,6 @@ import java.util.UUID;
 public record BookingFinalizedEvent(
         UUID bookingId,
         UUID userId,
-        String guestName,
-        String guestEmail,
         UUID showtimeId,
         BigDecimal finalPrice) {
 }

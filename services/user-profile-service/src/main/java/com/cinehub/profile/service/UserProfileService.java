@@ -1,5 +1,6 @@
 package com.cinehub.profile.service;
 
+import com.cinehub.profile.dto.request.UpdateLoyaltyRequest;
 import com.cinehub.profile.dto.request.UserProfileRequest;
 import com.cinehub.profile.dto.request.UserProfileUpdateRequest;
 import com.cinehub.profile.dto.response.RankAndDiscountResponse;
@@ -102,10 +103,11 @@ public class UserProfileService {
         return mapToResponse(profileRepository.save(existing));
     }
 
-    public UserProfileResponse updateLoyaltyAndRank(UUID userId, Integer addedPoints) {
+    public UserProfileResponse updateLoyaltyAndRank(UUID userId, UpdateLoyaltyRequest request) {
         UserProfile existing = profileRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Profile not found for userId: " + userId));
 
+        Integer addedPoints = request.getPoints();
         if (addedPoints == null || addedPoints == 0) {
             return mapToResponse(existing);
         }
@@ -114,18 +116,16 @@ public class UserProfileService {
         Integer newLoyaltyPoint = currentPoints + addedPoints;
         existing.setLoyaltyPoint(newLoyaltyPoint);
 
-        // Record loyalty history
-        com.cinehub.profile.entity.LoyaltyHistory.TransactionType type = addedPoints > 0
-                ? com.cinehub.profile.entity.LoyaltyHistory.TransactionType.EARN
-                : com.cinehub.profile.entity.LoyaltyHistory.TransactionType.ADJUSTMENT;
+        String description = request.getDescription() != null ? request.getDescription() 
+                : (addedPoints > 0 ? "Earned points from booking" : "Points adjustment");
 
         loyaltyHistoryService.recordLoyaltyTransaction(
                 userId,
-                null,
-                type,
+                request.getBookingId(),
+                request.getBookingCode(),
                 addedPoints,
-                null,
-                addedPoints > 0 ? "Earned points from booking" : "Points adjustment");
+                request.getAmountSpent(),
+                description);
 
         // 3. Tìm và Cập nhật Rank (dựa trên newLoyaltyPoint)
         rankService.findRankByLoyaltyPoint(newLoyaltyPoint)

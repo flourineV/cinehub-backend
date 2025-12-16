@@ -9,6 +9,7 @@ import com.cinehub.booking.dto.request.SeatSelectionDetail;
 import com.cinehub.booking.dto.response.BookingResponse;
 import com.cinehub.booking.dto.response.PagedResponse;
 import com.cinehub.booking.dto.external.FnbCalculationRequest;
+import com.cinehub.booking.dto.external.FnbItemDto;
 import com.cinehub.booking.dto.external.MovieTitleResponse;
 import com.cinehub.booking.dto.external.SeatResponse;
 import com.cinehub.booking.dto.external.FnbItemResponse;
@@ -222,7 +223,7 @@ public class BookingServiceImpl implements BookingService {
         }
 
         @Transactional
-        public void handlePaymentSuccess(PaymentSuccessEvent data) {
+        public void handlePaymentSuccess(PaymentBookingSuccessEvent data) {
 
                 log.info("Received PaymentCompleted event for booking: {}", data.bookingId());
 
@@ -240,21 +241,38 @@ public class BookingServiceImpl implements BookingService {
                 updateBookingStatus(booking, BookingStatus.CONFIRMED);
 
                 if (booking.getUserId() != null) {
-                        // Tích điểm: 1,000 VND = 1 điểm (Silver 1000 điểm = 1 triệu, Gold 5000 điểm = 5
+                        // Tích điểm: 10,000 VND = 1 điểm (Silver 1000 điểm = 10 triệu, Gold 5000 điểm =
+                        // 50
                         // triệu)
-                        BigDecimal divisor = new BigDecimal("1000");
+                        BigDecimal divisor = new BigDecimal("10000");
                         int pointsEarned = booking.getFinalPrice().divide(divisor, 0, RoundingMode.DOWN).intValue();
 
                         if (pointsEarned > 0) {
                                 log.info("💎 Earning {} loyalty points for booking {} (amount: {})",
                                                 pointsEarned, booking.getId(), booking.getFinalPrice());
-                                userProfileClient.updateLoyaltyPoints(booking.getUserId(), pointsEarned);
+                                userProfileClient.updateLoyaltyPoints(
+                                        booking.getUserId(), 
+                                        booking.getId(), 
+                                        booking.getBookingCode(),
+                                        pointsEarned, 
+                                        booking.getFinalPrice()
+                                );
                         }
+                }
+
+                // Send notification event for booking confirmation
+                try {
+                        BookingTicketGeneratedEvent ticketEvent = buildBookingTicketGeneratedEvent(booking);
+                        bookingProducer.sendBookingTicketGeneratedEvent(ticketEvent);
+                        log.info("📧 Sent BookingTicketGeneratedEvent for booking {}", booking.getId());
+                } catch (Exception e) {
+                        log.error("Failed to send booking ticket notification for booking {}: {}",
+                                        booking.getId(), e.getMessage(), e);
                 }
         }
 
         @Transactional
-        public void handlePaymentFailed(PaymentFailedEvent data) {
+        public void handlePaymentFailed(PaymentBookingFailedEvent data) {
                 log.error("Received PaymentFailed event for booking: {} | Reason: {}", data.bookingId(), data.reason());
 
                 Booking booking = bookingRepository.findById(data.bookingId()).orElse(null);
@@ -372,8 +390,6 @@ public class BookingServiceImpl implements BookingService {
                                 new BookingFinalizedEvent(
                                                 booking.getId(),
                                                 booking.getUserId(),
-                                                booking.getGuestName(),
-                                                booking.getGuestEmail(),
                                                 booking.getShowtimeId(),
                                                 booking.getFinalPrice()));
 
@@ -388,7 +404,18 @@ public class BookingServiceImpl implements BookingService {
                         List<FinalizeBookingRequest.CalculatedFnbItemDto> fnbItems) {
 
                 FnbCalculationRequest fnbRequest = new FnbCalculationRequest();
-                fnbRequest.setSelectedFnbItems(fnbItems);
+
+                // Convert CalculatedFnbItemDto to FnbItemDto (remove price fields)
+                List<FnbItemDto> fnbItemDtos = fnbItems.stream()
+                                .map(item -> {
+                                        FnbItemDto dto = new FnbItemDto();
+                                        dto.setFnbItemId(item.getFnbItemId());
+                                        dto.setQuantity(item.getQuantity());
+                                        return dto;
+                                })
+                                .toList();
+
+                fnbRequest.setSelectedFnbItems(fnbItemDtos);
 
                 FnbCalculationResponse fnbResponse = fnbClient.calculatePrice(fnbRequest);
 
@@ -709,7 +736,10 @@ public class BookingServiceImpl implements BookingService {
 
                 return new BookingTicketGeneratedEvent(
                                 booking.getId(),
+                                booking.getBookingCode(),
                                 booking.getUserId(),
+                                booking.getGuestName(),
+                                booking.getGuestEmail(),
                                 movie.getTitle(),
                                 showtime.getTheaterName(),
                                 roomName,
@@ -758,7 +788,7 @@ public class BookingServiceImpl implements BookingService {
         }
 
         public List<BookingResponse> getBookingsByUser(UUID userId) {
-                List<BookingResponse> responses = bookingRepository.findByUserId(userId).stream()
+                List<BookingResponse> responses = bookingRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
                                 .map(r -> bookingMapper.toBookingResponse(r))
                                 .toList();
 
@@ -968,9 +998,14 @@ public class BookingServiceImpl implements BookingService {
         @Override
         public boolean hasUserBookedMovie(UUID userId, UUID movieId) {
 
-                List<Booking> bookings = bookingRepository.findByUserId(userId);
+                List<Booking> bookings = bookingRepository.findByUserIdOrderByCreatedAtDesc(userId);
 
                 return bookings.stream().anyMatch(b -> b.getMovieId().equals(movieId) &&
                                 (b.getStatus() == BookingStatus.CONFIRMED));
+        }
+
+        @Override
+        public long getBookingCountByUserId(UUID userId) {
+                return bookingRepository.countByUserId(userId);
         }
 }
