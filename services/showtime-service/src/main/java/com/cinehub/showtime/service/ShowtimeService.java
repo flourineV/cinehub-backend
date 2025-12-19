@@ -323,7 +323,9 @@ public class ShowtimeService {
                                                                                 .builder()
                                                                                 .theaterId(theater.getId())
                                                                                 .theaterName(theater.getName())
+                                                                                .theaterNameEn(theater.getNameEn())
                                                                                 .theaterAddress(theater.getAddress())
+                                                                                .theaterAddressEn(theater.getAddressEn())
                                                                                 .showtimes(showtimeDetails)
                                                                                 .build();
                                                         })

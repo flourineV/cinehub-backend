@@ -125,10 +125,27 @@ public class BookingServiceImpl implements BookingService {
                         }
                 }
 
+                // Lấy thông tin movie để lưu snapshot
+                MovieTitleResponse movie = movieClient.getMovieTitleById(showtime.getMovieId());
+                String movieTitle = (movie != null) ? movie.getTitle() : null;
+
+                // Lấy roomName từ seat đầu tiên
+                String roomName = null;
+                if (!request.getSelectedSeats().isEmpty()) {
+                        SeatResponse seatInfo = showtimeClient.getSeatInfoById(
+                                        request.getSelectedSeats().get(0).getSeatId());
+                        roomName = (seatInfo != null) ? seatInfo.getRoomName() : null;
+                }
+
                 Booking booking = Booking.builder()
                                 .userId(request.getUserId())
                                 .showtimeId(request.getShowtimeId())
                                 .movieId(showtime.getMovieId())
+                                // Snapshot fields
+                                .movieTitle(movieTitle)
+                                .theaterName(showtime.getTheaterName())
+                                .roomName(roomName)
+                                .showDateTime(showtime.getStartTime())
                                 .status(BookingStatus.PENDING)
                                 .totalPrice(BigDecimal.ZERO)
                                 .discountAmount(BigDecimal.ZERO)
@@ -149,11 +166,16 @@ public class BookingServiceImpl implements BookingService {
                                 throw new BookingException("Cannot get price for seat: " + seatDetail.getSeatId());
                         }
 
+                        // Lấy seatNumber từ showtime-service
+                        SeatResponse seatInfo = showtimeClient.getSeatInfoById(seatDetail.getSeatId());
+                        String seatNumber = (seatInfo != null) ? seatInfo.getSeatNumber() : null;
+
                         BigDecimal price = seatPrice.getBasePrice();
                         totalSeatPrice = totalSeatPrice.add(price);
 
                         seats.add(BookingSeat.builder()
                                         .seatId(seatDetail.getSeatId())
+                                        .seatNumber(seatNumber)
                                         .seatType(seatDetail.getSeatType())
                                         .ticketType(seatDetail.getTicketType())
                                         .price(price)
@@ -576,32 +598,12 @@ public class BookingServiceImpl implements BookingService {
                         }
                 }
 
-                // Batch fetch movie titles
-                List<UUID> movieIds = bookingResponses.stream()
-                                .map(BookingResponse::getMovieId)
-                                .filter(java.util.Objects::nonNull)
-                                .distinct()
-                                .toList();
-
-                java.util.Map<UUID, String> movieTitles = java.util.Collections.emptyMap();
-                if (!movieIds.isEmpty()) {
-                        try {
-                                movieTitles = movieClient.getBatchMovieTitles(movieIds);
-                        } catch (Exception e) {
-                                log.error("Failed to fetch batch movie titles: {}", e.getMessage());
-                        }
-                }
-
-                // Enrich responses with fullName and movieTitle
+                // Enrich responses with fullName (movieTitle đã có snapshot trong DB)
                 final java.util.Map<UUID, String> finalUserNames = userNames;
-                final java.util.Map<UUID, String> finalMovieTitles = movieTitles;
 
                 bookingResponses.forEach(response -> {
                         if (response.getUserId() != null) {
                                 response.setFullName(finalUserNames.getOrDefault(response.getUserId(), null));
-                        }
-                        if (response.getMovieId() != null) {
-                                response.setMovieTitle(finalMovieTitles.getOrDefault(response.getMovieId(), null));
                         }
                 });
 
@@ -758,11 +760,10 @@ public class BookingServiceImpl implements BookingService {
 
         public BookingResponse getBookingById(UUID id) {
                 Booking booking = bookingRepository.findById(id)
-                                .orElseThrow(() -> new BookingException("Booking not found: " + id)); // Dùng
-                                                                                                      // BookingException
+                                .orElseThrow(() -> new BookingException("Booking not found: " + id));
                 BookingResponse response = bookingMapper.toBookingResponse(booking);
 
-                // Enrich with fullName
+                // Enrich with fullName (movieTitle, theaterName, roomName đã có snapshot trong DB)
                 if (response.getUserId() != null) {
                         try {
                                 java.util.Map<UUID, String> userNames = userProfileClient.getBatchUserNames(
@@ -770,17 +771,6 @@ public class BookingServiceImpl implements BookingService {
                                 response.setFullName(userNames.get(response.getUserId()));
                         } catch (Exception e) {
                                 log.error("Failed to fetch user name for booking {}: {}", id, e.getMessage());
-                        }
-                }
-
-                // Enrich with movieTitle
-                if (response.getMovieId() != null) {
-                        try {
-                                java.util.Map<UUID, String> movieTitles = movieClient.getBatchMovieTitles(
-                                                java.util.List.of(response.getMovieId()));
-                                response.setMovieTitle(movieTitles.get(response.getMovieId()));
-                        } catch (Exception e) {
-                                log.error("Failed to fetch movie title for booking {}: {}", id, e.getMessage());
                         }
                 }
 
@@ -796,7 +786,7 @@ public class BookingServiceImpl implements BookingService {
                         return responses;
                 }
 
-                // Batch fetch user fullName
+                // Enrich with fullName (movieTitle, theaterName, roomName đã có snapshot trong DB)
                 if (userId != null) {
                         try {
                                 java.util.Map<UUID, String> userNames = userProfileClient.getBatchUserNames(
@@ -805,26 +795,6 @@ public class BookingServiceImpl implements BookingService {
                                 responses.forEach(r -> r.setFullName(fullName));
                         } catch (Exception e) {
                                 log.error("Failed to fetch user name for userId {}: {}", userId, e.getMessage());
-                        }
-                }
-
-                // Batch fetch movie titles
-                List<UUID> movieIds = responses.stream()
-                                .map(BookingResponse::getMovieId)
-                                .filter(java.util.Objects::nonNull)
-                                .distinct()
-                                .toList();
-
-                if (!movieIds.isEmpty()) {
-                        try {
-                                java.util.Map<UUID, String> movieTitles = movieClient.getBatchMovieTitles(movieIds);
-                                responses.forEach(r -> {
-                                        if (r.getMovieId() != null) {
-                                                r.setMovieTitle(movieTitles.get(r.getMovieId()));
-                                        }
-                                });
-                        } catch (Exception e) {
-                                log.error("Failed to fetch movie titles: {}", e.getMessage());
                         }
                 }
 

@@ -16,19 +16,19 @@ import java.util.List;
 
 public interface MovieService {
 
-    MovieDetailResponse getMovieByUuid(UUID id);
+    MovieDetailResponse getMovieByUuid(UUID id, String language);
 
     void syncMovies();
 
-    Page<MovieSummaryResponse> getNowPlayingMovies(Pageable pageable);
+    Page<MovieSummaryResponse> getNowPlayingMovies(Pageable pageable, String language);
 
-    Page<MovieSummaryResponse> getUpcomingMovies(Pageable pageable);
+    Page<MovieSummaryResponse> getUpcomingMovies(Pageable pageable, String language);
 
     Page<MovieSummaryResponse> getArchivedMovies(Pageable pageable);
 
     List<MovieSummaryResponse> searchMovies(String keyword);
 
-    MovieDetailResponse getMovieDetail(Integer tmdbId);
+    MovieDetailResponse getMovieDetail(Integer tmdbId, String language);
 
     MovieDetailResponse updateMovie(UUID id, MovieDetailResponse request);
 

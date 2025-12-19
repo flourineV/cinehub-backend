@@ -15,6 +15,7 @@ import java.util.UUID;
 public class BookingSeatResponse {
     
     private UUID seatId;
+    private String seatNumber;
     private String seatType;
     private String ticketType;
     private BigDecimal price; 

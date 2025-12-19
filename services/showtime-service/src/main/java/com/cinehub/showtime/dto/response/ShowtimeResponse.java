@@ -19,8 +19,10 @@ public class ShowtimeResponse {
     private UUID id;
     private UUID movieId;
     private String theaterName;
+    private String theaterNameEn;
     private UUID roomId;
     private String roomName;
+    private String roomNameEn;
 
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
     private LocalDateTime startTime;

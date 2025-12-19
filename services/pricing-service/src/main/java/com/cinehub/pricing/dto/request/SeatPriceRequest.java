@@ -20,4 +20,6 @@ public class SeatPriceRequest {
     private BigDecimal basePrice;
 
     private String description;
+
+    private String descriptionEn;
 }

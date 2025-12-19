@@ -37,6 +37,9 @@ public class Notification {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String message;
 
+    @Column(length = 10)
+    private String language; // "vi" or "en"
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     private NotificationType type;

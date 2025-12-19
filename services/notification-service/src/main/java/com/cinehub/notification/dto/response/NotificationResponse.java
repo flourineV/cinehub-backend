@@ -22,6 +22,7 @@ public class NotificationResponse {
 
     private String title;
     private String message;
+    private String language;
     private NotificationType type;
 
     // Metadata được deserialize thành chuỗi JSON (FE có thể parse lại nếu cần)

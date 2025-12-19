@@ -60,6 +60,9 @@ public class Promotion {
     @Column(name = "description", length = 500)
     private String description;
 
+    @Column(name = "description_en", length = 500)
+    private String descriptionEn;
+
     @Column(name = "promo_display_url", length = 500)
     private String promoDisplayUrl;
 

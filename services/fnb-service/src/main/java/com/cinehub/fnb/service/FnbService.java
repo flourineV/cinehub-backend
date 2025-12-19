@@ -97,7 +97,9 @@ public class FnbService {
 
         FnbItem newItem = FnbItem.builder()
                 .name(request.getName())
+                .nameEn(request.getNameEn())
                 .description(request.getDescription())
+                .descriptionEn(request.getDescriptionEn())
                 .unitPrice(request.getUnitPrice())
                 .imageUrl(request.getImageUrl())
                 .build();
@@ -113,7 +115,9 @@ public class FnbService {
                 .orElseThrow(() -> new IllegalArgumentException("F&B Item not found with ID: " + id));
 
         existingItem.setName(request.getName());
+        existingItem.setNameEn(request.getNameEn());
         existingItem.setDescription(request.getDescription());
+        existingItem.setDescriptionEn(request.getDescriptionEn());
         existingItem.setUnitPrice(request.getUnitPrice());
         existingItem.setImageUrl(request.getImageUrl());
 
@@ -135,7 +139,9 @@ public class FnbService {
         return FnbItemResponse.builder()
                 .id(item.getId())
                 .name(item.getName())
+                .nameEn(item.getNameEn())
                 .description(item.getDescription())
+                .descriptionEn(item.getDescriptionEn())
                 .unitPrice(item.getUnitPrice())
                 .imageUrl(item.getImageUrl())
                 .build();

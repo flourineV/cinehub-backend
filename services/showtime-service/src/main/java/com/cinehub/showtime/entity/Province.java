@@ -1,5 +1,6 @@
 package com.cinehub.showtime.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -23,5 +24,10 @@ public class Province {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
+
+    @Column(name = "name", nullable = false, columnDefinition = "TEXT")
     private String name;
+
+    @Column(name = "name_en", nullable = false, columnDefinition = "TEXT")
+    private String nameEn;
 }

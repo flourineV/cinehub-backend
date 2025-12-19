@@ -120,18 +120,12 @@ public class PromotionService {
     }
 
     public List<PromotionResponse> getActivePromotions() {
-        LocalDateTime now = LocalDateTime.now();
         return promotionRepository.findAll().stream()
                 .filter(p -> p.getIsActive() != null && p.getIsActive())
-                .filter(p -> p.getStartDate() != null && p.getStartDate().isBefore(now))
-                .filter(p -> p.getEndDate() != null && p.getEndDate().isAfter(now))
                 .map(this::mapToResponse)
                 .toList();
     }
 
-    /**
-     * Get promotions classified by applicability for a specific user
-     */
     public UserPromotionsResponse getActivePromotionsForUser(UUID userId) {
         LocalDateTime now = LocalDateTime.now();
 
@@ -222,6 +216,7 @@ public class PromotionService {
         existingPromo.setEndDate(request.getEndDate());
         existingPromo.setIsActive(request.getIsActive());
         existingPromo.setDescription(request.getDescription());
+        existingPromo.setDescriptionEn(request.getDescriptionEn());
         existingPromo.setPromoDisplayUrl(request.getPromoDisplayUrl());
 
         Promotion updatedPromo = promotionRepository.save(existingPromo);
@@ -254,6 +249,7 @@ public class PromotionService {
                 .allowedDaysOfWeek(request.getAllowedDaysOfWeek())
                 .allowedDaysOfMonth(request.getAllowedDaysOfMonth())
                 .description(request.getDescription())
+                .descriptionEn(request.getDescriptionEn())
                 .promoDisplayUrl(request.getPromoDisplayUrl())
                 .build();
     }
@@ -272,6 +268,7 @@ public class PromotionService {
                 .allowedDaysOfWeek(promotion.getAllowedDaysOfWeek())
                 .allowedDaysOfMonth(promotion.getAllowedDaysOfMonth())
                 .description(promotion.getDescription())
+                .descriptionEn(promotion.getDescriptionEn())
                 .promoDisplayUrl(promotion.getPromoDisplayUrl())
                 .build();
     }

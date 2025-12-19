@@ -48,9 +48,12 @@ public class TheaterService {
         Theater theater = Theater.builder()
                 .id(UUID.randomUUID())
                 .name(request.getName())
+                .nameEn(request.getNameEn())
                 .address(request.getAddress())
+                .addressEn(request.getAddressEn())
                 .province(province)
                 .description(request.getDescription())
+                .descriptionEn(request.getDescriptionEn())
                 .theaterImageUrl(request.getImageUrl())
                 .build();
 
@@ -83,9 +86,12 @@ public class TheaterService {
                         "Province with ID " + request.getProvinceId() + " not found"));
 
         theater.setName(request.getName());
+        theater.setNameEn(request.getNameEn());
         theater.setAddress(request.getAddress());
+        theater.setAddressEn(request.getAddressEn());
         theater.setProvince(province);
         theater.setDescription(request.getDescription());
+        theater.setDescriptionEn(request.getDescriptionEn());
         theater.setTheaterImageUrl(request.getImageUrl());
 
         Theater updatedTheater = theaterRepository.save(theater);
@@ -101,9 +107,13 @@ public class TheaterService {
         return TheaterResponse.builder()
                 .id(theater.getId())
                 .name(theater.getName())
+                .nameEn(theater.getNameEn())
                 .address(theater.getAddress())
+                .addressEn(theater.getAddressEn())
                 .description(theater.getDescription())
+                .descriptionEn(theater.getDescriptionEn())
                 .provinceName(theater.getProvince().getName())
+                .provinceNameEn(theater.getProvince().getNameEn())
                 .imageUrl(theater.getTheaterImageUrl())
                 .build();
     }

@@ -21,6 +21,9 @@ public class BookingSeat {
     @Column(nullable = false)
     private UUID seatId;
 
+    @Column(name = "seat_number", length = 10)
+    private String seatNumber; // Snapshot field
+
     @Column(name = "seat_type", nullable = false, length = 50)
     private String seatType;
 

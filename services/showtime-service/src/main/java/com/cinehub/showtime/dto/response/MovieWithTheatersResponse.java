@@ -24,7 +24,9 @@ public class MovieWithTheatersResponse {
     public static class TheaterWithShowtimes {
         private UUID theaterId;
         private String theaterName;
+        private String theaterNameEn;
         private String theaterAddress;
+        private String theaterAddressEn;
         private List<ShowtimeDetail> showtimes;
     }
 

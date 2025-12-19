@@ -32,11 +32,23 @@ public class Theater {
     @JoinColumn(name = "province_id", nullable = false)
     private Province province;
 
+    @Column(name = "name", columnDefinition = "TEXT")
     private String name;
+
+    @Column(name = "name_en", columnDefinition = "TEXT")
+    private String nameEn;
+
+    @Column(name = "address", columnDefinition = "TEXT")
     private String address;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "address_en", columnDefinition = "TEXT")
+    private String addressEn;
+
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
+
+    @Column(name = "description_en", columnDefinition = "TEXT")
+    private String descriptionEn;
 
     @Column(length = 500)
     private String theaterImageUrl;

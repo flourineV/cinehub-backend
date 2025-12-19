@@ -23,6 +23,7 @@ public class MovieSummaryResponse {
     private MovieStatus status;
     private Integer time;
     private List<String> spokenLanguages;
+    private String country;
     private List<String> genres;
     private String trailer;
     private LocalDate startDate;

@@ -14,6 +14,7 @@ public class BookingMapper {
     public BookingSeatResponse toSeatResponse(BookingSeat seat) {
         return BookingSeatResponse.builder()
                 .seatId(seat.getSeatId())
+                .seatNumber(seat.getSeatNumber())
                 .seatType(seat.getSeatType())
                 .ticketType(seat.getTicketType())
                 .price(seat.getPrice())
@@ -31,6 +32,10 @@ public class BookingMapper {
                 .userId(booking.getUserId())
                 .showtimeId(booking.getShowtimeId())
                 .movieId(booking.getMovieId())
+                .movieTitle(booking.getMovieTitle())
+                .theaterName(booking.getTheaterName())
+                .roomName(booking.getRoomName())
+                .showDateTime(booking.getShowDateTime() != null ? booking.getShowDateTime().toString() : null)
                 .status(booking.getStatus().name())
                 .totalPrice(booking.getTotalPrice())
                 .discountAmount(booking.getDiscountAmount())

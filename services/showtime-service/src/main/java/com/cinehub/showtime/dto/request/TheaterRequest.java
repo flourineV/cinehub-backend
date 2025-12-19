@@ -14,7 +14,10 @@ import java.util.UUID;
 public class TheaterRequest {
     private UUID provinceId;
     private String name;
+    private String nameEn;
     private String address;
+    private String addressEn;
     private String description;
+    private String descriptionEn;
     private String imageUrl;
 }

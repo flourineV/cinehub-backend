@@ -11,4 +11,6 @@ public class SeatPriceResponse {
     private String seatType;
     private String ticketType;
     private BigDecimal basePrice;
+    private String description;
+    private String descriptionEn;
 }

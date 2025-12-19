@@ -24,20 +24,34 @@ public class ProvinceService {
         Province province = Province.builder()
                 .id(UUID.randomUUID())
                 .name(request.getName())
+                .nameEn(request.getNameEn())
                 .build();
 
         Province savedProvince = provinceRepository.save(province);
-        return new ProvinceResponse(savedProvince.getId(), savedProvince.getName());
+        return ProvinceResponse.builder()
+                .id(savedProvince.getId())
+                .name(savedProvince.getName())
+                .nameEn(savedProvince.getNameEn())
+                .build();
     }
 
     public ProvinceResponse getProvinceById(UUID id) {
         Province province = provinceRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Province with ID " + id + " not found"));
-        return new ProvinceResponse(province.getId(), province.getName());
+        return ProvinceResponse.builder()
+                .id(province.getId())
+                .name(province.getName())
+                .nameEn(province.getNameEn())
+                .build();
     }
 
     public List<ProvinceResponse> getAllProvinces() {
-        return provinceRepository.findAll().stream().map(p -> new ProvinceResponse(p.getId(), p.getName()))
+        return provinceRepository.findAll().stream()
+                .map(p -> ProvinceResponse.builder()
+                        .id(p.getId())
+                        .name(p.getName())
+                        .nameEn(p.getNameEn())
+                        .build())
                 .collect(Collectors.toList());
     }
 
@@ -45,8 +59,13 @@ public class ProvinceService {
         Province province = provinceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Province not found"));
         province.setName(request.getName());
+        province.setNameEn(request.getNameEn());
         provinceRepository.save(province);
-        return new ProvinceResponse(province.getId(), province.getName());
+        return ProvinceResponse.builder()
+                .id(province.getId())
+                .name(province.getName())
+                .nameEn(province.getNameEn())
+                .build();
     }
 
     public void deleteProvince(UUID id) {

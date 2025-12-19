@@ -14,5 +14,6 @@ import java.util.UUID;
 public class RoomRequest {
     private UUID theaterId;
     private String name;
+    private String nameEn;
     private int seatCount;
 }

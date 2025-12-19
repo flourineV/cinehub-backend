@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.UUID;
+import org.springframework.format.annotation.DateTimeFormat;
 
 @RestController
 @RequestMapping("/api/showtimes")
@@ -57,11 +58,10 @@ public class ShowtimeSeatController {
         return ResponseEntity.ok("Seats initialized successfully for " + count + " showtimes");
     }
 
-    // ShowtimeSeatController.java
     @PostMapping("/initialize-seats/range")
     public ResponseEntity<String> initializeSeatsByRange(
-            @RequestParam LocalDate startDate,
-            @RequestParam LocalDate endDate) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
 
         AuthChecker.requireManagerOrAdmin();
         int count = showtimeSeatService.initializeSeatsByDateRange(startDate, endDate);

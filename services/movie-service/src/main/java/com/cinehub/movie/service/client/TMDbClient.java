@@ -46,6 +46,11 @@ public class TMDbClient {
         return restTemplate.getForObject(url, TMDbMovieResponse.class);
     }
 
+    public TMDbMovieResponse fetchMovieDetailInEnglish(Integer tmdbId) {
+        String url = String.format("%s/movie/%d?api_key=%s&language=en-US", baseUrl, tmdbId, apiKey);
+        return restTemplate.getForObject(url, TMDbMovieResponse.class);
+    }
+
     public TMDbCreditsResponse fetchCredits(Integer tmdbId) {
         String url = String.format("%s/movie/%d/credits?api_key=%s&language=vi-VN", baseUrl, tmdbId, apiKey);
         return restTemplate.getForObject(url, TMDbCreditsResponse.class);

@@ -12,7 +12,11 @@ public class FnbItemRequest {
     @NotBlank(message = "Tên mục F&B không được để trống")
     private String name;
 
+    private String nameEn;
+
     private String description;
+
+    private String descriptionEn;
 
     @NotNull(message = "Đơn giá không được để trống")
     @DecimalMin(value = "0.00", inclusive = false, message = "Đơn giá phải lớn hơn 0")

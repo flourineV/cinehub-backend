@@ -31,5 +31,8 @@ public class Room {
     private Theater theater;
 
     private String name;
+
+    private String nameEn;
+
     private int seatCount;
 }

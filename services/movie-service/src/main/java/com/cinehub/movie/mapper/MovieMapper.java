@@ -28,6 +28,7 @@ public class MovieMapper {
                 entity.getStatus(),
                 entity.getTime(),
                 entity.getSpokenLanguages(),
+                entity.getCountry(),
                 entity.getGenres(),
                 entity.getTrailer(),
                 entity.getStartDate(),

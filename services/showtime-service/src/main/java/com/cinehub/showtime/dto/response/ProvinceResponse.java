@@ -15,4 +15,5 @@ import java.util.UUID;
 public class ProvinceResponse {
     private UUID id;
     private String name;
+    private String nameEn;
 }

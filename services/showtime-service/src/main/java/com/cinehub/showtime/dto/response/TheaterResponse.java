@@ -14,8 +14,12 @@ import java.util.UUID;
 public class TheaterResponse {
     private UUID id;
     private String name;
+    private String nameEn;
     private String address;
+    private String addressEn;
     private String description;
+    private String descriptionEn;
     private String provinceName;
+    private String provinceNameEn;
     private String imageUrl;
 }

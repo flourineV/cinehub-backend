@@ -39,6 +39,9 @@ public class PromotionRequest {
     @Size(max = 500, message = "Mô tả không được quá 500 ký tự.")
     private String description;
 
+    @Size(max = 500, message = "Mô tả tiếng Anh không được quá 500 ký tự.")
+    private String descriptionEn;
+
     @Size(max = 500, message = "URL ảnh không được quá 500 ký tự.")
     private String promoDisplayUrl;
 }

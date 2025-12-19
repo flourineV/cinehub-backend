@@ -11,7 +11,9 @@ public class FnbItemResponse {
 
     private UUID id;
     private String name;
+    private String nameEn;
     private String description;
+    private String descriptionEn;
     private BigDecimal unitPrice;
     private String imageUrl;
 }

@@ -12,10 +12,12 @@ import com.cinehub.movie.dto.TMDb.TMDbReleaseDatesResponse;
 import com.cinehub.movie.entity.MovieDetail;
 import com.cinehub.movie.entity.MovieStatus;
 import com.cinehub.movie.entity.MovieSummary;
+import com.cinehub.movie.entity.MovieTranslation;
 import com.cinehub.movie.mapper.MovieMapper;
 import com.cinehub.movie.dto.response.PagedResponse;
 import com.cinehub.movie.repository.MovieDetailRepository;
 import com.cinehub.movie.repository.MovieSummaryRepository;
+import com.cinehub.movie.repository.MovieTranslationRepository;
 import com.cinehub.movie.service.client.TMDbClient;
 import com.cinehub.movie.util.AgeRatingNormalizer;
 import com.cinehub.movie.util.RegexUtil;
@@ -49,16 +51,19 @@ public class MovieServiceImplement implements MovieService {
 
     private final MovieSummaryRepository movieSummaryRepository;
     private final MovieDetailRepository movieDetailRepository;
+    private final MovieTranslationRepository movieTranslationRepository;
     private final TMDbClient tmdbClient;
     private final MovieMapper movieMapper;
     private final MongoTemplate mongoTemplate;
 
-    public MovieDetailResponse getMovieByUuid(UUID id) {
+    public MovieDetailResponse getMovieByUuid(UUID id, String language) {
         MovieDetail entity = movieDetailRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Movie not found with UUID: " + id));
 
-        return movieMapper.toDetailResponse(entity);
+        MovieDetailResponse response = movieMapper.toDetailResponse(entity);
+        applyTranslation(response, language);
+        return response;
     }
 
     public void syncMovies() {
@@ -77,11 +82,13 @@ public class MovieServiceImplement implements MovieService {
 
         for (TMDbMovieResponse movie : nowPlaying) {
             TMDbMovieResponse fullMovie = tmdbClient.fetchMovieDetail(movie.getId());
-            syncMovie(fullMovie, MovieStatus.NOW_PLAYING);
+            TMDbMovieResponse fullMovieEn = tmdbClient.fetchMovieDetailInEnglish(movie.getId());
+            syncMovie(fullMovie, fullMovieEn, MovieStatus.NOW_PLAYING);
         }
         for (TMDbMovieResponse movie : upcoming) {
             TMDbMovieResponse fullMovie = tmdbClient.fetchMovieDetail(movie.getId());
-            syncMovie(fullMovie, MovieStatus.UPCOMING);
+            TMDbMovieResponse fullMovieEn = tmdbClient.fetchMovieDetailInEnglish(movie.getId());
+            syncMovie(fullMovie, fullMovieEn, MovieStatus.UPCOMING);
         }
 
         List<MovieSummary> dbMovies = movieSummaryRepository.findAll();
@@ -100,7 +107,7 @@ public class MovieServiceImplement implements MovieService {
                 activeTmdbIds.size());
     }
 
-    private void syncMovie(TMDbMovieResponse movie, MovieStatus status) {
+    private void syncMovie(TMDbMovieResponse movie, TMDbMovieResponse movieEn, MovieStatus status) {
 
         TMDbCreditsResponse credits = tmdbClient.fetchCredits(movie.getId());
         TMDbReleaseDatesResponse releaseDates = tmdbClient.fetchReleaseDates(movie.getId());
@@ -162,7 +169,41 @@ public class MovieServiceImplement implements MovieService {
 
         movieDetailRepository.save(detail);
 
-        log.info("Synced movie: {} ({})", movie.getTitle(), movie.getId());
+        // --- Save Translations (Vietnamese) ---
+        MovieTranslation translationVi = movieTranslationRepository
+                .findByMovieIdAndLanguage(sharedId, "vi")
+                .orElse(new MovieTranslation());
+
+        translationVi.setMovieId(sharedId);
+        translationVi.setLanguage("vi");
+        translationVi.setTitle(movie.getTitle());
+        translationVi.setOverview(movie.getOverview());
+        translationVi.setGenres(movie.getGenres().stream()
+                .map(TMDbMovieResponse.Genre::getName)
+                .toList());
+        translationVi.setCountry(movie.getProductionCountries().isEmpty() ? null
+                : movie.getProductionCountries().get(0).getName());
+
+        movieTranslationRepository.save(translationVi);
+
+        // --- Save Translations (English) ---
+        MovieTranslation translationEn = movieTranslationRepository
+                .findByMovieIdAndLanguage(sharedId, "en")
+                .orElse(new MovieTranslation());
+
+        translationEn.setMovieId(sharedId);
+        translationEn.setLanguage("en");
+        translationEn.setTitle(movieEn.getTitle());
+        translationEn.setOverview(movieEn.getOverview());
+        translationEn.setGenres(movieEn.getGenres().stream()
+                .map(TMDbMovieResponse.Genre::getName)
+                .toList());
+        translationEn.setCountry(movieEn.getProductionCountries().isEmpty() ? null
+                : movieEn.getProductionCountries().get(0).getName());
+
+        movieTranslationRepository.save(translationEn);
+
+        log.info("Synced movie: {} ({}) with translations (vi, en)", movie.getTitle(), movie.getId());
     }
 
     private String extractAgeRating(TMDbReleaseDatesResponse releaseDates) {
@@ -175,16 +216,58 @@ public class MovieServiceImplement implements MovieService {
                 .orElse(null);
     }
 
-    public Page<MovieSummaryResponse> getNowPlayingMovies(Pageable pageable) {
-        Pageable sortedPageable = createPageableWithPopularitySort(pageable);
-        Page<MovieSummary> entities = movieSummaryRepository.findByStatus(MovieStatus.NOW_PLAYING, sortedPageable);
-        return movieMapper.toSummaryResponsePage(entities);
+    /**
+     * Apply translation to MovieSummaryResponse based on language
+     */
+    private void applyTranslation(MovieSummaryResponse response, String language) {
+        if (language == null || language.equals("vi")) {
+            return; // Default is Vietnamese
+        }
+
+        movieTranslationRepository.findByMovieIdAndLanguage(response.getId(), language)
+                .ifPresent(translation -> {
+                    response.setTitle(translation.getTitle());
+                    response.setGenres(translation.getGenres());
+                });
     }
 
-    public Page<MovieSummaryResponse> getUpcomingMovies(Pageable pageable) {
+    /**
+     * Apply translation to MovieDetailResponse based on language
+     */
+    private void applyTranslation(MovieDetailResponse response, String language) {
+        if (language == null || language.equals("vi")) {
+            return; // Default is Vietnamese
+        }
+
+        movieTranslationRepository.findByMovieIdAndLanguage(response.getId(), language)
+                .ifPresent(translation -> {
+                    response.setTitle(translation.getTitle());
+                    response.setOverview(translation.getOverview());
+                    response.setGenres(translation.getGenres());
+                    response.setCountry(translation.getCountry());
+                });
+    }
+
+    public Page<MovieSummaryResponse> getNowPlayingMovies(Pageable pageable, String language) {
+        Pageable sortedPageable = createPageableWithPopularitySort(pageable);
+        Page<MovieSummary> entities = movieSummaryRepository.findByStatus(MovieStatus.NOW_PLAYING, sortedPageable);
+        Page<MovieSummaryResponse> responses = movieMapper.toSummaryResponsePage(entities);
+
+        // Apply translations
+        responses.getContent().forEach(response -> applyTranslation(response, language));
+
+        return responses;
+    }
+
+    public Page<MovieSummaryResponse> getUpcomingMovies(Pageable pageable, String language) {
         Pageable sortedPageable = createPageableWithPopularitySort(pageable);
         Page<MovieSummary> entities = movieSummaryRepository.findByStatus(MovieStatus.UPCOMING, sortedPageable);
-        return movieMapper.toSummaryResponsePage(entities);
+        Page<MovieSummaryResponse> responses = movieMapper.toSummaryResponsePage(entities);
+
+        // Apply translations
+        responses.getContent().forEach(response -> applyTranslation(response, language));
+
+        return responses;
     }
 
     public Page<MovieSummaryResponse> getArchivedMovies(Pageable pageable) {
@@ -207,14 +290,16 @@ public class MovieServiceImplement implements MovieService {
                 .toList();
     }
 
-    public MovieDetailResponse getMovieDetail(Integer tmdbId) {
+    public MovieDetailResponse getMovieDetail(Integer tmdbId, String language) {
         if (tmdbId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "TMDb ID is required");
         }
 
         Optional<MovieDetail> movieDetail = movieDetailRepository.findByTmdbId(tmdbId);
         if (movieDetail.isPresent()) {
-            return movieMapper.toDetailResponse(movieDetail.get());
+            MovieDetailResponse response = movieMapper.toDetailResponse(movieDetail.get());
+            applyTranslation(response, language);
+            return response;
         }
 
         // Không tìm thấy trong DB, gọi TMDb API
@@ -440,13 +525,14 @@ public class MovieServiceImplement implements MovieService {
                     "Movie with TMDb ID " + request.getTmdbId() + " already exists");
         }
 
-        // Fetch movie data from TMDB
+        // Fetch movie data from TMDB (both Vietnamese and English)
         TMDbMovieResponse movieResponse = tmdbClient.fetchMovieDetail(request.getTmdbId());
         if (movieResponse == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "Movie not found in TMDB with ID: " + request.getTmdbId());
         }
 
+        TMDbMovieResponse movieResponseEn = tmdbClient.fetchMovieDetailInEnglish(request.getTmdbId());
         TMDbCreditsResponse credits = tmdbClient.fetchCredits(request.getTmdbId());
         TMDbReleaseDatesResponse releaseDates = tmdbClient.fetchReleaseDates(request.getTmdbId());
         String trailer = tmdbClient.fetchTrailerKey(request.getTmdbId());
@@ -525,7 +611,37 @@ public class MovieServiceImplement implements MovieService {
 
         movieDetailRepository.save(detail);
 
-        log.info("Added movie from TMDB: {} ({}), status={}", movieResponse.getTitle(),
+        // --- Save Translations (Vietnamese) ---
+        MovieTranslation translationVi = new MovieTranslation();
+        translationVi.setId(UUID.randomUUID());
+        translationVi.setMovieId(sharedId);
+        translationVi.setLanguage("vi");
+        translationVi.setTitle(movieResponse.getTitle());
+        translationVi.setOverview(movieResponse.getOverview());
+        translationVi.setGenres(movieResponse.getGenres().stream()
+                .map(TMDbMovieResponse.Genre::getName)
+                .toList());
+        translationVi.setCountry(movieResponse.getProductionCountries().isEmpty() ? null
+                : movieResponse.getProductionCountries().get(0).getName());
+
+        movieTranslationRepository.save(translationVi);
+
+        // --- Save Translations (English) ---
+        MovieTranslation translationEn = new MovieTranslation();
+        translationEn.setId(UUID.randomUUID());
+        translationEn.setMovieId(sharedId);
+        translationEn.setLanguage("en");
+        translationEn.setTitle(movieResponseEn.getTitle());
+        translationEn.setOverview(movieResponseEn.getOverview());
+        translationEn.setGenres(movieResponseEn.getGenres().stream()
+                .map(TMDbMovieResponse.Genre::getName)
+                .toList());
+        translationEn.setCountry(movieResponseEn.getProductionCountries().isEmpty() ? null
+                : movieResponseEn.getProductionCountries().get(0).getName());
+
+        movieTranslationRepository.save(translationEn);
+
+        log.info("Added movie from TMDB with translations: {} ({}), status={}", movieResponse.getTitle(),
                 movieResponse.getId(), status);
 
         return movieMapper.toDetailResponse(detail);

@@ -15,6 +15,8 @@ import java.util.UUID;
 public class RoomResponse {
     private UUID id;
     private String name;
+    private String nameEn;
     private int seatCount;
     private String theaterName;
+    private String theaterNameEn;
 }

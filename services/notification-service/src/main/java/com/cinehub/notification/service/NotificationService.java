@@ -29,6 +29,7 @@ public class NotificationService {
         private final NotificationRepository notificationRepository;
         private final EmailService emailService;
         private final UserProfileClient userProfileClient;
+        private final MessageTemplateService messageTemplateService;
 
         @Transactional
         public void sendBookingRefundProcessedNotification(BookingRefundedEvent event) {
@@ -36,6 +37,8 @@ public class NotificationService {
 
                 String userEmail;
                 String userName;
+                String language = event.language() != null ? event.language() : "vi"; // Lấy từ event
+
                 if (event.userId() != null) {
                         // Case: User đã đăng ký -> Gọi Profile Service
                         try {
@@ -63,15 +66,14 @@ public class NotificationService {
                         return;
                 }
                 if (event.userId() != null) {
+                        String title = messageTemplateService.getRefundTitle(language);
                         String message;
                         if ("VOUCHER".equalsIgnoreCase(event.refundMethod())) {
-                                message = String.format(
-                                                "Vé cho đơn hàng %s đã được hoàn tiền thành công dưới dạng Voucher trị giá %,.0f VNĐ. Lý do: %s",
-                                                event.bookingId(), event.refundedValue(), event.reason());
+                                message = messageTemplateService.getRefundVoucherMessage(
+                                                language, event.bookingId(), event.refundedValue(), event.reason());
                         } else {
-                                message = String.format(
-                                                "Vé cho đơn hàng %s đã bị hủy. Vui lòng liên hệ quầy vé để nhận hoàn tiền. Lý do: %s",
-                                                event.bookingId(), event.reason());
+                                message = messageTemplateService.getRefundCashMessage(
+                                                language, event.bookingId(), event.reason());
                         }
 
                         createNotification(
@@ -79,9 +81,10 @@ public class NotificationService {
                                         event.bookingId(),
                                         null,
                                         event.refundedValue(),
-                                        "Thông báo hoàn tiền / Hủy vé",
+                                        title,
                                         message,
-                                        NotificationType.BOOKING_REFUNDED, // Hoặc tạo type BOOKING_REFUNDED
+                                        NotificationType.BOOKING_REFUNDED,
+                                        language,
                                         Map.of("reason", event.reason(), "method", event.refundMethod()));
                 }
 
@@ -105,6 +108,8 @@ public class NotificationService {
 
                 String userEmail;
                 String userName;
+                String language = event.language() != null ? event.language() : "vi"; // Lấy từ event
+
                 if (event.userId() != null) {
                         // Case: User đã đăng ký -> Gọi Profile Service
                         try {
@@ -128,18 +133,9 @@ public class NotificationService {
                 }
 
                 try {
-                        String title = "Vé xem phim của bạn đã sẵn sàng!";
-                        String message = String.format("""
-                                        Bạn đã đặt vé thành công cho phim <b>%s</b> tại rạp <b>%s</b>.<br>
-                                        Suất chiếu: <b>%s</b> tại phòng <b>%s</b>.<br><br>
-                                        <b>Chi tiết hóa đơn:</b><br>
-                                        - Tổng giá gốc: <b>%,.0f VNĐ</b><br>
-                                        - Giảm giá hạng %s: <b>-%,.0f VNĐ</b><br>
-                                        - Giảm giá khuyến mãi (%s): <b>-%,.0f VNĐ</b><br>
-                                        -------------------------------------------<br>
-                                        <b>Thành tiền: %,.0f VNĐ</b> (%s).<br><br>
-                                        Chúc bạn xem phim vui vẻ!
-                                        """,
+                        String title = messageTemplateService.getBookingTicketTitle(language);
+                        String message = messageTemplateService.getBookingTicketMessage(
+                                        language,
                                         event.movieTitle(),
                                         event.cinemaName(),
                                         event.showDateTime(),
@@ -147,7 +143,7 @@ public class NotificationService {
                                         event.totalPrice(),
                                         event.rankName(),
                                         event.rankDiscountAmount(),
-                                        event.promotion() != null ? event.promotion().code() : "Không có",
+                                        event.promotion() != null ? event.promotion().code() : null,
                                         event.promotion() != null ? event.promotion().discountAmount()
                                                         : BigDecimal.ZERO,
                                         event.finalPrice(),
@@ -176,6 +172,7 @@ public class NotificationService {
                                         .userId(event.userId())
                                         .title(title)
                                         .message(message)
+                                        .language(language)
                                         .type(NotificationType.BOOKING_TICKET)
                                         .metadata(metadata)
                                         .build();
@@ -219,6 +216,7 @@ public class NotificationService {
                         String title,
                         String message,
                         NotificationType type,
+                        String language,
                         Map<String, Object> metadata) {
 
                 if (userId == null || type == null) {
@@ -227,9 +225,12 @@ public class NotificationService {
 
                 Notification notification = Notification.builder()
                                 .userId(userId)
-                                .title(title != null ? title : "Thông báo từ CineHub")
+                                .title(title != null ? title
+                                                : messageTemplateService
+                                                                .getDefaultTitle(language != null ? language : "vi"))
                                 .message(message)
                                 .type(type)
+                                .language(language != null ? language : "vi")
                                 .metadata(metadata)
                                 .build();
 
@@ -256,6 +257,7 @@ public class NotificationService {
                                 .id(n.getId())
                                 .userId(n.getUserId())
                                 .message(n.getMessage())
+                                .language(n.getLanguage())
                                 .type(n.getType())
                                 .createdAt(n.getCreatedAt())
                                 .build();

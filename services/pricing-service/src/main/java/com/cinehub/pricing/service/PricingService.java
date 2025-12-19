@@ -67,6 +67,7 @@ public class PricingService {
         // Cập nhật các trường
         existingPrice.setBasePrice(request.getBasePrice());
         existingPrice.setDescription(request.getDescription());
+        existingPrice.setDescriptionEn(request.getDescriptionEn());
 
         // Lưu ý: Không cho phép thay đổi seatType và ticketType sau khi tạo để giữ tính
         // toàn vẹn của khóa.
@@ -105,6 +106,8 @@ public class PricingService {
                 .seatType(seatPrice.getSeatType())
                 .ticketType(seatPrice.getTicketType())
                 .basePrice(seatPrice.getBasePrice())
+                .description(seatPrice.getDescription())
+                .descriptionEn(seatPrice.getDescriptionEn())
                 .build();
     }
 
@@ -114,6 +117,7 @@ public class PricingService {
                 .ticketType(request.getTicketType())
                 .basePrice(request.getBasePrice())
                 .description(request.getDescription())
+                .descriptionEn(request.getDescriptionEn())
                 .build();
     }
 }

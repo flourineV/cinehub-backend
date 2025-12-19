@@ -1,5 +1,6 @@
 package com.cinehub.notification.service;
 
+import org.springframework.core.io.ClassPathResource;
 import com.cinehub.notification.dto.email.PromotionEmailData;
 import com.cinehub.notification.events.dto.SeatDetail;
 import com.cinehub.notification.events.dto.FnbDetail;
@@ -115,11 +116,16 @@ public class EmailService {
         String html = templateEngine.process("booking-ticket", ctx);
 
         MimeMessage message = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
+
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
         helper.setTo(to);
         helper.setSubject("CineHub – Vé xem phim của bạn đã sẵn sàng");
         helper.setText(html, true);
+
+        ClassPathResource logo = new ClassPathResource("mail/LogoFullfinal.png");
+
+        helper.addInline("logoImage", logo);
 
         mailSender.send(message);
 

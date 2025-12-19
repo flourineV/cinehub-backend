@@ -30,6 +30,19 @@ public class Booking {
     @Column(name = "movie_id")
     private UUID movieId;
 
+    // Snapshot fields - lưu tại thời điểm đặt vé để tránh N+1 query
+    @Column(name = "movie_title")
+    private String movieTitle;
+
+    @Column(name = "theater_name")
+    private String theaterName;
+
+    @Column(name = "room_name")
+    private String roomName;
+
+    @Column(name = "show_date_time")
+    private LocalDateTime showDateTime;
+
     @Column(name = "payment_id", length = 100)
     private UUID paymentId;
 

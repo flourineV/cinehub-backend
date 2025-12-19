@@ -23,8 +23,14 @@ public class FnbItem {
     @Column(name = "name", nullable = false, unique = true, length = 255)
     private String name;
 
+    @Column(name = "name_en", nullable = false, unique = true, length = 255)
+    private String nameEn;
+
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
+
+    @Column(name = "description_en", columnDefinition = "TEXT")
+    private String descriptionEn;
 
     @Column(name = "unit_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal unitPrice;

@@ -41,14 +41,18 @@ public class MovieController {
     }
 
     @GetMapping("/now-playing")
-    public ResponseEntity<Page<MovieSummaryResponse>> getNowPlaying(Pageable pageable) {
-        Page<MovieSummaryResponse> movies = movieService.getNowPlayingMovies(pageable);
+    public ResponseEntity<Page<MovieSummaryResponse>> getNowPlaying(
+            Pageable pageable,
+            @RequestHeader(value = "Accept-Language", required = false, defaultValue = "vi") String language) {
+        Page<MovieSummaryResponse> movies = movieService.getNowPlayingMovies(pageable, language);
         return ResponseEntity.ok(movies);
     }
 
     @GetMapping("/upcoming")
-    public ResponseEntity<Page<MovieSummaryResponse>> getUpcoming(Pageable pageable) {
-        Page<MovieSummaryResponse> movies = movieService.getUpcomingMovies(pageable);
+    public ResponseEntity<Page<MovieSummaryResponse>> getUpcoming(
+            Pageable pageable,
+            @RequestHeader(value = "Accept-Language", required = false, defaultValue = "vi") String language) {
+        Page<MovieSummaryResponse> movies = movieService.getUpcomingMovies(pageable, language);
         return ResponseEntity.ok(movies);
     }
 
@@ -60,14 +64,18 @@ public class MovieController {
     }
 
     @GetMapping("/tmdb/{tmdbId}")
-    public ResponseEntity<MovieDetailResponse> getMovieDetail(@PathVariable Integer tmdbId) {
-        MovieDetailResponse movie = movieService.getMovieDetail(tmdbId);
+    public ResponseEntity<MovieDetailResponse> getMovieDetail(
+            @PathVariable Integer tmdbId,
+            @RequestHeader(value = "Accept-Language", required = false, defaultValue = "vi") String language) {
+        MovieDetailResponse movie = movieService.getMovieDetail(tmdbId, language);
         return ResponseEntity.ok(movie);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<MovieDetailResponse> getMovieByUuid(@PathVariable UUID id) {
-        MovieDetailResponse response = movieService.getMovieByUuid(id);
+    public ResponseEntity<MovieDetailResponse> getMovieByUuid(
+            @PathVariable UUID id,
+            @RequestHeader(value = "Accept-Language", required = false, defaultValue = "vi") String language) {
+        MovieDetailResponse response = movieService.getMovieByUuid(id, language);
         return ResponseEntity.ok(response);
     }
 

@@ -30,6 +30,7 @@ public class RoomService {
         Room room = Room.builder()
                 .id(UUID.randomUUID())
                 .name(request.getName())
+                .nameEn(request.getNameEn())
                 .seatCount(request.getSeatCount())
                 .theater(theater)
                 .build();
@@ -66,6 +67,7 @@ public class RoomService {
                         () -> new EntityNotFoundException("Theater with ID " + request.getTheaterId() + " not found"));
 
         room.setName(request.getName());
+        room.setNameEn(request.getNameEn());
         room.setSeatCount(request.getSeatCount());
         room.setTheater(theater);
         Room updatedRoom = roomRepository.save(room);
@@ -84,8 +86,10 @@ public class RoomService {
         return RoomResponse.builder()
                 .id(room.getId())
                 .name(room.getName())
+                .nameEn(room.getNameEn())
                 .seatCount(room.getSeatCount())
                 .theaterName(room.getTheater().getName())
+                .theaterNameEn(room.getTheater().getNameEn())
                 .build();
     }
 }
