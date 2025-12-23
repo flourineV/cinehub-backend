@@ -23,5 +23,6 @@ public record BookingTicketGeneratedEvent(
                 BigDecimal rankDiscountAmount,
                 BigDecimal finalPrice,
                 String paymentMethod,
-                LocalDateTime createdAt) {
+                LocalDateTime createdAt,
+                String language) {
 }

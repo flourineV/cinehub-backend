@@ -19,6 +19,7 @@ public class MovieDetail {
     private UUID id;
     private Integer tmdbId;
     private String title;
+    private String titleEn;
     private String age;
     private MovieStatus status;
     private String posterUrl;
@@ -30,6 +31,7 @@ public class MovieDetail {
     private List<String> cast;
     private String releaseDate;
     private String overview;
+    private String overviewEn;
     private String trailer;
     private LocalDate startDate;
     private LocalDate endDate;

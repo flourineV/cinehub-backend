@@ -41,6 +41,9 @@ public class FnbOrder {
 
     private String paymentMethod;
     private UUID paymentId;
+    
+    @Column(length = 5)
+    private String language;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
@@ -48,6 +51,6 @@ public class FnbOrder {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<FnbOrderItem> items;
 }

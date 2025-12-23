@@ -19,6 +19,7 @@ public class ShowtimeResponse {
     private UUID id;
     private UUID movieId;
     private String theaterName;
+    private String theaterNameEn;
     private String roomName;
     private LocalDateTime startTime;
     private LocalDateTime endTime;

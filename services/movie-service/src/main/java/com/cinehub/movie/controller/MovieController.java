@@ -4,6 +4,7 @@ import com.cinehub.movie.dto.BulkAddMoviesRequest;
 import com.cinehub.movie.dto.BulkAddMoviesResponse;
 import com.cinehub.movie.dto.MovieDetailResponse;
 import com.cinehub.movie.dto.MovieSummaryResponse;
+import com.cinehub.movie.dto.MovieTitleInternalResponse;
 import com.cinehub.movie.dto.response.PagedResponse;
 import com.cinehub.movie.entity.MovieStatus;
 import com.cinehub.movie.scheduler.MovieStatusScheduler;
@@ -96,8 +97,9 @@ public class MovieController {
 
     @GetMapping("/search") // dành cho user tìm kiếm
     public ResponseEntity<List<MovieSummaryResponse>> searchMovies(
-            @RequestParam String keyword) {
-        List<MovieSummaryResponse> movies = movieService.searchMovies(keyword);
+            @RequestParam String keyword,
+            @RequestHeader(value = "Accept-Language", required = false, defaultValue = "vi") String language) {
+        List<MovieSummaryResponse> movies = movieService.searchMovies(keyword, language);
         return ResponseEntity.ok(movies);
     }
 
@@ -161,6 +163,18 @@ public class MovieController {
         internalAuthChecker.requireInternal(internalSecret);
         java.util.Map<UUID, String> titles = movieService.getBatchMovieTitles(movieIds);
         return ResponseEntity.ok(titles);
+    }
+
+    /**
+     * Internal API: Get movie title with both Vietnamese and English versions
+     */
+    @GetMapping("/internal/{id}/title")
+    public ResponseEntity<MovieTitleInternalResponse> getMovieTitleInternal(
+            @PathVariable UUID id,
+            @RequestHeader("X-Internal-Secret") String internalSecret) {
+        internalAuthChecker.requireInternal(internalSecret);
+        MovieTitleInternalResponse response = movieService.getMovieTitleInternal(id);
+        return ResponseEntity.ok(response);
     }
 
     public static record ChangeStatusRequest(MovieStatus status) {

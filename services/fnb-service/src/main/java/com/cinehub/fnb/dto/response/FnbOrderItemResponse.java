@@ -11,6 +11,7 @@ import java.util.UUID;
 public class FnbOrderItemResponse {
     private UUID fnbItemId;
     private String itemName;
+    private String itemNameEn;
     private int quantity;
     private BigDecimal unitPrice;
     private BigDecimal totalPrice;

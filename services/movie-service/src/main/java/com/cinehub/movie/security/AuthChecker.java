@@ -16,8 +16,12 @@ public class AuthChecker {
         var ctx = UserContext.get();
         if (ctx == null ||
                 (!"ADMIN".equalsIgnoreCase(ctx.getRole()) && !"MANAGER".equalsIgnoreCase(ctx.getRole()))) {
+            System.out.printf("[AuthChecker] Access denied - ctx=%s, role=%s%n", 
+                ctx != null ? "exists" : "null", 
+                ctx != null ? ctx.getRole() : "null");
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Manager or Admin access required");
         }
+        System.out.printf("[AuthChecker] Access granted - role=%s%n", ctx.getRole());
     }
 
     public static void requireAuthenticated() {

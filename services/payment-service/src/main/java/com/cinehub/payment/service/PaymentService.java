@@ -226,6 +226,70 @@ public class PaymentService {
                 return toResponse(payment);
         }
 
+        public PaymentTransactionResponse getTransactionByRef(String transactionRef) {
+                return paymentRepository.findByTransactionRef(transactionRef)
+                                .map(this::toResponse)
+                                .orElse(null);
+        }
+
+        @Transactional
+        public void handlePaymentCancelled(String appTransId, String reason) {
+                log.info("❌ Handling payment cancellation for appTransId: {} | reason: {}", appTransId, reason);
+
+                Optional<PaymentTransaction> optionalTxn = paymentRepository.findByTransactionRef(appTransId);
+
+                if (optionalTxn.isEmpty()) {
+                        log.warn("No transaction found for appTransId: {}. Skipping cancellation.", appTransId);
+                        return;
+                }
+
+                PaymentTransaction txn = optionalTxn.get();
+
+                // Chỉ xử lý nếu transaction đang PENDING
+                if (txn.getStatus() != PaymentStatus.PENDING) {
+                        log.warn("Transaction {} is not PENDING (current: {}). Skipping cancellation.",
+                                        appTransId, txn.getStatus());
+                        return;
+                }
+
+                // Cập nhật status sang FAILED
+                txn.setStatus(PaymentStatus.FAILED);
+                paymentRepository.save(txn);
+
+                log.info("💔 Transaction marked as FAILED for appTransId: {}", appTransId);
+
+                // Gửi event để booking-service unlock ghế và cancel booking
+                if (txn.getBookingId() != null) {
+                        PaymentBookingFailedEvent failedEvent = new PaymentBookingFailedEvent(
+                                        txn.getId(),
+                                        txn.getBookingId(),
+                                        txn.getUserId(),
+                                        txn.getShowtimeId(),
+                                        txn.getAmount(),
+                                        txn.getMethod(),
+                                        txn.getSeatIds(),
+                                        "Payment cancelled: " + reason);
+
+                        paymentProducer.sendPaymentBookingFailedEvent(failedEvent);
+                        log.info("📤 Sent PaymentBookingFailedEvent for bookingId: {}", txn.getBookingId());
+                }
+
+                // Xử lý FnB order nếu có
+                if (txn.getFnbOrderId() != null) {
+                        PaymentFnbFailedEvent fnbFailedEvent = new PaymentFnbFailedEvent(
+                                        txn.getId(),
+                                        txn.getFnbOrderId(),
+                                        txn.getUserId(),
+                                        txn.getAmount(),
+                                        txn.getMethod(),
+                                        "Payment cancelled",
+                                        reason);
+
+                        paymentProducer.sendPaymentFnbFailedEvent(fnbFailedEvent);
+                        log.info("📤 Sent PaymentFnbFailedEvent for fnbOrderId: {}", txn.getFnbOrderId());
+                }
+        }
+
         public PagedResponse<PaymentTransactionResponse> getPaymentsByCriteria(
                         PaymentCriteria criteria, int page, int size, String sortBy, String sortDir) {
 

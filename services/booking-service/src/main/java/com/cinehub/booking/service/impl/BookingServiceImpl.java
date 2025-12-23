@@ -128,13 +128,16 @@ public class BookingServiceImpl implements BookingService {
                 // Lấy thông tin movie để lưu snapshot
                 MovieTitleResponse movie = movieClient.getMovieTitleById(showtime.getMovieId());
                 String movieTitle = (movie != null) ? movie.getTitle() : null;
+                String movieTitleEn = (movie != null) ? movie.getTitleEn() : null;
 
                 // Lấy roomName từ seat đầu tiên
                 String roomName = null;
+                String roomNameEn = null;
                 if (!request.getSelectedSeats().isEmpty()) {
                         SeatResponse seatInfo = showtimeClient.getSeatInfoById(
                                         request.getSelectedSeats().get(0).getSeatId());
                         roomName = (seatInfo != null) ? seatInfo.getRoomName() : null;
+                        roomNameEn = (seatInfo != null) ? seatInfo.getRoomNameEn() : null;
                 }
 
                 Booking booking = Booking.builder()
@@ -143,8 +146,11 @@ public class BookingServiceImpl implements BookingService {
                                 .movieId(showtime.getMovieId())
                                 // Snapshot fields
                                 .movieTitle(movieTitle)
+                                .movieTitleEn(movieTitleEn)
                                 .theaterName(showtime.getTheaterName())
+                                .theaterNameEn(showtime.getTheaterNameEn())
                                 .roomName(roomName)
+                                .roomNameEn(roomNameEn)
                                 .showDateTime(showtime.getStartTime())
                                 .status(BookingStatus.PENDING)
                                 .totalPrice(BigDecimal.ZERO)
@@ -406,6 +412,7 @@ public class BookingServiceImpl implements BookingService {
                 // ======== Lưu & gửi event ========
                 booking.setStatus(BookingStatus.AWAITING_PAYMENT);
                 booking.setUpdatedAt(LocalDateTime.now());
+                booking.setLanguage(request.getLanguage() != null ? request.getLanguage() : "vi");
                 bookingRepository.save(booking);
 
                 bookingProducer.sendBookingFinalizedEvent(
@@ -754,7 +761,8 @@ public class BookingServiceImpl implements BookingService {
                                 rankDiscountAmount,
                                 booking.getFinalPrice(),
                                 booking.getPaymentMethod(),
-                                booking.getCreatedAt());
+                                booking.getCreatedAt(),
+                                booking.getLanguage() != null ? booking.getLanguage() : "vi");
 
         }
 
@@ -883,7 +891,8 @@ public class BookingServiceImpl implements BookingService {
                         if (booking.getStatus() != BookingStatus.CONFIRMED)
                                 continue;
 
-                        BigDecimal refundValue = booking.getFinalPrice();
+                        // Use totalPrice (before promotion discount) so user doesn't lose their promotion
+                        BigDecimal refundValue = booking.getTotalPrice();
                         String refundMethod = "UNKNOWN";
 
                         // CASE 1: REGISTERED USER -> Hoàn Voucher
@@ -891,8 +900,8 @@ public class BookingServiceImpl implements BookingService {
                                 try {
                                         promotionClient.createRefundVoucher(booking.getUserId(), refundValue);
                                         refundMethod = "VOUCHER";
-                                        log.info("SYSTEM REFUND: Created VOUCHER for User {} - Booking {}",
-                                                        booking.getUserId(), booking.getId());
+                                        log.info("SYSTEM REFUND: Created VOUCHER for User {} - Booking {} - Value {} (totalPrice before discount)",
+                                                        booking.getUserId(), booking.getId(), refundValue);
                                 } catch (Exception e) {
                                         log.error("Error creating voucher for user {}: {}", booking.getUserId(),
                                                         e.getMessage());
@@ -901,8 +910,8 @@ public class BookingServiceImpl implements BookingService {
                                 }
                         } else {
                                 refundMethod = "COUNTER";
-                                log.info("SYSTEM REFUND: Marked Booking {} (Guest) for COUNTER refund.",
-                                                booking.getId());
+                                log.info("SYSTEM REFUND: Marked Booking {} (Guest) for COUNTER refund - Value {}.",
+                                                booking.getId(), refundValue);
                         }
 
                         updateBookingStatus(booking, BookingStatus.REFUNDED);

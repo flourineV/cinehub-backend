@@ -35,7 +35,7 @@ public class ManagerProfileController {
 
     @GetMapping("/user/{userProfileId}")
     public ResponseEntity<ManagerProfileResponse> getManagerByUser(@PathVariable UUID userProfileId) {
-        AuthChecker.requireAdmin();
+        AuthChecker.requireManagerOrAdmin();
         return ResponseEntity.ok(managerService.getManagerByUserProfileId(userProfileId));
     }
 
@@ -47,7 +47,7 @@ public class ManagerProfileController {
 
     @GetMapping("/cinema/{cinemaName}")
     public ResponseEntity<List<ManagerProfileResponse>> getManagersByCinema(@PathVariable String cinemaName) {
-        AuthChecker.requireAdmin();
+        AuthChecker.requireManagerOrAdmin();
         return ResponseEntity.ok(managerService.getManagersByCinema(cinemaName));
     }
 

@@ -32,6 +32,7 @@ public class UserProfileResponse {
     private String address;
     private Integer loyaltyPoint;
     private String rankName;
+    private String rankNameEn;
     private UserStatus status;
     private Boolean receivePromoEmail;
 

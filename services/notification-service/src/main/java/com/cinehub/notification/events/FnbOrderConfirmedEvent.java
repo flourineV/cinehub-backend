@@ -10,10 +10,12 @@ public record FnbOrderConfirmedEvent(
         String orderCode,
         UUID theaterId,
         BigDecimal totalAmount,
-        List<FnbItemDetail> items) {
+        List<FnbItemDetail> items,
+        String language) {
 
     public record FnbItemDetail(
             String itemName,
+            String itemNameEn,
             Integer quantity,
             BigDecimal unitPrice,
             BigDecimal totalPrice) {

@@ -277,7 +277,7 @@ public class MovieServiceImplement implements MovieService {
     }
 
     @Override
-    public List<MovieSummaryResponse> searchMovies(String keyword) {
+    public List<MovieSummaryResponse> searchMovies(String keyword, String language) {
         if (keyword == null || keyword.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Title parameter is required");
         }
@@ -285,9 +285,14 @@ public class MovieServiceImplement implements MovieService {
         List<MovieSummary> entities = movieSummaryRepository
                 .findByStatusNotAndTitleContainingIgnoreCase(MovieStatus.ARCHIVED, keyword);
 
-        return entities.stream()
+        List<MovieSummaryResponse> responses = entities.stream()
                 .map(movieMapper::toSummaryResponse)
                 .toList();
+
+        // Apply translations
+        responses.forEach(response -> applyTranslation(response, language));
+
+        return responses;
     }
 
     public MovieDetailResponse getMovieDetail(Integer tmdbId, String language) {
@@ -581,7 +586,9 @@ public class MovieServiceImplement implements MovieService {
         detail.setId(sharedId);
         detail.setTmdbId(movieResponse.getId());
         detail.setTitle(movieResponse.getTitle());
+        detail.setTitleEn(movieResponseEn != null ? movieResponseEn.getTitle() : movieResponse.getTitle());
         detail.setOverview(movieResponse.getOverview());
+        detail.setOverviewEn(movieResponseEn != null ? movieResponseEn.getOverview() : movieResponse.getOverview());
         detail.setTime(movieResponse.getRuntime());
         detail.setSpokenLanguages(
                 movieResponse.getSpokenLanguages().stream()
@@ -742,5 +749,17 @@ public class MovieServiceImplement implements MovieService {
                 .collect(Collectors.toMap(
                         MovieDetail::getId,
                         movie -> movie.getTitle() != null ? movie.getTitle() : "Unknown Movie"));
+    }
+
+    @Override
+    public com.cinehub.movie.dto.MovieTitleInternalResponse getMovieTitleInternal(UUID id) {
+        MovieDetail movie = movieDetailRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Movie not found: " + id));
+
+        return com.cinehub.movie.dto.MovieTitleInternalResponse.builder()
+                .id(movie.getId())
+                .title(movie.getTitle())
+                .titleEn(movie.getTitleEn())
+                .build();
     }
 }

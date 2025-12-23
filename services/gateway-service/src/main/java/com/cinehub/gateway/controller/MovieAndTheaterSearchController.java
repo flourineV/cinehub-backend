@@ -31,7 +31,9 @@ public class MovieAndTheaterSearchController {
     private String theaterServiceBase;
 
     @GetMapping
-    public ResponseEntity<JsonNode> search(@RequestParam String keyword) {
+    public ResponseEntity<JsonNode> search(
+            @RequestParam String keyword,
+            @RequestHeader(value = "Accept-Language", required = false, defaultValue = "vi") String language) {
 
         // validate
         if (keyword == null || keyword.isBlank()) {
@@ -45,6 +47,7 @@ public class MovieAndTheaterSearchController {
         // prepare headers (no auth needed for public search)
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+        headers.set("Accept-Language", language);
         HttpEntity<Void> entity = new HttpEntity<>(headers);
 
         // ------- MOVIE SERVICE -------

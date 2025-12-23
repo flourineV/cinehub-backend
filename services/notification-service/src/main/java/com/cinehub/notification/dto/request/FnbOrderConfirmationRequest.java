@@ -19,12 +19,14 @@ public class FnbOrderConfirmationRequest {
     private UUID theaterId;
     private BigDecimal totalAmount;
     private List<FnbItemDetail> items;
+    private String language;
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     public static class FnbItemDetail {
         private String itemName;
+        private String itemNameEn;
         private Integer quantity;
         private BigDecimal unitPrice;
         private BigDecimal totalPrice;

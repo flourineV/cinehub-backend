@@ -27,7 +27,8 @@ public class MovieClient {
     @CircuitBreaker(name = "movieService", fallbackMethod = "fallbackMovie")
     public MovieTitleResponse getMovieTitleById(UUID movieId) {
         return movieWebClient.get()
-                .uri("/api/movies/{id}", movieId)
+                .uri("/api/movies/internal/{id}/title", movieId)
+                .header("X-Internal-Secret", internalSecret)
                 .retrieve()
                 .bodyToMono(MovieTitleResponse.class)
                 .block();
@@ -38,6 +39,7 @@ public class MovieClient {
         return MovieTitleResponse.builder()
                 .id(movieId)
                 .title(null)
+                .titleEn(null)
                 .build();
     }
 

@@ -78,6 +78,7 @@ public class UserProfileService {
         return RankAndDiscountResponse.builder()
                 .userId(userId)
                 .rankName(rank.getName())
+                .rankNameEn(rank.getNameEn())
                 .discountRate(rank.getDiscountRate())
                 .build();
     }
@@ -96,6 +97,8 @@ public class UserProfileService {
             existing.setAvatarUrl(request.getAvatarUrl());
         if (request.getGender() != null)
             existing.setGender(request.getGender());
+        if (request.getReceivePromoEmail() != null)
+            existing.setReceivePromoEmail(request.getReceivePromoEmail());
 
         existing.setUpdatedAt(LocalDateTime.now());
         // KHÔNG CẬP NHẬT email, username, nationalId, dateOfBirth (thường là bất biến)
@@ -258,6 +261,7 @@ public class UserProfileService {
                 .address(entity.getAddress())
                 .loyaltyPoint(entity.getLoyaltyPoint())
                 .rankName(rank != null ? rank.getName() : null)
+                .rankNameEn(rank != null ? rank.getNameEn() : null)
                 .status(entity.getStatus())
                 .receivePromoEmail(entity.getReceivePromoEmail())
                 .createdAt(entity.getCreatedAt())

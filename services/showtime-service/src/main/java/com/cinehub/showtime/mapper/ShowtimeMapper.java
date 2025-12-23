@@ -64,6 +64,7 @@ public class ShowtimeMapper {
                 .showtimeId(showtime.getId())
                 .roomId(showtime.getRoom().getId().toString())
                 .roomName(showtime.getRoom().getName())
+                .roomNameEn(showtime.getRoom().getNameEn())
                 .startTime(showtime.getStartTime())
                 .endTime(showtime.getEndTime())
                 .build();

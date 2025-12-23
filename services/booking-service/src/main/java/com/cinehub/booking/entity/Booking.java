@@ -34,11 +34,20 @@ public class Booking {
     @Column(name = "movie_title")
     private String movieTitle;
 
+    @Column(name = "movie_title_en")
+    private String movieTitleEn;
+
     @Column(name = "theater_name")
     private String theaterName;
 
+    @Column(name = "theater_name_en")
+    private String theaterNameEn;
+
     @Column(name = "room_name")
     private String roomName;
+
+    @Column(name = "room_name_en")
+    private String roomNameEn;
 
     @Column(name = "show_date_time")
     private LocalDateTime showDateTime;
@@ -73,6 +82,9 @@ public class Booking {
 
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    @Column(name = "language", length = 5)
+    private String language; // 'vi' or 'en' - for email/notification language
 
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default

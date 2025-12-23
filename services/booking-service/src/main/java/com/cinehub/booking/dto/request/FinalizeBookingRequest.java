@@ -16,6 +16,8 @@ public class FinalizeBookingRequest {
 
         private boolean useLoyaltyDiscount;
 
+        private String language; // 'vi' or 'en' - for email/notification language
+
         @Data
         public static class CalculatedFnbItemDto {
                 private UUID fnbItemId;

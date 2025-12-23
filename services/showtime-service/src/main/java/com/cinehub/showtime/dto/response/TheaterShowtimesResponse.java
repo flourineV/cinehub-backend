@@ -16,7 +16,9 @@ import java.util.UUID;
 public class TheaterShowtimesResponse {
     private UUID theaterId;
     private String theaterName;
+    private String theaterNameEn;
     private String theaterAddress;
+    private String theaterAddressEn;
     private String theaterImageUrl;
     private List<ShowtimeInfo> showtimes;
 
@@ -28,6 +30,7 @@ public class TheaterShowtimesResponse {
         private UUID showtimeId;
         private String roomId;
         private String roomName;
+        private String roomNameEn;
         private LocalDateTime startTime;
         private LocalDateTime endTime;
     }

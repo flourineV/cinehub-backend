@@ -18,8 +18,11 @@ public class BookingResponse {
     private UUID showtimeId;
     private UUID movieId;
     private String movieTitle;
+    private String movieTitleEn;
     private String theaterName;
+    private String theaterNameEn;
     private String roomName;
+    private String roomNameEn;
     private String showDateTime;
     private String guestName;
     private String guestEmail;

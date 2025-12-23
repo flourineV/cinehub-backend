@@ -127,4 +127,24 @@ public class MessageTemplateService {
                 ? "Notification from CineHub"
                 : "Thông báo từ CineHub";
     }
+
+    // ========== FNB ORDER TEMPLATES ==========
+
+    public String getFnbOrderTitle(String language) {
+        return "en".equalsIgnoreCase(language)
+                ? "Your F&B order is confirmed!"
+                : "Đơn hàng bắp nước đã được xác nhận!";
+    }
+
+    public String getFnbOrderMessage(String language, String orderCode, BigDecimal totalAmount) {
+        if ("en".equalsIgnoreCase(language)) {
+            return String.format(
+                    "Your F&B order <b>%s</b> has been confirmed.<br>Total: <b>%,.0f VND</b>.<br>Please pick up your order at the counter.",
+                    orderCode, totalAmount);
+        } else {
+            return String.format(
+                    "Đơn hàng bắp nước <b>%s</b> của bạn đã được xác nhận.<br>Tổng tiền: <b>%,.0f VNĐ</b>.<br>Vui lòng nhận hàng tại quầy.",
+                    orderCode, totalAmount);
+        }
+    }
 }

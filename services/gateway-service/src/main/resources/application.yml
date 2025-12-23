@@ -48,12 +48,12 @@ spring:
             - name: JwtAuthenticationFilter
               args:
                 excludePaths: >
-                  GET:/api/movies/*,
                   GET:/api/movies/now-playing,
                   GET:/api/movies/upcoming,
                   GET:/api/movies/search,
                   GET:/api/movies/available-for-range,
                   GET:/api/movies/tmdb/**,
+                  GET:/api/movies/{uuid},
                   /api/movies/v3/api-docs,
                   /api/movies/v3/api-docs/**,
                   /swagger-ui.html,
@@ -88,7 +88,9 @@ spring:
                   /api/showtimes/provinces/{provinceId}/theaters,
                   /api/showtimes/theaters,
                   /api/showtimes/theaters/{theaterId},
+                  /api/showtimes/theaters/{theaterId}/movies,
                   /api/showtimes/theaters/{theaterId}/rooms,
+                  /api/showtimes/theaters/search-by-name,
                   /api/showtimes/v3/api-docs,
                   /api/showtimes/v3/api-docs/swagger-config,
                   /swagger-ui.html,
@@ -145,9 +147,9 @@ spring:
             - name: JwtAuthenticationFilter
               args:
                 excludePaths: >
-                  /api/fnb,
-                  /api/fnb/calculate,
-                  /api/fnb/items/**,
+                  GET:/api/fnb,
+                  POST:/api/fnb/calculate,
+                  GET:/api/fnb/items/**,
                   /api/fnb/v3/api-docs/**,       
                   /swagger-ui/**
 

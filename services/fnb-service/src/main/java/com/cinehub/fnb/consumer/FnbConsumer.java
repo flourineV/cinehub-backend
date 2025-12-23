@@ -97,6 +97,7 @@ public class FnbConsumer {
                 fnbItemRepository.findById(orderItem.getFnbItemId()).ifPresent(fnbItem -> {
                     itemDetails.add(new FnbOrderConfirmedEvent.FnbItemDetail(
                             fnbItem.getName(),
+                            fnbItem.getNameEn(),
                             orderItem.getQuantity(),
                             orderItem.getUnitPrice(),
                             orderItem.getTotalPrice()));
@@ -110,7 +111,8 @@ public class FnbConsumer {
                     order.getOrderCode(),
                     order.getTheaterId(),
                     order.getTotalAmount(),
-                    itemDetails);
+                    itemDetails,
+                    order.getLanguage() != null ? order.getLanguage() : "vi");
 
             fnbProducer.sendFnbOrderConfirmedEvent(event);
 

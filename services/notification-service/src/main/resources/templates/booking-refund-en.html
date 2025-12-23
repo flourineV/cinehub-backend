@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <body>
+    <h3>Hello <span th:text="${userName}">User</span>,</h3>
+    <p>
+      We regret to inform you that your movie ticket order
+      <b>#<span th:text="${bookingId}"></span></b> has been cancelled.
+    </p>
+    <p>Reason: <b th:text="${reason}"></b></p>
+
+    <div th:if="${isVoucher}">
+      <p>
+        The amount of
+        <b
+          ><span
+            th:text="${#numbers.formatDecimal(refundAmount, 0, 'COMMA', 0, 'POINT')}"
+          ></span>
+          VND</b
+        >
+        has been refunded to your Voucher Wallet.
+      </p>
+      <p>You can use this voucher for your next booking.</p>
+    </div>
+
+    <div th:if="${isCounter}">
+      <p>
+        Please bring your booking code or this email to the nearest CineHub
+        theater counter to receive your cash refund:
+        <b
+          ><span
+            th:text="${#numbers.formatDecimal(refundAmount, 0, 'COMMA', 0, 'POINT')}"
+          ></span>
+          VND</b
+        >.
+      </p>
+    </div>
+
+    <p>CineHub apologizes for any inconvenience.</p>
+  </body>
+</html>

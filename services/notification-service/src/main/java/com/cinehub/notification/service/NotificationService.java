@@ -96,7 +96,8 @@ public class NotificationService {
                                         event.bookingId(),
                                         event.refundedValue(),
                                         event.refundMethod(),
-                                        event.reason());
+                                        event.reason(),
+                                        language);
                 } catch (MessagingException e) {
                         log.error("Lỗi khi gửi email hoàn tiền cho {}: {}", userEmail, e.getMessage());
                 }
@@ -132,57 +133,64 @@ public class NotificationService {
                         userName = event.guestName();
                 }
 
-                try {
-                        String title = messageTemplateService.getBookingTicketTitle(language);
-                        String message = messageTemplateService.getBookingTicketMessage(
-                                        language,
-                                        event.movieTitle(),
-                                        event.cinemaName(),
-                                        event.showDateTime(),
-                                        event.roomName(),
-                                        event.totalPrice(),
-                                        event.rankName(),
-                                        event.rankDiscountAmount(),
-                                        event.promotion() != null ? event.promotion().code() : null,
-                                        event.promotion() != null ? event.promotion().discountAmount()
-                                                        : BigDecimal.ZERO,
-                                        event.finalPrice(),
-                                        event.paymentMethod());
+                // Chỉ lưu notification vào DB khi có userId (user đăng nhập)
+                // Guest không có userId nên không lưu notification, chỉ gửi email
+                if (event.userId() != null) {
+                        try {
+                                String title = messageTemplateService.getBookingTicketTitle(language);
+                                String message = messageTemplateService.getBookingTicketMessage(
+                                                language,
+                                                event.movieTitle(),
+                                                event.cinemaName(),
+                                                event.showDateTime(),
+                                                event.roomName(),
+                                                event.totalPrice(),
+                                                event.rankName(),
+                                                event.rankDiscountAmount(),
+                                                event.promotion() != null ? event.promotion().code() : null,
+                                                event.promotion() != null ? event.promotion().discountAmount()
+                                                                : BigDecimal.ZERO,
+                                                event.finalPrice(),
+                                                event.paymentMethod());
 
-                        Map<String, Object> metadata = Map.ofEntries(
-                                        Map.entry("bookingId", event.bookingId().toString()),
-                                        Map.entry("bookingCode", event.bookingCode()),
-                                        Map.entry("userId", event.userId().toString()),
-                                        Map.entry("movieTitle", event.movieTitle()),
-                                        Map.entry("cinemaName", event.cinemaName()),
-                                        Map.entry("roomName", event.roomName()),
-                                        Map.entry("showDateTime", event.showDateTime().toString()),
-                                        Map.entry("seats", event.seats() != null ? event.seats().toString() : ""),
-                                        Map.entry("fnbs", event.fnbs() != null ? event.fnbs().toString() : ""),
-                                        Map.entry("promotionCode",
-                                                        event.promotion() != null ? event.promotion().code() : ""),
-                                        Map.entry("rankName", event.rankName()),
-                                        Map.entry("rankDiscountAmount", event.rankDiscountAmount().toString()),
-                                        Map.entry("totalPrice", event.totalPrice().toString()),
-                                        Map.entry("finalPrice", event.finalPrice().toString()),
-                                        Map.entry("paymentMethod", event.paymentMethod()),
-                                        Map.entry("createdAt", event.createdAt().toString()));
+                                Map<String, Object> metadata = Map.ofEntries(
+                                                Map.entry("bookingId", event.bookingId().toString()),
+                                                Map.entry("bookingCode", event.bookingCode()),
+                                                Map.entry("userId", event.userId().toString()),
+                                                Map.entry("movieTitle", event.movieTitle()),
+                                                Map.entry("cinemaName", event.cinemaName()),
+                                                Map.entry("roomName", event.roomName()),
+                                                Map.entry("showDateTime", event.showDateTime().toString()),
+                                                Map.entry("seats", event.seats() != null ? event.seats().toString() : ""),
+                                                Map.entry("fnbs", event.fnbs() != null ? event.fnbs().toString() : ""),
+                                                Map.entry("promotionCode",
+                                                                event.promotion() != null ? event.promotion().code() : ""),
+                                                Map.entry("rankName", event.rankName()),
+                                                Map.entry("rankDiscountAmount", event.rankDiscountAmount().toString()),
+                                                Map.entry("totalPrice", event.totalPrice().toString()),
+                                                Map.entry("finalPrice", event.finalPrice().toString()),
+                                                Map.entry("paymentMethod", event.paymentMethod()),
+                                                Map.entry("createdAt", event.createdAt().toString()));
 
-                        Notification notification = Notification.builder()
-                                        .userId(event.userId())
-                                        .title(title)
-                                        .message(message)
-                                        .language(language)
-                                        .type(NotificationType.BOOKING_TICKET)
-                                        .metadata(metadata)
-                                        .build();
+                                Notification notification = Notification.builder()
+                                                .userId(event.userId())
+                                                .title(title)
+                                                .message(message)
+                                                .language(language)
+                                                .type(NotificationType.BOOKING_TICKET)
+                                                .metadata(metadata)
+                                                .build();
 
-                        notificationRepository.save(notification);
-                        log.info("Notification (BOOKING_TICKET) saved for user {}", userEmail);
-                } catch (Exception e) {
-                        log.error("Lỗi khi lưu notification vé xem phim: ", e);
+                                notificationRepository.save(notification);
+                                log.info("Notification (BOOKING_TICKET) saved for user {}", userEmail);
+                        } catch (Exception e) {
+                                log.error("Lỗi khi lưu notification vé xem phim: ", e);
+                        }
+                } else {
+                        log.info("Guest booking - skipping notification save, will only send email to {}", userEmail);
                 }
 
+                // Gửi email cho cả User và Guest
                 try {
                         emailService.sendBookingTicketEmail(
                                         userEmail,
@@ -200,8 +208,9 @@ public class NotificationService {
                                         event.rankDiscountAmount(),
                                         event.totalPrice(),
                                         event.finalPrice(),
-                                        event.paymentMethod());
-                        log.info("Gửi email vé xem phim thành công đến {}", userEmail);
+                                        event.paymentMethod(),
+                                        language);
+                        log.info("Gửi email vé xem phim thành công đến {} (language: {})", userEmail, language);
                 } catch (MessagingException e) {
                         log.error("Lỗi khi gửi email vé xem phim cho {}: {}", userEmail, e.getMessage());
                 }
@@ -308,25 +317,30 @@ public class NotificationService {
         public void sendFnbOrderConfirmationEmail(FnbOrderConfirmationRequest request) {
                 log.info("Sending FnB order confirmation email for orderCode: {}", request.getOrderCode());
 
+                String language = request.getLanguage() != null ? request.getLanguage() : "vi";
+
                 try {
                         emailService.sendFnbOrderConfirmationEmail(
                                         request.getUserEmail(),
                                         request.getUserName(),
                                         request.getOrderCode(),
                                         request.getTotalAmount(),
-                                        request.getItems());
-                        log.info("✅ FnB order confirmation email sent to: {}", request.getUserEmail());
+                                        request.getItems(),
+                                        language);
+                        log.info("✅ FnB order confirmation email sent to: {} (language: {})", request.getUserEmail(), language);
                 } catch (MessagingException e) {
                         log.error("❌ Failed to send FnB order confirmation email: {}", e.getMessage(), e);
                 }
         }
 
+        @Transactional
         public void sendFnbOrderConfirmationEmailFromEvent(
                         com.cinehub.notification.events.FnbOrderConfirmedEvent event) {
                 log.info("Processing FnbOrderConfirmedEvent for orderCode: {}", event.orderCode());
 
-                String userEmail = "user@example.com"; // TODO: Get from UserProfile service
-                String userName = "Customer"; // TODO: Get from UserProfile service
+                String userEmail = "user@example.com";
+                String userName = "Customer";
+                String language = event.language() != null ? event.language() : "vi";
 
                 // Fetch user profile
                 try {
@@ -350,10 +364,47 @@ public class NotificationService {
                                 .stream()
                                 .map(item -> new com.cinehub.notification.dto.request.FnbOrderConfirmationRequest.FnbItemDetail(
                                                 item.itemName(),
+                                                item.itemNameEn(),
                                                 item.quantity(),
                                                 item.unitPrice(),
                                                 item.totalPrice()))
                                 .toList();
+
+                // Save notification to DB
+                try {
+                        String title = messageTemplateService.getFnbOrderTitle(language);
+                        String message = messageTemplateService.getFnbOrderMessage(
+                                        language, event.orderCode(), event.totalAmount());
+
+                        List<Map<String, Object>> itemsMetadata = event.items().stream()
+                                        .map(item -> Map.<String, Object>of(
+                                                        "itemName", item.itemName(),
+                                                        "itemNameEn", item.itemNameEn() != null ? item.itemNameEn() : "",
+                                                        "quantity", item.quantity(),
+                                                        "unitPrice", item.unitPrice().toString(),
+                                                        "totalPrice", item.totalPrice().toString()))
+                                        .toList();
+
+                        Map<String, Object> metadata = Map.of(
+                                        "orderCode", event.orderCode(),
+                                        "orderId", event.orderId().toString(),
+                                        "totalAmount", event.totalAmount().toString(),
+                                        "items", itemsMetadata);
+
+                        Notification notification = Notification.builder()
+                                        .userId(event.userId())
+                                        .title(title)
+                                        .message(message)
+                                        .language(language)
+                                        .type(NotificationType.FNB_ORDER)
+                                        .metadata(metadata)
+                                        .build();
+
+                        notificationRepository.save(notification);
+                        log.info("Notification (FNB_ORDER) saved for user {}", event.userId());
+                } catch (Exception e) {
+                        log.error("Lỗi khi lưu notification FnB order: ", e);
+                }
 
                 // Send email
                 try {
@@ -362,8 +413,9 @@ public class NotificationService {
                                         userName,
                                         event.orderCode(),
                                         event.totalAmount(),
-                                        emailItems);
-                        log.info("✅ FnB order confirmation email sent to: {}", userEmail);
+                                        emailItems,
+                                        language);
+                        log.info("✅ FnB order confirmation email sent to: {} (language: {})", userEmail, language);
                 } catch (MessagingException e) {
                         log.error("❌ Failed to send FnB order confirmation email: {}", e.getMessage(), e);
                 }

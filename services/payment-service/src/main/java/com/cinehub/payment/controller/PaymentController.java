@@ -37,6 +37,23 @@ public class PaymentController {
     private final ZaloPayConfig zaloPayConfig;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Safe parsing for ZaloPay return codes (có thể là Integer, Long, hoặc String)
+     */
+    private int parseReturnCode(Object value) {
+        if (value == null) return -999;
+        if (value instanceof Integer) return (Integer) value;
+        if (value instanceof Long) return ((Long) value).intValue();
+        if (value instanceof String) {
+            try {
+                return Integer.parseInt((String) value);
+            } catch (NumberFormatException e) {
+                return -999;
+            }
+        }
+        return -999;
+    }
+
     @PostMapping("/create-zalopay-url")
     public ResponseEntity<?> createZaloPayUrl(@RequestParam UUID bookingId) {
         try {
@@ -100,19 +117,47 @@ public class PaymentController {
             // 1. Gọi sang ZaloPay check trạng thái thực tế
             Map<String, Object> zpStatus = zaloPayService.checkOrderStatus(appTransId);
 
-            int returnCode = (int) zpStatus.getOrDefault("return_code", -999);
+            // Safe parsing - ZaloPay có thể trả về Integer hoặc Long
+            int returnCode = parseReturnCode(zpStatus.get("return_code"));
+            int subReturnCode = parseReturnCode(zpStatus.get("sub_return_code"));
             boolean isSuccess = (returnCode == 1);
+
+            log.info("🔍 ZaloPay status check - appTransId: {}, returnCode: {}, subReturnCode: {}", 
+                appTransId, returnCode, subReturnCode);
+
+            // Lấy transaction info trước
+            var transaction = paymentService.getTransactionByRef(appTransId);
 
             if (isSuccess) {
                 long amount = Long.parseLong(zpStatus.get("amount").toString());
                 // Gọi hàm confirm (nó có check duplicate nên yên tâm gọi lại)
                 paymentService.confirmPaymentSuccess(appTransId, "ZaloPay", amount);
+            } else {
+                // Khi thanh toán thất bại hoặc user cancel, cập nhật status và unlock ghế
+                // returnCode = 2: Giao dịch thất bại
+                // returnCode = 3: Giao dịch chưa thanh toán (pending/cancelled)
+                // subReturnCode = -49: User cancelled
+                // Cũng handle các case returnCode âm (lỗi từ ZaloPay)
+                boolean shouldCancel = returnCode == 2 || returnCode == 3 || 
+                    subReturnCode == -49 || returnCode < 0;
+                
+                if (shouldCancel) {
+                    String reason = zpStatus.get("return_message") != null 
+                        ? zpStatus.get("return_message").toString() 
+                        : (subReturnCode == -49 ? "User cancelled" : "Payment failed");
+                    paymentService.handlePaymentCancelled(appTransId, reason);
+                }
             }
 
             Map<String, Object> response = new HashMap<>();
             response.put("isSuccess", isSuccess);
             response.put("returnCode", returnCode);
             response.put("returnMessage", zpStatus.get("return_message"));
+
+            // Thêm bookingId vào response để FE có thể cancel booking khi thanh toán thất bại
+            if (transaction != null && transaction.getBookingId() != null) {
+                response.put("bookingId", transaction.getBookingId().toString());
+            }
 
             return ResponseEntity.ok(response);
 

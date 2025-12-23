@@ -10,6 +10,7 @@ public class FnbOrderRequest {
     private UUID theaterId;
     private String paymentMethod;
     private List<FnbOrderItemRequest> items;
+    private String language;
 
     @Data
     public static class FnbOrderItemRequest {

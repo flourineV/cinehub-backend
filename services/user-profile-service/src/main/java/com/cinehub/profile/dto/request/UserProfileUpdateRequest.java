@@ -20,4 +20,5 @@ public class UserProfileUpdateRequest {
     private String address;
     private String avatarUrl;
     private Gender gender;
+    private Boolean receivePromoEmail;
 }

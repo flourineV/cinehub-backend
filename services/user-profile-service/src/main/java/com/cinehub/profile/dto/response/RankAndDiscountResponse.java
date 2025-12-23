@@ -15,5 +15,6 @@ import lombok.NoArgsConstructor;
 public class RankAndDiscountResponse {
     private UUID userId;
     private String rankName;
+    private String rankNameEn;
     private BigDecimal discountRate;
 }

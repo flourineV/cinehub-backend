@@ -57,6 +57,7 @@ public class FnbOrderService {
                                 .status(FnbOrderStatus.PENDING)
                                 .paymentMethod(request.getPaymentMethod())
                                 .totalAmount(total.get())
+                                .language(request.getLanguage() != null ? request.getLanguage() : "vi")
                                 .createdAt(LocalDateTime.now())
                                 .build();
 
@@ -120,12 +121,21 @@ public class FnbOrderService {
                                 .createdAt(o.getCreatedAt())
                                 .expiresAt(expiresAt)
                                 .items(o.getItems().stream()
-                                                .map(i -> FnbOrderItemResponse.builder()
-                                                                .fnbItemId(i.getFnbItemId())
-                                                                .quantity(i.getQuantity())
-                                                                .unitPrice(i.getUnitPrice())
-                                                                .totalPrice(i.getTotalPrice())
-                                                                .build())
+                                                .map(i -> {
+                                                        // Get item name from FnbItem
+                                                        var fnbItem = fnbItemRepository.findById(i.getFnbItemId())
+                                                                        .orElse(null);
+                                                        String itemName = fnbItem != null ? fnbItem.getName() : "Unknown Item";
+                                                        String itemNameEn = fnbItem != null ? fnbItem.getNameEn() : null;
+                                                        return FnbOrderItemResponse.builder()
+                                                                        .fnbItemId(i.getFnbItemId())
+                                                                        .itemName(itemName)
+                                                                        .itemNameEn(itemNameEn)
+                                                                        .quantity(i.getQuantity())
+                                                                        .unitPrice(i.getUnitPrice())
+                                                                        .totalPrice(i.getTotalPrice())
+                                                                        .build();
+                                                })
                                                 .toList())
                                 .build();
         }

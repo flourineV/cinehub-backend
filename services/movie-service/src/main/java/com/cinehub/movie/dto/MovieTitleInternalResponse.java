@@ -1,4 +1,4 @@
-package com.cinehub.booking.dto.external;
+package com.cinehub.movie.dto;
 
 import java.util.UUID;
 
@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class MovieTitleResponse {
+public class MovieTitleInternalResponse {
     private UUID id;
     private String title;
     private String titleEn;

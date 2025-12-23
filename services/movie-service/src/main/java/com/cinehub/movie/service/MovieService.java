@@ -26,7 +26,7 @@ public interface MovieService {
 
     Page<MovieSummaryResponse> getArchivedMovies(Pageable pageable);
 
-    List<MovieSummaryResponse> searchMovies(String keyword);
+    List<MovieSummaryResponse> searchMovies(String keyword, String language);
 
     MovieDetailResponse getMovieDetail(Integer tmdbId, String language);
 
@@ -47,5 +47,7 @@ public interface MovieService {
     List<MovieSummaryResponse> getAvailableMoviesForDateRange(LocalDate startDate, LocalDate endDate);
 
     java.util.Map<UUID, String> getBatchMovieTitles(List<UUID> movieIds);
+
+    com.cinehub.movie.dto.MovieTitleInternalResponse getMovieTitleInternal(UUID id);
 
 }

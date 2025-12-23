@@ -30,7 +30,7 @@ public class StatsController {
     @ApiResponse(responseCode = "200", description = "Statistics fetched successfully")
     @GetMapping("/overview")
     public ResponseEntity<StatsOverviewResponse> getOverview() {
-        AuthChecker.requireAdmin();
+        AuthChecker.requireManagerOrAdmin();
         return ResponseEntity.ok(statsService.getOverview());
     }
 
@@ -40,7 +40,7 @@ public class StatsController {
     @ApiResponse(responseCode = "200", description = "Monthly statistics fetched successfully")
     @GetMapping("/users/monthly")
     public ResponseEntity<List<UserRegistrationStatsResponse>> getUserStatsByMonth() {
-        AuthChecker.requireAdmin();
+        AuthChecker.requireManagerOrAdmin();
         return ResponseEntity.ok(statsService.getUserRegistrationsByMonth());
     }
 }

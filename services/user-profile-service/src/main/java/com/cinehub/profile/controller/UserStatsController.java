@@ -17,7 +17,7 @@ public class UserStatsController {
 
     @GetMapping("/overview")
     public ResponseEntity<UserStatsResponse> getOverview() {
-        AuthChecker.requireAdmin();
+        AuthChecker.requireManagerOrAdmin();
         return ResponseEntity.ok(userStatsService.getOverviewStats());
     }
 

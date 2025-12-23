@@ -32,7 +32,7 @@
         <tr>
           <td style="text-align: center">
             <h1 style="color: white; margin: 0; font-size: 28px">
-              🍿 Xác Nhận Đơn Hàng Bắp Nước
+              🍿 Food & Beverage Order Confirmation
             </h1>
           </td>
         </tr>
@@ -41,11 +41,11 @@
       <!-- Content -->
       <div style="padding: 30px">
         <p style="font-size: 16px; color: #333">
-          Xin chào <strong th:text="${userName}">Customer</strong>,
+          Hello <strong th:text="${userName}">Customer</strong>,
         </p>
         <p style="font-size: 16px; color: #333; line-height: 1.6">
-          Cảm ơn bạn đã đặt hàng tại CineHub! Đơn hàng của bạn đã được xác nhận
-          và thanh toán thành công.
+          Thank you for ordering at CineHub! Your order has been confirmed and
+          payment was successful.
         </p>
 
         <!-- Order Info Box -->
@@ -58,10 +58,10 @@
           "
         >
           <h2 style="margin-top: 0; color: #333; font-size: 18px">
-            Thông tin đơn hàng
+            Order Information
           </h2>
           <p style="font-size: 16px; color: #333">
-            Mã đơn hàng:
+            Order Code:
             <span
               style="
                 font-size: 24px;
@@ -75,11 +75,11 @@
             >
           </p>
           <p style="font-size: 14px; color: #666">
-            Vui lòng mang mã này đến quầy để nhận hàng!
+            Please bring this code to the counter to pick up your order!
           </p>
         </div>
 
-        <h3 style="color: #333; font-size: 18px">Chi tiết đơn hàng:</h3>
+        <h3 style="color: #333; font-size: 18px">Order Details:</h3>
 
         <!-- Items Table -->
         <table
@@ -98,7 +98,7 @@
                   text-align: left;
                 "
               >
-                Món
+                Item
               </th>
               <th
                 style="
@@ -108,7 +108,7 @@
                   text-align: center;
                 "
               >
-                Số lượng
+                Quantity
               </th>
               <th
                 style="
@@ -118,7 +118,7 @@
                   text-align: right;
                 "
               >
-                Đơn giá
+                Unit Price
               </th>
               <th
                 style="
@@ -128,7 +128,7 @@
                   text-align: right;
                 "
               >
-                Thành tiền
+                Total
               </th>
             </tr>
           </thead>
@@ -136,9 +136,9 @@
             <tr th:each="item : ${items}">
               <td
                 style="padding: 12px; border-bottom: 1px solid #ddd"
-                th:text="${item.itemName}"
+                th:text="${item.itemNameEn != null ? item.itemNameEn : item.itemName}"
               >
-                Bắp rang bơ
+                Popcorn
               </td>
               <td
                 style="
@@ -156,9 +156,9 @@
                   border-bottom: 1px solid #ddd;
                   text-align: right;
                 "
-                th:text="${#numbers.formatDecimal(item.unitPrice, 0, 'COMMA', 0, 'POINT')} + ' đ'"
+                th:text="${#numbers.formatDecimal(item.unitPrice, 0, 'COMMA', 0, 'POINT')} + ' VND'"
               >
-                50,000 đ
+                50,000 VND
               </td>
               <td
                 style="
@@ -166,9 +166,9 @@
                   border-bottom: 1px solid #ddd;
                   text-align: right;
                 "
-                th:text="${#numbers.formatDecimal(item.totalPrice, 0, 'COMMA', 0, 'POINT')} + ' đ'"
+                th:text="${#numbers.formatDecimal(item.totalPrice, 0, 'COMMA', 0, 'POINT')} + ' VND'"
               >
-                50,000 đ
+                50,000 VND
               </td>
             </tr>
             <tr>
@@ -181,7 +181,7 @@
                   font-size: 16px;
                 "
               >
-                Tổng cộng:
+                Total:
               </td>
               <td
                 style="
@@ -191,18 +191,18 @@
                   font-size: 16px;
                   text-align: right;
                 "
-                th:text="${#numbers.formatDecimal(totalAmount, 0, 'COMMA', 0, 'POINT')} + ' đ'"
+                th:text="${#numbers.formatDecimal(totalAmount, 0, 'COMMA', 0, 'POINT')} + ' VND'"
               >
-                150,000 đ
+                150,000 VND
               </td>
             </tr>
           </tbody>
         </table>
 
         <p style="margin-top: 30px; font-size: 14px; color: #333">
-          <strong>Lưu ý:</strong> Vui lòng xuất trình mã đơn hàng tại quầy bắp
-          nước để nhận món. Đơn hàng có hiệu lực trong vòng 24 giờ kể từ lúc
-          đặt.
+          <strong>Note:</strong> Please present your order code at the snack
+          counter to receive your items. The order is valid for 24 hours from
+          the time of purchase.
         </p>
       </div>
 
@@ -216,10 +216,10 @@
         "
       >
         <p style="font-size: 14px; color: #666; margin: 0 0 10px 0">
-          Cảm ơn bạn đã tin tưởng CineHub!
+          Thank you for choosing CineHub!
         </p>
         <p style="font-size: 13px; color: #999; margin: 0">
-          Nếu có bất kỳ thắc mắc nào, vui lòng liên hệ: support@cinehub.com
+          If you have any questions, please contact: support@cinehub.com
         </p>
       </div>
     </div>

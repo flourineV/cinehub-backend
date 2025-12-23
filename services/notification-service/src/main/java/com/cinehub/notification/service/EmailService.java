@@ -45,7 +45,10 @@ public class EmailService {
             UUID bookingId,
             BigDecimal refundAmount,
             String refundMethod, // "VOUCHER" or "COUNTER"
-            String reason) throws MessagingException {
+            String reason,
+            String language) throws MessagingException {
+
+        boolean isEnglish = "en".equalsIgnoreCase(language);
 
         Context ctx = new Context();
         ctx.setVariable("userName", userName);
@@ -56,18 +59,24 @@ public class EmailService {
         ctx.setVariable("isVoucher", "VOUCHER".equalsIgnoreCase(refundMethod));
         ctx.setVariable("isCounter", "COUNTER".equalsIgnoreCase(refundMethod));
 
-        String html = templateEngine.process("booking-refund", ctx);
+        // Select template based on language
+        String templateName = isEnglish ? "booking-refund-en" : "booking-refund";
+        String html = templateEngine.process(templateName, ctx);
 
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
 
         helper.setTo(to);
-        helper.setSubject("CineHub – Thông báo hoàn tiền / Hủy vé");
+        // Set subject based on language
+        String subject = isEnglish 
+            ? "CineHub – Refund Notification / Ticket Cancellation" 
+            : "CineHub – Thông báo hoàn tiền / Hủy vé";
+        helper.setSubject(subject);
         helper.setText(html, true);
 
         mailSender.send(message);
 
-        log.info("Refund email sent to {}", to);
+        log.info("Refund email sent to {} (language: {})", to, language);
     }
 
     public void sendBookingTicketEmail(
@@ -86,7 +95,10 @@ public class EmailService {
             BigDecimal rankDiscountAmount,
             BigDecimal totalPrice,
             BigDecimal finalPrice,
-            String paymentMethod) throws MessagingException {
+            String paymentMethod,
+            String language) throws MessagingException {
+
+        boolean isEnglish = "en".equalsIgnoreCase(language);
 
         Context ctx = new Context();
         ctx.setVariable("userName", userName);
@@ -99,7 +111,7 @@ public class EmailService {
 
         ctx.setVariable("seats", seats);
         ctx.setVariable("fnbs", fnbs);
-        ctx.setVariable("rankName", rankName != null ? rankName : "Chưa có hạng");
+        ctx.setVariable("rankName", rankName != null ? rankName : (isEnglish ? "No rank" : "Chưa có hạng"));
         ctx.setVariable("rankDiscountAmount", rankDiscountAmount != null ? rankDiscountAmount : BigDecimal.ZERO);
 
         if (promotion != null) {
@@ -113,23 +125,32 @@ public class EmailService {
         ctx.setVariable("totalPrice", totalPrice);
         ctx.setVariable("finalPrice", finalPrice);
 
-        String html = templateEngine.process("booking-ticket", ctx);
+        // Select template based on language
+        String templateName = isEnglish ? "booking-ticket-en" : "booking-ticket";
+        String html = templateEngine.process(templateName, ctx);
 
         MimeMessage message = mailSender.createMimeMessage();
 
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
         helper.setTo(to);
-        helper.setSubject("CineHub – Vé xem phim của bạn đã sẵn sàng");
+        // Set subject based on language
+        String subject = isEnglish 
+            ? "CineHub – Your movie ticket is ready" 
+            : "CineHub – Vé xem phim của bạn đã sẵn sàng";
+        helper.setSubject(subject);
         helper.setText(html, true);
 
-        ClassPathResource logo = new ClassPathResource("mail/LogoFullfinal.png");
+        ClassPathResource logo = new ClassPathResource("templates/LogoFullfinal.png");
 
-        helper.addInline("logoImage", logo);
+        // Skip logo - not needed for email
+        // if (logo.exists()) {
+        //     helper.addInline("logoImage", logo);
+        // }
 
         mailSender.send(message);
 
-        log.info("Booking ticket email sent to {}", to);
+        log.info("Booking ticket email sent to {} (language: {})", to, language);
     }
 
     public void sendPromotionEmail(
@@ -204,8 +225,11 @@ public class EmailService {
             String userName,
             String orderCode,
             BigDecimal totalAmount,
-            List<com.cinehub.notification.dto.request.FnbOrderConfirmationRequest.FnbItemDetail> items)
+            List<com.cinehub.notification.dto.request.FnbOrderConfirmationRequest.FnbItemDetail> items,
+            String language)
             throws MessagingException {
+
+        boolean isEnglish = "en".equalsIgnoreCase(language);
 
         Context ctx = new Context();
         ctx.setVariable("userName", userName);
@@ -213,17 +237,23 @@ public class EmailService {
         ctx.setVariable("totalAmount", totalAmount);
         ctx.setVariable("items", items);
 
-        String html = templateEngine.process("fnb-order-confirmation", ctx);
+        // Select template based on language
+        String templateName = isEnglish ? "fnb-order-confirmation-en" : "fnb-order-confirmation";
+        String html = templateEngine.process(templateName, ctx);
 
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
 
         helper.setTo(to);
-        helper.setSubject("CineHub - Xác nhận đơn hàng bắp nước #" + orderCode);
+        // Set subject based on language
+        String subject = isEnglish 
+            ? "CineHub - Food & Beverage Order Confirmation #" + orderCode
+            : "CineHub - Xác nhận đơn hàng bắp nước #" + orderCode;
+        helper.setSubject(subject);
         helper.setText(html, true);
 
         mailSender.send(message);
 
-        log.info("FnB order confirmation email sent to {}", to);
+        log.info("FnB order confirmation email sent to {} (language: {})", to, language);
     }
 }

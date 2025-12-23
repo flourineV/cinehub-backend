@@ -24,6 +24,9 @@ public class UserRank {
     @Column(name = "name", unique = true, nullable = false, length = 50)
     private String name;
 
+    @Column(name = "name_en", length = 50)
+    private String nameEn;
+
     @Column(name = "min_points", nullable = false)
     private Integer minPoints;
 
