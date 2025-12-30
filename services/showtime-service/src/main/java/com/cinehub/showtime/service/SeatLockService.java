@@ -127,20 +127,38 @@ public class SeatLockService {
         String currentValue = redisTemplate.opsForValue().get(key);
         if (currentValue != null) {
             String[] parts = currentValue.split("\\|");
-            if (parts.length >= 2) {
+            
+            boolean isOwner = false;
+            
+            // Format 1: USER|{userId} hoặc GUEST|{guestSessionId} (chưa có booking)
+            // Format 2: {bookingId}|USER|{userId} hoặc {bookingId}|GUEST|{guestSessionId} (đã có booking)
+            
+            if (parts.length == 2) {
+                // Format 1: chưa có booking
                 String ownerType = parts[0];
                 String ownerIdentifier = parts[1];
-
-                boolean isOwner = false;
+                
                 if ("USER".equals(ownerType) && userId != null) {
                     isOwner = ownerIdentifier.equals(userId.toString());
                 } else if ("GUEST".equals(ownerType) && guestSessionId != null) {
                     isOwner = ownerIdentifier.equals(guestSessionId.toString());
                 }
-
-                if (!isOwner) {
-                    throw new IllegalSeatLockException("You don't own this seat lock");
+            } else if (parts.length >= 3) {
+                // Format 2: đã có booking - {bookingId}|USER|{userId}
+                String ownerType = parts[1];
+                String ownerIdentifier = parts[2];
+                
+                if ("USER".equals(ownerType) && userId != null) {
+                    isOwner = ownerIdentifier.equals(userId.toString());
+                } else if ("GUEST".equals(ownerType) && guestSessionId != null) {
+                    isOwner = ownerIdentifier.equals(guestSessionId.toString());
                 }
+            }
+
+            if (!isOwner) {
+                log.warn("Unlock failed: User {} / Guest {} does not own seat lock. Current value: {}", 
+                        userId, guestSessionId, currentValue);
+                throw new IllegalSeatLockException("You don't own this seat lock");
             }
         }
 
@@ -183,21 +201,38 @@ public class SeatLockService {
             String currentValue = redisTemplate.opsForValue().get(key);
             if (currentValue != null) {
                 String[] parts = currentValue.split("\\|");
-                if (parts.length >= 2) {
+                
+                boolean isOwner = false;
+                
+                // Format 1: USER|{userId} hoặc GUEST|{guestSessionId} (chưa có booking)
+                // Format 2: {bookingId}|USER|{userId} hoặc {bookingId}|GUEST|{guestSessionId} (đã có booking)
+                
+                if (parts.length == 2) {
+                    // Format 1: chưa có booking
                     String ownerType = parts[0];
                     String ownerIdentifier = parts[1];
-
-                    boolean isOwner = false;
+                    
                     if ("USER".equals(ownerType) && userId != null) {
                         isOwner = ownerIdentifier.equals(userId.toString());
                     } else if ("GUEST".equals(ownerType) && guestSessionId != null) {
                         isOwner = ownerIdentifier.equals(guestSessionId.toString());
                     }
-
-                    if (!isOwner) {
-                        log.warn("Skipping seat {} - not owned by user/guest", seatId);
-                        continue;
+                } else if (parts.length >= 3) {
+                    // Format 2: đã có booking - {bookingId}|USER|{userId}
+                    String ownerType = parts[1];
+                    String ownerIdentifier = parts[2];
+                    
+                    if ("USER".equals(ownerType) && userId != null) {
+                        isOwner = ownerIdentifier.equals(userId.toString());
+                    } else if ("GUEST".equals(ownerType) && guestSessionId != null) {
+                        isOwner = ownerIdentifier.equals(guestSessionId.toString());
                     }
+                }
+
+                if (!isOwner) {
+                    log.warn("Skipping seat {} - not owned by user {} / guest {}. Current value: {}", 
+                            seatId, userId, guestSessionId, currentValue);
+                    continue;
                 }
             }
 

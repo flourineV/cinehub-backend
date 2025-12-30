@@ -94,6 +94,7 @@ public class ShowtimeClient {
                 .id(seatId)
                 .seatNumber("N/A")
                 .roomName("Unknown Room")
+                .roomNameEn("Unknown Room")
                 .build();
     }
 

@@ -23,6 +23,8 @@ public record BookingTicketGeneratedEvent(
                 BigDecimal rankDiscountAmount,
                 BigDecimal finalPrice,
                 String paymentMethod,
+                String refundVoucherCode,
+                BigDecimal refundVoucherAmount,
                 LocalDateTime createdAt,
                 String language) {
 }

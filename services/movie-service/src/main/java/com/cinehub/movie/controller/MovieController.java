@@ -119,10 +119,20 @@ public class MovieController {
         return ResponseEntity.ok(pages);
     }
 
+    @PutMapping("/status/{id}")
     public ResponseEntity<Void> changeStatus(@PathVariable UUID id,
             @RequestBody ChangeStatusRequest req) {
         AuthChecker.requireManagerOrAdmin();
         movieService.changeStatus(id, req.status());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/suspend-by-movie/{movieId}")
+    public ResponseEntity<Void> suspendShowtimesByMovie(
+            @PathVariable UUID movieId,
+            @RequestParam(required = false, defaultValue = "Movie archived") String reason) {
+        AuthChecker.requireManagerOrAdmin();
+        movieService.suspendShowtimesByMovie(movieId, reason);
         return ResponseEntity.noContent().build();
     }
 

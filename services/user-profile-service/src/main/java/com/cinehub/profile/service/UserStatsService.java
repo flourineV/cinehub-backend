@@ -3,10 +3,8 @@ package com.cinehub.profile.service;
 import com.cinehub.profile.dto.response.UserStatsResponse;
 import com.cinehub.profile.dto.response.UserPersonalStatsResponse;
 import com.cinehub.profile.entity.ManagerProfile;
-import com.cinehub.profile.entity.StaffProfile;
 import com.cinehub.profile.entity.UserProfile;
 import com.cinehub.profile.repository.ManagerProfileRepository;
-import com.cinehub.profile.repository.StaffProfileRepository;
 import com.cinehub.profile.repository.UserProfileRepository;
 import com.cinehub.profile.repository.UserFavoriteMovieRepository;
 import com.cinehub.profile.adapter.client.BookingClient;
@@ -24,7 +22,6 @@ public class UserStatsService {
 
         private final UserProfileRepository userProfileRepository;
         private final ManagerProfileRepository managerRepository;
-        private final StaffProfileRepository staffRepository;
         private final UserFavoriteMovieRepository favoriteMovieRepository;
         private final BookingClient bookingClient;
 
@@ -59,19 +56,14 @@ public class UserStatsService {
                                 .goldPercentage(goldPct)
                                 .build();
 
-                // --- Staff/Manager per cinema ---
+                // --- Manager per cinema ---
                 Map<String, Long> managerCountMap = managerRepository.findAll().stream()
                                 .filter(m -> m.getManagedCinemaName() != null)
                                 .collect(Collectors.groupingBy(ManagerProfile::getManagedCinemaName,
                                                 Collectors.counting()));
 
-                Map<String, Long> staffCountMap = staffRepository.findAll().stream()
-                                .filter(s -> s.getCinemaName() != null)
-                                .collect(Collectors.groupingBy(StaffProfile::getCinemaName, Collectors.counting()));
-
                 Set<String> allCinemaNames = new HashSet<>();
                 allCinemaNames.addAll(managerCountMap.keySet());
-                allCinemaNames.addAll(staffCountMap.keySet());
 
                 return UserStatsResponse.builder()
                                 .rankDistribution(rankDistribution)

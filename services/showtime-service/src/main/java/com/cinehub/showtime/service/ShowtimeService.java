@@ -58,6 +58,7 @@ public class ShowtimeService {
         private final RoomRepository roomRepository;
         private final ShowtimeRepositoryCustom showtimeRepositoryCustom;
         private final MovieServiceClient movieServiceClient;
+        private final com.cinehub.showtime.producer.ShowtimeProducer showtimeProducer;
 
         private final ShowtimeMapper showtimeMapper;
         private final ShowtimeGenerationHelper generationHelper;
@@ -695,5 +696,78 @@ public class ShowtimeService {
                                 .message(String.format("Generated %d showtimes across %d theaters in %d days",
                                                 stats.getTotalGenerated(), theaterCount, dayCount))
                                 .build();
+        }
+
+        /**
+         * Suspend all showtimes for a movie and send events to trigger voucher refunds
+         */
+        public com.cinehub.showtime.controller.ShowtimeController.SuspendShowtimesResponse suspendShowtimesByMovie(UUID movieId, String reason) {
+            log.info("Suspending all showtimes for movie {} with reason: {}", movieId, reason);
+            
+            // Find all active showtimes for this movie
+            List<Showtime> activeShowtimes = showtimeRepository.findByMovieIdAndStatus(movieId, 
+                com.cinehub.showtime.entity.ShowtimeStatus.ACTIVE);
+            
+            int totalShowtimes = activeShowtimes.size();
+            int suspendedCount = 0;
+            
+            for (Showtime showtime : activeShowtimes) {
+                try {
+                    // Suspend the showtime
+                    showtime.setStatus(com.cinehub.showtime.entity.ShowtimeStatus.SUSPENDED);
+                    showtimeRepository.save(showtime);
+                    suspendedCount++;
+                    
+                    // Send event to booking service to process voucher refunds
+                    // Pass null for affectedBookingIds - booking service will find them by showtimeId
+                    com.cinehub.showtime.events.ShowtimeSuspendedEvent event = 
+                            new com.cinehub.showtime.events.ShowtimeSuspendedEvent(
+                                    showtime.getId(),
+                                    movieId,
+                                    null, // affectedBookingIds - booking service will query by showtimeId
+                                    reason
+                            );
+                    showtimeProducer.sendShowtimeSuspendedEvent(event);
+                    
+                    log.info("Suspended showtime {} for movie {} and sent event for voucher refunds", 
+                            showtime.getId(), movieId);
+                } catch (Exception e) {
+                    log.error("Failed to suspend showtime {} for movie {}: {}", 
+                            showtime.getId(), movieId, e.getMessage(), e);
+                }
+            }
+            
+            // Also send events for already SUSPENDED showtimes (in case they have CONFIRMED bookings that weren't refunded)
+            List<Showtime> alreadySuspendedShowtimes = showtimeRepository.findByMovieIdAndStatus(movieId, 
+                com.cinehub.showtime.entity.ShowtimeStatus.SUSPENDED);
+            
+            for (Showtime showtime : alreadySuspendedShowtimes) {
+                try {
+                    // Send event to booking service to process any remaining voucher refunds
+                    com.cinehub.showtime.events.ShowtimeSuspendedEvent event = 
+                            new com.cinehub.showtime.events.ShowtimeSuspendedEvent(
+                                    showtime.getId(),
+                                    movieId,
+                                    null,
+                                    reason
+                            );
+                    showtimeProducer.sendShowtimeSuspendedEvent(event);
+                    
+                    log.info("Sent refund event for already suspended showtime {} for movie {}", 
+                            showtime.getId(), movieId);
+                } catch (Exception e) {
+                    log.error("Failed to send refund event for suspended showtime {} for movie {}: {}", 
+                            showtime.getId(), movieId, e.getMessage(), e);
+                }
+            }
+            
+            String message = String.format(
+                    "Suspended %d out of %d active showtimes for movie %s. Also sent refund events for %d already suspended showtimes. Reason: %s", 
+                    suspendedCount, totalShowtimes, movieId, alreadySuspendedShowtimes.size(), reason);
+            
+            log.info(message);
+            
+            return new com.cinehub.showtime.controller.ShowtimeController.SuspendShowtimesResponse(
+                    totalShowtimes + alreadySuspendedShowtimes.size(), suspendedCount, 0, message);
         }
 }

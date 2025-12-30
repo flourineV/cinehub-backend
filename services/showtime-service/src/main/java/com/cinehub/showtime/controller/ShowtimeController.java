@@ -13,6 +13,7 @@ import com.cinehub.showtime.dto.response.ShowtimeResponse;
 import com.cinehub.showtime.dto.response.ShowtimesByMovieResponse;
 import com.cinehub.showtime.dto.response.TheaterShowtimesResponse;
 import com.cinehub.showtime.security.AuthChecker;
+import com.cinehub.showtime.security.InternalAuthChecker;
 import com.cinehub.showtime.service.ShowtimeService;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -34,6 +35,7 @@ import java.util.UUID;
 public class ShowtimeController {
 
     private final ShowtimeService showtimeService;
+    private final InternalAuthChecker internalAuthChecker;
 
     @GetMapping("/{id}")
     public ResponseEntity<ShowtimeResponse> getShowtimeById(@PathVariable UUID id) {
@@ -92,8 +94,8 @@ public class ShowtimeController {
             @RequestParam(required = false) UUID roomId,
             @RequestParam(required = false) UUID movieId,
             @RequestParam(required = false) UUID showtimeId,
-            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-M-d") LocalDate startOfDay,
-            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-M-d") LocalDate endOfDay,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startOfDay,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endOfDay,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) @Schema(type = "string", format = "time", example = "17:00") LocalTime fromTime,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) @Schema(type = "string", format = "time", example = "21:30") LocalTime toTime,
             @RequestParam(defaultValue = "1") int page,
@@ -102,9 +104,20 @@ public class ShowtimeController {
             @RequestParam(required = false) String sortType) {
         AuthChecker.requireManagerOrAdmin();
 
+        // Debug log
+        System.out.println("=== DEBUG SHOWTIME SEARCH ===");
+        System.out.println("startOfDay: " + startOfDay);
+        System.out.println("endOfDay: " + endOfDay);
+        System.out.println("fromTime: " + fromTime);
+        System.out.println("toTime: " + toTime);
+
         // Convert LocalDate to LocalDateTime for service layer
         LocalDateTime startDateTime = startOfDay != null ? startOfDay.atStartOfDay() : null;
         LocalDateTime endDateTime = endOfDay != null ? endOfDay.atTime(23, 59, 59) : null;
+
+        System.out.println("startDateTime: " + startDateTime);
+        System.out.println("endDateTime: " + endDateTime);
+        System.out.println("===============================");
 
         PagedResponse<ShowtimeDetailResponse> response = showtimeService.getAllAvailableShowtimes(
                 provinceId, theaterId, roomId, movieId, showtimeId, startDateTime, endDateTime, fromTime,
@@ -153,4 +166,26 @@ public class ShowtimeController {
                 .getMoviesWithTheatersByDate(date, movieId, theaterId);
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * Internal API: Suspend all showtimes for a movie (when movie is archived)
+     */
+    @PostMapping("/internal/suspend-by-movie/{movieId}")
+    public ResponseEntity<SuspendShowtimesResponse> suspendShowtimesByMovie(
+            @PathVariable UUID movieId,
+            @RequestBody SuspendRequest request,
+            @RequestHeader("X-Internal-Secret") String internalSecret) {
+        internalAuthChecker.requireInternal(internalSecret);
+        SuspendShowtimesResponse response = showtimeService.suspendShowtimesByMovie(movieId, request.reason());
+        return ResponseEntity.ok(response);
+    }
+
+    public static record SuspendRequest(String reason) {}
+    
+    public static record SuspendShowtimesResponse(
+            int totalShowtimes,
+            int suspendedShowtimes,
+            int refundedBookings,
+            String message
+    ) {}
 }

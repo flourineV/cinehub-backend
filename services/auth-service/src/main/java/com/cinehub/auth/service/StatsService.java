@@ -18,14 +18,12 @@ public class StatsService {
     public StatsOverviewResponse getOverview() {
         long totalUsers = userRepository.count();
         long totalCustomers = userRepository.countByRole_NameIgnoreCase("CUSTOMER");
-        long totalStaff = userRepository.countByRole_NameIgnoreCase("STAFF");
         long totalManagers = userRepository.countByRole_NameIgnoreCase("MANAGER");
         long totalAdmins = userRepository.countByRole_NameIgnoreCase("ADMIN");
 
         return StatsOverviewResponse.builder()
                 .totalUsers(totalUsers)
                 .totalCustomers(totalCustomers)
-                .totalStaff(totalStaff)
                 .totalManagers(totalManagers)
                 .totalAdmins(totalAdmins)
                 .build();

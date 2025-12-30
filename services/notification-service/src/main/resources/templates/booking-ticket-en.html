@@ -228,6 +228,26 @@
           </p>
         </div>
 
+        <!-- Refund Voucher -->
+        <div
+          th:if="${refundVoucherCode != null and refundVoucherAmount > 0}"
+          style="margin-top: 20px"
+        >
+          <h3 style="color: #3c1d99">Refund Voucher</h3>
+          <p>
+            <b>Code:</b>
+            <span th:text="${refundVoucherCode}">VCH-XXXXXXXX</span>
+          </p>
+          <p>
+            Discount:
+            <b
+              th:text="${#numbers.formatDecimal(refundVoucherAmount, 0, 'POINT', 0, 'NONE')}"
+              >100000</b
+            >
+            VND
+          </p>
+        </div>
+
         <!-- Bill summary -->
         <div
           style="

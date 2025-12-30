@@ -87,4 +87,38 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, UUID> {
             LocalDateTime start,
             LocalDateTime end);
 
+    List<Showtime> findByMovieIdAndStatus(
+            UUID movieId,
+            com.cinehub.showtime.entity.ShowtimeStatus status);
+
+    // ========== Stats Count Queries (Optimized) ==========
+    
+    // Count total showtimes
+    long count();
+    
+    // Count total showtimes by theater
+    long countByTheaterId(UUID theaterId);
+    
+    // Count active showtimes that are currently playing (started but not ended)
+    @Query("SELECT COUNT(s) FROM Showtime s WHERE s.status = :status AND s.startTime < :now AND s.endTime > :now")
+    long countNowPlaying(@Param("status") com.cinehub.showtime.entity.ShowtimeStatus status, @Param("now") LocalDateTime now);
+    
+    // Count active showtimes that are currently playing by theater
+    @Query("SELECT COUNT(s) FROM Showtime s WHERE s.theater.id = :theaterId AND s.status = :status AND s.startTime < :now AND s.endTime > :now")
+    long countNowPlayingByTheaterId(@Param("theaterId") UUID theaterId, @Param("status") com.cinehub.showtime.entity.ShowtimeStatus status, @Param("now") LocalDateTime now);
+    
+    // Count upcoming showtimes (not started yet)
+    @Query("SELECT COUNT(s) FROM Showtime s WHERE s.status = :status AND s.startTime > :now")
+    long countUpcoming(@Param("status") com.cinehub.showtime.entity.ShowtimeStatus status, @Param("now") LocalDateTime now);
+    
+    // Count upcoming showtimes by theater
+    @Query("SELECT COUNT(s) FROM Showtime s WHERE s.theater.id = :theaterId AND s.status = :status AND s.startTime > :now")
+    long countUpcomingByTheaterId(@Param("theaterId") UUID theaterId, @Param("status") com.cinehub.showtime.entity.ShowtimeStatus status, @Param("now") LocalDateTime now);
+    
+    // Count suspended showtimes
+    long countByStatus(com.cinehub.showtime.entity.ShowtimeStatus status);
+    
+    // Count suspended showtimes by theater
+    long countByTheaterIdAndStatus(UUID theaterId, com.cinehub.showtime.entity.ShowtimeStatus status);
+
 }

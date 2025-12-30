@@ -127,8 +127,10 @@ public class BookingServiceImpl implements BookingService {
 
                 // Lấy thông tin movie để lưu snapshot
                 MovieTitleResponse movie = movieClient.getMovieTitleById(showtime.getMovieId());
+                log.info("🎬 Movie response from MovieClient: {}", movie);
                 String movieTitle = (movie != null) ? movie.getTitle() : null;
                 String movieTitleEn = (movie != null) ? movie.getTitleEn() : null;
+                log.info("🎬 Movie title: {}, titleEn: {}", movieTitle, movieTitleEn);
 
                 // Lấy roomName từ seat đầu tiên
                 String roomName = null;
@@ -266,17 +268,31 @@ public class BookingServiceImpl implements BookingService {
                 booking.setPaymentMethod(data.method());
                 booking.setPaymentId(data.paymentId());
 
+                // Mark refund voucher as used when booking is confirmed
+                if (booking.getRefundVoucherCode() != null && !booking.getRefundVoucherCode().isBlank()) {
+                        try {
+                                promotionClient.markRefundVoucherAsUsed(booking.getRefundVoucherCode());
+                                log.info("Marked refund voucher {} as used for booking {}", 
+                                        booking.getRefundVoucherCode(), booking.getId());
+                        } catch (Exception e) {
+                                log.error("Failed to mark refund voucher {} as used: {}", 
+                                        booking.getRefundVoucherCode(), e.getMessage());
+                                // Don't fail the booking confirmation if voucher marking fails
+                        }
+                }
+
                 updateBookingStatus(booking, BookingStatus.CONFIRMED);
 
                 if (booking.getUserId() != null) {
                         // Tích điểm: 10,000 VND = 1 điểm (Silver 1000 điểm = 10 triệu, Gold 5000 điểm =
                         // 50
                         // triệu)
+                        // Tính loyalty points trên finalPrice (số tiền thực tế user trả)
                         BigDecimal divisor = new BigDecimal("10000");
                         int pointsEarned = booking.getFinalPrice().divide(divisor, 0, RoundingMode.DOWN).intValue();
 
                         if (pointsEarned > 0) {
-                                log.info("💎 Earning {} loyalty points for booking {} (amount: {})",
+                                log.info("💎 Earning {} loyalty points for booking {} (finalPrice: {})",
                                                 pointsEarned, booking.getId(), booking.getFinalPrice());
                                 userProfileClient.updateLoyaltyPoints(
                                         booking.getUserId(), 
@@ -361,30 +377,39 @@ public class BookingServiceImpl implements BookingService {
                 // Nếu không có promotion → dùng refund voucher
                 else if (request.getRefundVoucherCode() != null && !request.getRefundVoucherCode().isBlank()) {
 
-                        var voucher = promotionClient.markRefundVoucherAsUsed(request.getRefundVoucherCode());
+                        // Validate voucher trước (không mark used ngay)
+                        var voucher = promotionClient.getRefundVoucherByCode(request.getRefundVoucherCode());
 
-                        if (voucher == null) {
-                                throw new BookingException("Không thể sử dụng voucher hoàn tiền.");
+                        if (voucher == null || voucher.getValue() == null) {
+                                throw new BookingException("Voucher hoàn tiền không tồn tại.");
                         }
 
+                        // Validate user ownership
                         if (voucher.getUserId() != null && !voucher.getUserId().equals(booking.getUserId())) {
                                 throw new BookingException("Voucher không thuộc về người dùng.");
                         }
+
                         if (Boolean.TRUE.equals(voucher.getIsUsed())) {
                                 throw new BookingException("Voucher đã được sử dụng.");
                         }
+
                         if (voucher.getExpiredAt() != null && voucher.getExpiredAt().isBefore(LocalDateTime.now())) {
                                 throw new BookingException("Voucher đã hết hạn.");
                         }
 
-                        BigDecimal voucherValue = voucher.getValue() != null ? voucher.getValue() : BigDecimal.ZERO;
-                        finalPrice = totalPrice.subtract(voucherValue).max(BigDecimal.ZERO);
-                        discountAmount = voucherValue;
+                        BigDecimal voucherValue = voucher.getValue();
+                        
+                        // Voucher chỉ được dùng tối đa bằng totalPrice (không thể âm)
+                        BigDecimal actualDiscountAmount = voucherValue.min(totalPrice);
+                        finalPrice = totalPrice.subtract(actualDiscountAmount);
+                        discountAmount = actualDiscountAmount;
 
                         booking.setDiscountAmount(discountAmount);
                         booking.setFinalPrice(finalPrice.setScale(0, RoundingMode.HALF_UP));
+                        booking.setRefundVoucherCode(voucher.getCode()); // Store for tracking, mark used only when CONFIRMED
 
-                        log.info("Applied refund voucher: {} | value={}", voucher.getCode(), voucherValue);
+                        log.info("Applied refund voucher: {} | voucherValue={} | actualDiscount={} | finalPrice={}", 
+                                voucher.getCode(), voucherValue, actualDiscountAmount, finalPrice);
                 }
                 // Nếu không có promotion hoặc voucher → áp dụng rank discount
                 else {
@@ -635,7 +660,13 @@ public class BookingServiceImpl implements BookingService {
 
                 BookingStatus oldStatus = booking.getStatus();
 
-                if (oldStatus == BookingStatus.CONFIRMED && newStatus != BookingStatus.CONFIRMED) {
+                // Allow CONFIRMED -> REFUNDED (system refund when showtime suspended)
+                // Allow CONFIRMED -> CANCELLED (user cancellation)
+                // Block other transitions from CONFIRMED
+                if (oldStatus == BookingStatus.CONFIRMED && 
+                    newStatus != BookingStatus.CONFIRMED && 
+                    newStatus != BookingStatus.REFUNDED && 
+                    newStatus != BookingStatus.CANCELLED) {
                         log.warn("Attempted to update CONFIRMED booking {} from {} to {}. Skipping.",
                                         booking.getId(), oldStatus, newStatus);
                         return;
@@ -743,6 +774,20 @@ public class BookingServiceImpl implements BookingService {
                         rankName = rank.getRankName();
                 }
 
+                // Calculate refund voucher discount if used
+                BigDecimal refundVoucherAmount = BigDecimal.ZERO;
+                String refundVoucherCode = booking.getRefundVoucherCode();
+                if (refundVoucherCode != null && !refundVoucherCode.isBlank()) {
+                        // If refund voucher was used, calculate the discount amount
+                        // The discount is: totalPrice - finalPrice - promotionDiscount - rankDiscount
+                        BigDecimal promotionDiscount = (promotionDetail != null) ? promotionDetail.discountAmount() : BigDecimal.ZERO;
+                        refundVoucherAmount = booking.getTotalPrice()
+                                .subtract(booking.getFinalPrice())
+                                .subtract(promotionDiscount)
+                                .subtract(rankDiscountAmount)
+                                .max(BigDecimal.ZERO);
+                }
+
                 return new BookingTicketGeneratedEvent(
                                 booking.getId(),
                                 booking.getBookingCode(),
@@ -761,6 +806,8 @@ public class BookingServiceImpl implements BookingService {
                                 rankDiscountAmount,
                                 booking.getFinalPrice(),
                                 booking.getPaymentMethod(),
+                                refundVoucherCode,
+                                refundVoucherAmount,
                                 booking.getCreatedAt(),
                                 booking.getLanguage() != null ? booking.getLanguage() : "vi");
 
@@ -838,20 +885,20 @@ public class BookingServiceImpl implements BookingService {
                         throw new BookingException("Cannot cancel booking less than 60 minutes before showtime");
                 }
 
-                // Check monthly cancellation limit (2 times per month)
+                // Check monthly cancellation limit (1 time per month for user-initiated cancellations)
                 LocalDateTime startOfMonth = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
                 long cancelCount = bookingRepository.countCancelledBookingsInMonth(userId, startOfMonth);
 
-                if (cancelCount >= 2) {
+                if (cancelCount >= 1) {
                         throw new BookingException(
-                                        "You have reached the monthly cancellation limit (2 times per month)");
+                                        "You have reached the monthly cancellation limit (1 time per month)");
                 }
 
-                // Create refund voucher
+                // Create refund voucher with USER_CANCELLED type
                 BigDecimal refundValue = booking.getFinalPrice();
                 try {
-                        promotionClient.createRefundVoucher(userId, refundValue);
-                        log.info("Refund voucher created for booking {} | user={} | value={}",
+                        promotionClient.createRefundVoucher(userId, refundValue, "USER_CANCELLED");
+                        log.info("Refund voucher (USER_CANCELLED) created for booking {} | user={} | value={}",
                                         bookingId, userId, refundValue);
                 } catch (Exception e) {
                         log.error("Failed to create refund voucher for booking {}: {}", bookingId, e.getMessage());
@@ -869,18 +916,31 @@ public class BookingServiceImpl implements BookingService {
 
         @Transactional
         public void handleShowtimeSuspended(ShowtimeSuspendedEvent event) {
+                log.warn("=== SHOWTIME SUSPENDED EVENT RECEIVED ===");
                 log.warn("Showtime {} suspended. Reason: {}. Finding affected bookings...",
                                 event.showtimeId(), event.reason());
 
                 List<Booking> affectedBookings;
 
                 if (event.affectedBookingIds() != null && !event.affectedBookingIds().isEmpty()) {
+                        log.info("Using provided affectedBookingIds: {}", event.affectedBookingIds());
                         affectedBookings = bookingRepository.findAllById(event.affectedBookingIds());
                 } else {
                         // Fallback nếu event không gửi list ID
+                        log.info("No affectedBookingIds provided, querying by showtimeId={} and CONFIRMED status", event.showtimeId());
+                        
+                        // Debug: List all CONFIRMED bookings to see their showtimeIds
+                        List<Booking> allConfirmed = bookingRepository.findByStatus(BookingStatus.CONFIRMED);
+                        log.info("DEBUG: Total CONFIRMED bookings in DB: {}", allConfirmed.size());
+                        for (Booking b : allConfirmed) {
+                                log.info("DEBUG: Booking {} has showtimeId={}", b.getId(), b.getShowtimeId());
+                        }
+                        
                         affectedBookings = bookingRepository.findByShowtimeIdAndStatus(event.showtimeId(),
                                         BookingStatus.CONFIRMED);
                 }
+
+                log.info("Found {} affected bookings for showtime {}", affectedBookings.size(), event.showtimeId());
 
                 if (affectedBookings.isEmpty()) {
                         log.info("No confirmed user bookings found for suspended showtime {}", event.showtimeId());
@@ -888,8 +948,12 @@ public class BookingServiceImpl implements BookingService {
                 }
 
                 for (Booking booking : affectedBookings) {
-                        if (booking.getStatus() != BookingStatus.CONFIRMED)
+                        log.info("Processing booking {} with current status {}", booking.getId(), booking.getStatus());
+                        
+                        if (booking.getStatus() != BookingStatus.CONFIRMED) {
+                                log.info("Skipping booking {} - status is {} (not CONFIRMED)", booking.getId(), booking.getStatus());
                                 continue;
+                        }
 
                         // Use totalPrice (before promotion discount) so user doesn't lose their promotion
                         BigDecimal refundValue = booking.getTotalPrice();
@@ -898,7 +962,7 @@ public class BookingServiceImpl implements BookingService {
                         // CASE 1: REGISTERED USER -> Hoàn Voucher
                         if (booking.getUserId() != null) {
                                 try {
-                                        promotionClient.createRefundVoucher(booking.getUserId(), refundValue);
+                                        promotionClient.createRefundVoucher(booking.getUserId(), refundValue, "SYSTEM_REFUND");
                                         refundMethod = "VOUCHER";
                                         log.info("SYSTEM REFUND: Created VOUCHER for User {} - Booking {} - Value {} (totalPrice before discount)",
                                                         booking.getUserId(), booking.getId(), refundValue);
@@ -914,7 +978,10 @@ public class BookingServiceImpl implements BookingService {
                                                 booking.getId(), refundValue);
                         }
 
+                        log.info("Updating booking {} status from {} to REFUNDED", booking.getId(), booking.getStatus());
                         updateBookingStatus(booking, BookingStatus.REFUNDED);
+                        log.info("Booking {} status updated to REFUNDED successfully", booking.getId());
+                        
                         bookingProducer.sendBookingRefundedEvent(
                                         new BookingRefundedEvent(
                                                         booking.getId(),
@@ -924,7 +991,8 @@ public class BookingServiceImpl implements BookingService {
                                                         booking.getShowtimeId(),
                                                         refundValue,
                                                         refundMethod,
-                                                        event.reason()));
+                                                        event.reason(),
+                                                        booking.getLanguage() != null ? booking.getLanguage() : "vi"));
                 }
         }
 

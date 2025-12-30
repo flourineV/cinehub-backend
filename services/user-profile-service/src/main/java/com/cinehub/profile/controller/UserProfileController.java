@@ -11,6 +11,7 @@ import com.cinehub.profile.service.UserProfileService;
 import com.cinehub.profile.service.PromotionEmailService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,6 +21,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/profiles/profiles")
 @RequiredArgsConstructor
+@Slf4j
 public class UserProfileController {
 
     private final UserProfileService profileService;
@@ -29,6 +31,8 @@ public class UserProfileController {
     @PostMapping
     public ResponseEntity<UserProfileResponse> createProfile(
             @Valid @RequestBody UserProfileRequest request) {
+        log.info("📥 Received createProfile request: userId={}, email={}", 
+            request.getUserId(), request.getEmail());
         AuthChecker.requireAuthenticated();
         return ResponseEntity.ok(profileService.createProfile(request));
     }

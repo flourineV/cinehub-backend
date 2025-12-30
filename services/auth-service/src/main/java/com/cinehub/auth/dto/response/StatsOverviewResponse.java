@@ -8,7 +8,6 @@ import lombok.Data;
 public class StatsOverviewResponse {
     private long totalUsers;
     private long totalCustomers;
-    private long totalStaff;
     private long totalManagers;
     private long totalAdmins;
 }

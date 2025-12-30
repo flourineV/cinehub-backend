@@ -98,8 +98,17 @@ public class ShowtimeRepositoryImpl implements ShowtimeRepositoryCustom {
         }
         
         // Nếu có date range filter, dùng nó thay vì filter theo now
-        if (startOfDay != null && endOfDay != null) {
-            predicates.add(cb.between(root.get("startTime"), startOfDay, endOfDay));
+        if (startOfDay != null || endOfDay != null) {
+            if (startOfDay != null && endOfDay != null) {
+                // Có cả start và end date
+                predicates.add(cb.between(root.get("startTime"), startOfDay, endOfDay));
+            } else if (startOfDay != null) {
+                // Chỉ có start date - lấy từ ngày này trở đi
+                predicates.add(cb.greaterThanOrEqualTo(root.get("startTime"), startOfDay));
+            } else {
+                // Chỉ có end date - lấy đến ngày này
+                predicates.add(cb.lessThanOrEqualTo(root.get("startTime"), endOfDay));
+            }
         } else {
             // Chỉ filter theo now khi không có date range
             predicates.add(cb.greaterThan(root.get("startTime"), now));

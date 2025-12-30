@@ -24,6 +24,9 @@ spring:
                   /api/auth/send-otp,
                   /api/auth/resend-otp,
                   /api/auth/reset-password,
+                  /api/auth/email-verification/send,
+                  /api/auth/email-verification/verify,
+                  /api/auth/email-verification/status,
                   /api/auth/v3/api-docs,
                   /api/auth/v3/api-docs/**,
                   /swagger-ui/**

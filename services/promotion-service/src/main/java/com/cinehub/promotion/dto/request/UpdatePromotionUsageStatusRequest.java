@@ -1,6 +1,5 @@
 package com.cinehub.promotion.dto.request;
 
-import com.cinehub.promotion.entity.UsedPromotion;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,5 +14,5 @@ import java.util.UUID;
 public class UpdatePromotionUsageStatusRequest {
     
     private UUID bookingId;
-    private UsedPromotion.BookingStatus bookingStatus;
+    private String bookingStatus; // Simple string instead of enum
 }

@@ -16,7 +16,7 @@ public class RabbitConfig {
     // from booking
     public static final String BOOKING_EXCHANGE = "booking.exchange";
     public static final String BOOKING_TICKET_GENERATED_KEY = "booking.ticket.generated";
-    public static final String BOOKING_REFUND_PROCESSED_KEY = "booking.refund.processed";
+    public static final String BOOKING_REFUND_PROCESSED_KEY = "booking.refunded";
 
     // from fnb
     public static final String FNB_EXCHANGE = "fnb.exchange";

@@ -123,6 +123,15 @@ public class ReviewService implements IReviewService {
     }
 
     @Override
+    public List<ReviewResponse> getAllReviewsByMovieAdmin(UUID movieId) {
+        // Admin endpoint - returns ALL reviews including HIDDEN
+        List<Review> reviews = reviewRepository.findByMovieId(movieId);
+        return reviews.stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public AverageRatingResponse getAverageRating(UUID movieId) {
         Double avg = ratingRepository.findAverageRatingByMovieId(movieId);
         Long count = ratingRepository.countRatingsByMovieId(movieId);

@@ -16,7 +16,7 @@ services:
     container_name: cinehub-redis
     command: ["redis-server", "--notify-keyspace-events", "KEA"]
     ports:
-      - "6379:6379"
+      - "6500:6379"
     networks:
       - cinehub-net
 
@@ -169,6 +169,22 @@ services:
       - promotion-service
       - notification-service
       - review-service
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: cinehub-ngrok
+    restart: unless-stopped
+    command:
+      - "http"
+      - "gateway-service:8099"
+    env_file:
+      - .env.ngrok
+    ports:
+      - "4040:4040"
+    networks:
+      - cinehub-net
+    depends_on:
+      - gateway-service
 
 networks:
   cinehub-net:

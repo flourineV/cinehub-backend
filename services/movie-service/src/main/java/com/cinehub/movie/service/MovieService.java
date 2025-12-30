@@ -40,6 +40,8 @@ public interface MovieService {
 
     void changeStatus(UUID id, MovieStatus status);
 
+    void suspendShowtimesByMovie(UUID movieId, String reason);
+
     MovieDetailResponse addMovieFromTmdb(AddMovieFromTmdbRequest request);
 
     BulkAddMoviesResponse bulkAddMoviesFromTmdb(BulkAddMoviesRequest request);

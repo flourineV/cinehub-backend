@@ -76,6 +76,13 @@ public class RabbitConfig {
     }
 
     @Bean
+    public Binding showtimeSuspendedBinding(Queue bookingQueue, DirectExchange showtimeExchange) {
+        return BindingBuilder.bind(bookingQueue)
+                .to(showtimeExchange)
+                .with(SHOWTIME_SUSPENDED_KEY);
+    }
+
+    @Bean
     public Binding paymentSuccessBinding(Queue bookingQueue, DirectExchange paymentExchange) {
         return BindingBuilder.bind(bookingQueue)
                 .to(paymentExchange)

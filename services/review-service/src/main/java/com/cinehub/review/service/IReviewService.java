@@ -17,6 +17,8 @@ public interface IReviewService {
 
     List<ReviewResponse> getReviewsByMovie(UUID movieId);
 
+    List<ReviewResponse> getAllReviewsByMovieAdmin(UUID movieId);
+
     AverageRatingResponse getAverageRating(UUID movieId);
 
     ReviewResponse reportReview(UUID id);

@@ -1,6 +1,5 @@
 package com.cinehub.promotion.dto.response;
 
-import com.cinehub.promotion.entity.UsedPromotion;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,7 +19,6 @@ public class UsedPromotionResponse {
     private UUID userId;
     private String promotionCode;
     private UUID bookingId;
-    private UsedPromotion.BookingStatus bookingStatus;
 
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
     private LocalDateTime usedAt;

@@ -1,16 +1,13 @@
 package com.cinehub.showtime.service;
 
 import com.cinehub.showtime.dto.response.ShowtimeStatsResponse;
-import com.cinehub.showtime.entity.Showtime;
 import com.cinehub.showtime.entity.ShowtimeStatus;
 import com.cinehub.showtime.repository.ShowtimeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -19,36 +16,32 @@ public class ShowtimeStatsService {
     private final ShowtimeRepository showtimeRepository;
 
     public ShowtimeStatsResponse getOverview(UUID theaterId) {
-        List<Showtime> showtimes;
+        LocalDateTime now = LocalDateTime.now();
+        
+        long total;
+        long nowPlaying;
+        long upcoming;
+        long suspended;
 
         if (theaterId != null) {
-            showtimes = showtimeRepository.findAll().stream()
-                    .filter(s -> s.getTheater().getId().equals(theaterId))
-                    .collect(Collectors.toList());
+            // Query by theater - use optimized count queries
+            total = showtimeRepository.countByTheaterId(theaterId);
+            nowPlaying = showtimeRepository.countNowPlayingByTheaterId(theaterId, ShowtimeStatus.ACTIVE, now);
+            upcoming = showtimeRepository.countUpcomingByTheaterId(theaterId, ShowtimeStatus.ACTIVE, now);
+            suspended = showtimeRepository.countByTheaterIdAndStatus(theaterId, ShowtimeStatus.SUSPENDED);
         } else {
-            showtimes = showtimeRepository.findAll();
+            // Query all - use optimized count queries
+            total = showtimeRepository.count();
+            nowPlaying = showtimeRepository.countNowPlaying(ShowtimeStatus.ACTIVE, now);
+            upcoming = showtimeRepository.countUpcoming(ShowtimeStatus.ACTIVE, now);
+            suspended = showtimeRepository.countByStatus(ShowtimeStatus.SUSPENDED);
         }
-
-        long total = showtimes.size();
-        LocalDateTime now = LocalDateTime.now();
-
-        long active = showtimes.stream()
-                .filter(s -> s.getStatus() == ShowtimeStatus.ACTIVE && s.getStartTime().isAfter(now))
-                .count();
-
-        long suspended = showtimes.stream()
-                .filter(s -> s.getStatus() == ShowtimeStatus.SUSPENDED)
-                .count();
-
-        long upcoming = showtimes.stream()
-                .filter(s -> s.getStartTime().isAfter(now))
-                .count();
 
         return ShowtimeStatsResponse.builder()
                 .totalShowtimes(total)
-                .activeShowtimes(active)
-                .suspendedShowtimes(suspended)
+                .activeShowtimes(nowPlaying)
                 .upcomingShowtimes(upcoming)
+                .suspendedShowtimes(suspended)
                 .build();
     }
 }

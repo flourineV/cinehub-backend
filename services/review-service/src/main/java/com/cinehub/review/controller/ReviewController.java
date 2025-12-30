@@ -47,6 +47,13 @@ public class ReviewController {
         return ResponseEntity.ok(reviewService.getReviewsByMovie(movieId));
     }
 
+    @GetMapping("/admin/movie/{movieId}")
+    public ResponseEntity<List<ReviewResponse>> getAllReviewsByMovieAdmin(@PathVariable UUID movieId) {
+        // Admin endpoint - returns ALL reviews including HIDDEN
+        AuthChecker.requireManagerOrAdmin();
+        return ResponseEntity.ok(reviewService.getAllReviewsByMovieAdmin(movieId));
+    }
+
     @GetMapping("/movie/{movieId}/average-rating")
     public ResponseEntity<AverageRatingResponse> getAverageRating(@PathVariable UUID movieId) {
         // Public endpoint - no auth required

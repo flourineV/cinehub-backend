@@ -19,4 +19,5 @@ public class SeatResponse {
     private int columnIndex;
     private String type;
     private String roomName;
+    private String roomNameEn;
 }

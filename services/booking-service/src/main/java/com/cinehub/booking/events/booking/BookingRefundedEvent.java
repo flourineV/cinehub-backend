@@ -10,5 +10,7 @@ public record BookingRefundedEvent(
                 String guestEmail,
                 UUID showtimeId,
                 BigDecimal refundedValue,
-                String refundMethod, String reason) {
+                String refundMethod,
+                String reason,
+                String language) {
 }

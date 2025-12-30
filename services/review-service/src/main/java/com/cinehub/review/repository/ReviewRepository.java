@@ -10,4 +10,6 @@ import com.cinehub.review.entity.Review;
 public interface ReviewRepository extends JpaRepository<Review, UUID> {
 
     List<Review> findByMovieIdAndStatus(UUID movieId, com.cinehub.review.entity.ReviewStatus status);
+    
+    List<Review> findByMovieId(UUID movieId);
 }

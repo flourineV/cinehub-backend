@@ -43,20 +43,34 @@ public class MovieStatusScheduler {
      */
     public UpdateStatusResult updateAllMovieStatuses() {
         LocalDate today = LocalDate.now();
+        log.info("Starting movie status update. Today: {}", today);
 
         AtomicInteger nowPlayingToArchived = new AtomicInteger(0);
 
         // Update NOW_PLAYING → ARCHIVED (when endDate < today)
         List<MovieSummary> nowPlayingMovies = movieSummaryRepository.findByStatus(MovieStatus.NOW_PLAYING);
+        log.info("Found {} NOW_PLAYING movies to check", nowPlayingMovies.size());
+        
         nowPlayingMovies.forEach(movie -> {
+            log.info("Checking movie: {} (ID: {}) - endDate: {}", 
+                    movie.getTitle(), movie.getId(), movie.getEndDate());
+            
             if (movie.getEndDate() != null && movie.getEndDate().isBefore(today)) {
+                log.info("ARCHIVING movie: {} - endDate {} is before today {}", 
+                        movie.getTitle(), movie.getEndDate(), today);
                 movie.setStatus(MovieStatus.ARCHIVED);
                 nowPlayingToArchived.incrementAndGet();
                 movieSummaryRepository.save(movie);
-                log.debug("Movie {} changed from NOW_PLAYING to ARCHIVED", movie.getTitle());
+                log.info("Movie {} changed from NOW_PLAYING to ARCHIVED", movie.getTitle());
+            } else if (movie.getEndDate() == null) {
+                log.warn("Movie {} has NULL endDate, skipping", movie.getTitle());
+            } else {
+                log.info("Movie {} endDate {} is not before today {}, keeping NOW_PLAYING", 
+                        movie.getTitle(), movie.getEndDate(), today);
             }
         });
 
+        log.info("Movie status update completed: {} movies archived", nowPlayingToArchived.get());
         return new UpdateStatusResult(0, nowPlayingToArchived.get());
     }
 

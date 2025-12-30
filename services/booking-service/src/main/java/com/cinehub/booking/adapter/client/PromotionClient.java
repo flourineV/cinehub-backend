@@ -42,11 +42,12 @@ public class PromotionClient {
     }
 
     @CircuitBreaker(name = "promotionService", fallbackMethod = "fallbackCreateRefundVoucher")
-    public RefundVoucherResponse createRefundVoucher(UUID userId, BigDecimal value) {
+    public RefundVoucherResponse createRefundVoucher(UUID userId, BigDecimal value, String refundType) {
         RefundVoucherRequest request = RefundVoucherRequest.builder()
                 .userId(userId)
                 .value(value)
-                .expiredAt(LocalDateTime.now().plusMonths(2)) // voucher hết hạn sau 3 tháng
+                .refundType(refundType)
+                .expiredAt(LocalDateTime.now().plusMonths(2)) // voucher hết hạn sau 2 tháng
                 .build();
 
         return promotionWebClient.post()
@@ -72,6 +73,19 @@ public class PromotionClient {
                 .block();
     }
 
+    @CircuitBreaker(name = "promotionService", fallbackMethod = "fallbackGetRefundVoucherByCode")
+    public RefundVoucherResponse getRefundVoucherByCode(String code) {
+        return promotionWebClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/promotions/refund-vouchers/code/{code}")
+                        .build(code))
+                .retrieve()
+                .onStatus(HttpStatusCode::isError,
+                        response -> Mono.error(new BookingException("Không tìm thấy voucher: " + code)))
+                .bodyToMono(RefundVoucherResponse.class)
+                .block();
+    }
+
     public PromotionValidationResponse fallbackPromotion(String promoCode, Throwable t) {
 
         System.err.println("Circuit Breaker activated for promotionService. Lỗi: " + t.getMessage());
@@ -84,7 +98,7 @@ public class PromotionClient {
                 .build();
     }
 
-    public RefundVoucherResponse fallbackCreateRefundVoucher(UUID userId, BigDecimal value, Throwable t) {
+    public RefundVoucherResponse fallbackCreateRefundVoucher(UUID userId, BigDecimal value, String refundType, Throwable t) {
         System.err.println(
                 "Circuit Breaker activated for promotionService during createRefundVoucher. Lỗi: " + t.getMessage());
 
@@ -103,6 +117,11 @@ public class PromotionClient {
                 .isUsed(true)
                 .value(BigDecimal.ZERO)
                 .build();
+    }
+
+    public RefundVoucherResponse fallbackGetRefundVoucherByCode(String code, Throwable t) {
+        System.err.println("Circuit Breaker activated for getRefundVoucherByCode. Lỗi: " + t.getMessage());
+        return null; // Return null to indicate voucher not found
     }
 
     /**

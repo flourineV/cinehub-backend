@@ -86,6 +86,9 @@ public class Booking {
     @Column(name = "language", length = 5)
     private String language; // 'vi' or 'en' - for email/notification language
 
+    @Column(name = "refund_voucher_code", length = 50)
+    private String refundVoucherCode; // Store refund voucher code to restore if booking expires
+
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<BookingFnb> fnbItems = new ArrayList<>();

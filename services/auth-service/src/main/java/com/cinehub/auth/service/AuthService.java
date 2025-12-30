@@ -27,13 +27,22 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final EmailVerificationService emailVerificationService;
+    private final OtpService otpService;
 
     public JwtResponse signUp(SignUpRequest request) {
         if (!request.getPassword().equals(request.getConfirmPassword())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password and confirm password do not match!");
         }
 
-        if (userRepository.existsByEmail(request.getEmail())) {
+        String email = request.getEmail().toLowerCase().trim();
+        
+        // Kiểm tra email đã được verify chưa
+        if (!emailVerificationService.isEmailVerified(email)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email must be verified before registration");
+        }
+
+        if (userRepository.existsByEmail(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already taken!");
         }
         if (userRepository.existsByUsername(request.getUsername())) {
@@ -51,15 +60,19 @@ public class AuthService {
                         () -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Default role not found"));
 
         User user = User.builder()
-                .email(request.getEmail())
+                .email(email)
                 .username(request.getUsername())
                 .phoneNumber(request.getPhoneNumber())
                 .nationalId(request.getNationalId())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .emailVerified(true) // Đã verify rồi mới được đăng ký
                 .role(defaultRole)
                 .build();
 
         User savedUser = userRepository.save(user);
+
+        // Mark email verification as used
+        otpService.markEmailAsUsed(email);
 
         String accessToken = jwtUtil.generateAccessToken(savedUser.getId(), savedUser.getRole().getName());
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(savedUser);
@@ -77,6 +90,11 @@ public class AuthService {
 
         if ("BANNED".equalsIgnoreCase(user.getStatus())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account disabled");
+        }
+
+        // Bắt buộc email verification trước khi đăng nhập
+        if (!user.isEmailVerified()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Email must be verified before login");
         }
 
         String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getRole().getName());

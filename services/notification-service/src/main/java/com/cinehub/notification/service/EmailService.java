@@ -96,6 +96,8 @@ public class EmailService {
             BigDecimal totalPrice,
             BigDecimal finalPrice,
             String paymentMethod,
+            String refundVoucherCode,
+            BigDecimal refundVoucherAmount,
             String language) throws MessagingException {
 
         boolean isEnglish = "en".equalsIgnoreCase(language);
@@ -121,6 +123,10 @@ public class EmailService {
             ctx.setVariable("promotionCode", null);
             ctx.setVariable("promotionDiscount", BigDecimal.ZERO);
         }
+
+        // Refund voucher info
+        ctx.setVariable("refundVoucherCode", refundVoucherCode);
+        ctx.setVariable("refundVoucherAmount", refundVoucherAmount != null ? refundVoucherAmount : BigDecimal.ZERO);
 
         ctx.setVariable("totalPrice", totalPrice);
         ctx.setVariable("finalPrice", finalPrice);

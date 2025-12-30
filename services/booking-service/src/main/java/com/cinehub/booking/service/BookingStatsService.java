@@ -47,21 +47,34 @@ public class BookingStatsService {
                 .filter(b -> b.getStatus() == BookingStatus.CONFIRMED)
                 .count();
         long cancelled = allBookings.stream()
-                .filter(b -> b.getStatus() == BookingStatus.CANCELLED || b.getStatus() == BookingStatus.REFUNDED)
+                .filter(b -> b.getStatus() == BookingStatus.CANCELLED)
+                .count();
+        long refunded = allBookings.stream()
+                .filter(b -> b.getStatus() == BookingStatus.REFUNDED)
                 .count();
         long pending = allBookings.stream()
                 .filter(b -> b.getStatus() == BookingStatus.PENDING)
                 .count();
 
-        BigDecimal totalRevenue = allBookings.stream()
+        BigDecimal confirmedRevenue = allBookings.stream()
                 .filter(b -> b.getStatus() == BookingStatus.CONFIRMED)
                 .map(Booking::getFinalPrice)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Trừ đi số tiền đã hoàn (refunded bookings)
+        BigDecimal refundedAmount = allBookings.stream()
+                .filter(b -> b.getStatus() == BookingStatus.REFUNDED)
+                .map(Booking::getFinalPrice)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Doanh thu thực tế = confirmed - refunded
+        BigDecimal totalRevenue = confirmedRevenue.subtract(refundedAmount);
 
         return BookingStatsResponse.builder()
                 .totalBookings(total)
                 .confirmedBookings(confirmed)
                 .cancelledBookings(cancelled)
+                .refundedBookings(refunded)
                 .pendingBookings(pending)
                 .totalRevenue(totalRevenue)
                 .build();

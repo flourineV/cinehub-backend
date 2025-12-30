@@ -19,13 +19,21 @@
         >
         has been refunded to your Voucher Wallet.
       </p>
-      <p>You can use this voucher for your next booking.</p>
+      <p>
+        You can view your voucher in <b>"My Vouchers"</b> section on CineHub
+        website or visit our theater counter to book a new showtime.
+      </p>
     </div>
 
     <div th:if="${isCounter}">
       <p>
+        <b>Note:</b> Since you booked as a guest (not logged in), we cannot
+        automatically refund a voucher.
+      </p>
+      <p>
         Please bring your booking code or this email to the nearest CineHub
-        theater counter to receive your cash refund:
+        theater counter for assistance with booking a new showtime or receiving
+        a refund:
         <b
           ><span
             th:text="${#numbers.formatDecimal(refundAmount, 0, 'COMMA', 0, 'POINT')}"

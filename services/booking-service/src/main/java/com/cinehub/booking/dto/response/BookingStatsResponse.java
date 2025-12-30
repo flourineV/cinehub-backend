@@ -14,6 +14,7 @@ public class BookingStatsResponse {
     private long totalBookings;
     private long confirmedBookings;
     private long cancelledBookings;
+    private long refundedBookings;
     private long pendingBookings;
     private BigDecimal totalRevenue;
 }

@@ -233,4 +233,51 @@ public class PaymentController {
 
         return ResponseEntity.ok(payment);
     }
+
+    @GetMapping("/admin/{id}")
+    public ResponseEntity<PaymentTransactionResponse> getPaymentByIdForAdmin(@PathVariable UUID id) {
+        AuthChecker.requireManagerOrAdmin();
+        PaymentTransactionResponse payment = paymentService.getPaymentById(id);
+        return ResponseEntity.ok(payment);
+    }
+
+    /**
+     * Cancel a pending payment when user returns from payment gateway without completing
+     * This will mark payment as FAILED and trigger booking cancellation + seat unlock
+     */
+    @PostMapping("/cancel")
+    public ResponseEntity<Map<String, Object>> cancelPendingPayment(@RequestParam UUID bookingId) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            paymentService.cancelPendingPaymentByBookingId(bookingId, "User cancelled payment");
+            result.put("success", true);
+            result.put("message", "Payment cancelled successfully");
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error cancelling payment for bookingId: {}", bookingId, e);
+            result.put("success", false);
+            result.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(result);
+        }
+    }
+
+    /**
+     * Confirm a free booking (when finalPrice = 0, no payment gateway needed)
+     * This will directly confirm the booking without going through ZaloPay
+     */
+    @PostMapping("/confirm-free")
+    public ResponseEntity<Map<String, Object>> confirmFreeBooking(@RequestParam UUID bookingId) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            paymentService.confirmFreeBooking(bookingId);
+            result.put("success", true);
+            result.put("message", "Free booking confirmed successfully");
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error confirming free booking for bookingId: {}", bookingId, e);
+            result.put("success", false);
+            result.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(result);
+        }
+    }
 }

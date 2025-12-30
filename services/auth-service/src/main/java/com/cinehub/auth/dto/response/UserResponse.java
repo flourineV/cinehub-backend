@@ -16,13 +16,17 @@ public class UserResponse {
 
     private UUID id;
     private String username;
+    private String email;
     private String role;
     private String status;
+    private boolean emailVerified;
 
     public UserResponse(User user) {
         this.id = user.getId();
         this.username = user.getUsername();
+        this.email = user.getEmail();
         this.status = user.getStatus();
         this.role = user.getRole() != null ? user.getRole().getName() : null;
+        this.emailVerified = user.isEmailVerified();
     }
 }

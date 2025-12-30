@@ -20,6 +20,11 @@ import java.util.UUID;
 @Builder
 public class RefundVoucher {
 
+    public enum RefundType {
+        USER_CANCELLED,  // User tự hủy booking
+        SYSTEM_REFUND    // Hệ thống hoàn tiền (showtime bị hủy, etc.)
+    }
+
     @Id
     @GeneratedValue
     private UUID id;
@@ -36,6 +41,11 @@ public class RefundVoucher {
     @Column(nullable = false)
     @Builder.Default
     private Boolean isUsed = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private RefundType refundType = RefundType.USER_CANCELLED;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

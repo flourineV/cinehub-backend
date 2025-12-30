@@ -209,6 +209,8 @@ public class NotificationService {
                                         event.totalPrice(),
                                         event.finalPrice(),
                                         event.paymentMethod(),
+                                        event.refundVoucherCode(),
+                                        event.refundVoucherAmount(),
                                         language);
                         log.info("Gửi email vé xem phim thành công đến {} (language: {})", userEmail, language);
                 } catch (MessagingException e) {

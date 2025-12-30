@@ -54,6 +54,10 @@ public class User {
     @Builder.Default
     private String status = "ACTIVE"; // ACTIVE / BANNED
 
+    @Column(name = "email_verified", nullable = false)
+    @Builder.Default
+    private boolean emailVerified = false;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id")
     private Role role;

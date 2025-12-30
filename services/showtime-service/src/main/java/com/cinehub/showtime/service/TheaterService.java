@@ -65,7 +65,7 @@ public class TheaterService {
         Theater theater = theaterRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Theater not found"));
         return mapToTheaterResponse(theater);
-    } // Trong StaffProfileController & StaffProfileService
+    }
 
     public List<TheaterResponse> getAllTheaters() {
         return theaterRepository.findAll().stream()

@@ -38,8 +38,8 @@ public class MovieClient {
         System.err.println("Circuit Breaker activated for movieService. Lỗi: " + t.getMessage());
         return MovieTitleResponse.builder()
                 .id(movieId)
-                .title(null)
-                .titleEn(null)
+                .title("Unknown Movie")
+                .titleEn("Unknown Movie")
                 .build();
     }
 

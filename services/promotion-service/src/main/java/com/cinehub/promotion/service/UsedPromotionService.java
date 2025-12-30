@@ -40,21 +40,13 @@ public class UsedPromotionService {
             return true;
         }
 
-        // Check if user has used this promotion before
+        // Check if user has used this promotion before (and booking is confirmed)
         Optional<UsedPromotion> existingUsage = usedPromotionRepository
                 .findByUserIdAndPromotionCode(userId, promotionCode);
 
-        if (existingUsage.isEmpty()) {
-            return true; // Never used before
-        }
-
-        // Check booking status
-        UsedPromotion.BookingStatus status = existingUsage.get().getBookingStatus();
-        
-        // Allow reuse if previous booking was cancelled, expired, or refunded
-        return status == UsedPromotion.BookingStatus.CANCELLED ||
-               status == UsedPromotion.BookingStatus.EXPIRED ||
-               status == UsedPromotion.BookingStatus.REFUNDED;
+        // If no record exists, user can use it
+        // If record exists, it means a confirmed booking used it, so can't reuse
+        return existingUsage.isEmpty();
     }
 
     /**
@@ -62,29 +54,18 @@ public class UsedPromotionService {
      */
     @Transactional
     public UsedPromotionResponse recordPromotionUsage(RecordPromotionUsageRequest request) {
-        // Check if already exists
+        // Check if already exists (shouldn't happen with new logic, but safety check)
         Optional<UsedPromotion> existing = usedPromotionRepository
                 .findByUserIdAndPromotionCode(request.getUserId(), request.getPromotionCode());
 
         if (existing.isPresent()) {
-            // Delete old record if booking was cancelled/expired/refunded
-            UsedPromotion.BookingStatus status = existing.get().getBookingStatus();
-            if (status == UsedPromotion.BookingStatus.CANCELLED ||
-                status == UsedPromotion.BookingStatus.EXPIRED ||
-                status == UsedPromotion.BookingStatus.REFUNDED) {
-                usedPromotionRepository.delete(existing.get());
-                log.info("Deleted old promotion usage record for reuse: userId={}, code={}", 
-                        request.getUserId(), request.getPromotionCode());
-            } else {
-                throw new IllegalStateException("User has already used this promotion code");
-            }
+            throw new IllegalStateException("User has already used this promotion code");
         }
 
         UsedPromotion usedPromotion = UsedPromotion.builder()
                 .userId(request.getUserId())
                 .promotionCode(request.getPromotionCode())
                 .bookingId(request.getBookingId())
-                .bookingStatus(UsedPromotion.BookingStatus.PENDING)
                 .build();
 
         UsedPromotion saved = usedPromotionRepository.save(usedPromotion);
@@ -95,7 +76,7 @@ public class UsedPromotionService {
     }
 
     /**
-     * Update booking status when booking status changes
+     * Handle booking status changes - delete record if booking failed
      */
     @Transactional
     public void updateBookingStatus(UpdatePromotionUsageStatusRequest request) {
@@ -107,12 +88,19 @@ public class UsedPromotionService {
             return;
         }
 
-        UsedPromotion usedPromotion = usedPromotionOpt.get();
-        usedPromotion.setBookingStatus(request.getBookingStatus());
-        usedPromotionRepository.save(usedPromotion);
-
-        log.info("Updated promotion usage status: bookingId={}, status={}", 
-                request.getBookingId(), request.getBookingStatus());
+        String status = request.getBookingStatus();
+        
+        // Delete record if booking failed (cancelled, expired, refunded)
+        // Keep record only if booking is confirmed
+        if ("CANCELLED".equals(status) || "EXPIRED".equals(status) || "REFUNDED".equals(status)) {
+            usedPromotionRepository.delete(usedPromotionOpt.get());
+            log.info("Deleted promotion usage record due to booking failure: bookingId={}, status={}", 
+                    request.getBookingId(), status);
+        } else if ("CONFIRMED".equals(status)) {
+            log.info("Keeping promotion usage record for confirmed booking: bookingId={}", 
+                    request.getBookingId());
+        }
+        // For PENDING/AWAITING_PAYMENT, do nothing - keep record as is
     }
 
     /**
@@ -129,7 +117,6 @@ public class UsedPromotionService {
                 .userId(entity.getUserId())
                 .promotionCode(entity.getPromotionCode())
                 .bookingId(entity.getBookingId())
-                .bookingStatus(entity.getBookingStatus())
                 .usedAt(entity.getUsedAt())
                 .build();
     }

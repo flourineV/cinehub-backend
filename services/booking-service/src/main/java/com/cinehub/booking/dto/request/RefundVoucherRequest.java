@@ -17,4 +17,5 @@ public class RefundVoucherRequest {
     private UUID userId;
     private BigDecimal value;
     private LocalDateTime expiredAt;
+    private String refundType; // USER_CANCELLED or SYSTEM_REFUND
 }

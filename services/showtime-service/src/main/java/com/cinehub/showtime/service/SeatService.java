@@ -121,6 +121,7 @@ public class SeatService {
                                 .columnIndex(seat.getColumnIndex())
                                 .type(seat.getType())
                                 .roomName(seat.getRoom().getName())
+                                .roomNameEn(seat.getRoom().getNameEn())
                                 .build();
         }
 }

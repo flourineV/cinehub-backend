@@ -35,6 +35,16 @@ public class RefundVoucherController {
         return ResponseEntity.ok(refundVoucherService.getVouchersByUser(userId));
     }
 
+    @GetMapping("/user/{userId}/available")
+    public ResponseEntity<List<RefundVoucherResponse>> getAvailableRefundVoucherByUser(@PathVariable UUID userId) {
+        return ResponseEntity.ok(refundVoucherService.getAvailableVouchersByUser(userId));
+    }
+
+    @GetMapping("/code/{code}")
+    public ResponseEntity<RefundVoucherResponse> getRefundVoucherByCode(@PathVariable String code) {
+        return ResponseEntity.ok(refundVoucherService.getVoucherByCode(code));
+    }
+
     @PutMapping("/use/{code}")
     public ResponseEntity<RefundVoucherResponse> markVoucherAsUsed(@PathVariable String code) {
         return ResponseEntity.ok(refundVoucherService.markAsUsed(code));

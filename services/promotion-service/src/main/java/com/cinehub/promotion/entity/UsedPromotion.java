@@ -32,20 +32,7 @@ public class UsedPromotion {
     @Column(name = "booking_id")
     private UUID bookingId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "booking_status", length = 20)
-    private BookingStatus bookingStatus;
-
     @CreationTimestamp
     @Column(name = "used_at", nullable = false, updatable = false)
     private LocalDateTime usedAt;
-
-    public enum BookingStatus {
-        PENDING,
-        AWAITING_PAYMENT,
-        CONFIRMED,
-        CANCELLED,
-        EXPIRED,
-        REFUNDED
-    }
 }

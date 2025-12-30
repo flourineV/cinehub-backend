@@ -1,6 +1,7 @@
 package com.cinehub.movie.service.impl;
 
 import com.cinehub.movie.service.MovieService;
+import com.cinehub.movie.client.ShowtimeClient;
 import com.cinehub.movie.dto.AddMovieFromTmdbRequest;
 import com.cinehub.movie.dto.BulkAddMoviesRequest;
 import com.cinehub.movie.dto.BulkAddMoviesResponse;
@@ -55,6 +56,7 @@ public class MovieServiceImplement implements MovieService {
     private final TMDbClient tmdbClient;
     private final MovieMapper movieMapper;
     private final MongoTemplate mongoTemplate;
+    private final ShowtimeClient showtimeClient;
 
     public MovieDetailResponse getMovieByUuid(UUID id, String language) {
         MovieDetail entity = movieDetailRepository.findById(id)
@@ -145,6 +147,7 @@ public class MovieServiceImplement implements MovieService {
         detail.setId(sharedId);
         detail.setTmdbId(movie.getId());
         detail.setTitle(movie.getTitle());
+        detail.setTitleEn(movie.getOriginalTitle());
         detail.setOverview(movie.getOverview());
         detail.setTime(movie.getRuntime());
         detail.setSpokenLanguages(
@@ -328,6 +331,7 @@ public class MovieServiceImplement implements MovieService {
             detail.setId(UUID.randomUUID());
             detail.setTmdbId(movieResponse.getId());
             detail.setTitle(movieResponse.getTitle());
+            detail.setTitleEn(movieResponse.getOriginalTitle());
             detail.setOverview(movieResponse.getOverview());
             detail.setTime(movieResponse.getRuntime());
             detail.setSpokenLanguages(
@@ -505,6 +509,15 @@ public class MovieServiceImplement implements MovieService {
         log.info("Changed movie status for id={} to {}", id, status);
     }
 
+    @Override
+    @Transactional
+    public void suspendShowtimesByMovie(UUID movieId, String reason) {
+        log.info("Suspending showtimes for movie id={} with reason: {}", movieId, reason);
+        
+        // Call showtime service to suspend showtimes and handle refunds
+        showtimeClient.suspendShowtimesByMovie(movieId, reason);
+    }
+
     @Transactional
     public void deleteMovie(UUID id) {
         MovieDetail existingDetail = movieDetailRepository.findById(id)
@@ -525,9 +538,53 @@ public class MovieServiceImplement implements MovieService {
                 request.getTmdbId(), request.getStartDate(), request.getEndDate());
 
         // Check if movie already exists
-        if (movieSummaryRepository.existsByTmdbId(request.getTmdbId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Movie with TMDb ID " + request.getTmdbId() + " already exists");
+        Optional<MovieSummary> existingMovie = movieSummaryRepository.findByTmdbId(request.getTmdbId());
+        if (existingMovie.isPresent()) {
+            MovieSummary existing = existingMovie.get();
+            MovieStatus currentStatus = existing.getStatus();
+            
+            if (currentStatus == MovieStatus.NOW_PLAYING) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Phim với TMDb ID " + request.getTmdbId() + " đang được chiếu. Không thể thêm lại.");
+            } else if (currentStatus == MovieStatus.UPCOMING) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Phim với TMDb ID " + request.getTmdbId() + " sắp được chiếu. Không thể thêm lại.");
+            } else if (currentStatus == MovieStatus.ARCHIVED) {
+                // Allow re-opening archived movie with new dates
+                log.info("Re-opening archived movie with TMDb ID {}", request.getTmdbId());
+                
+                // Determine new status based on startDate
+                LocalDate today = LocalDate.now();
+                MovieStatus newStatus;
+                if (request.getStartDate().isAfter(today)) {
+                    newStatus = MovieStatus.UPCOMING;
+                } else if (request.getEndDate() == null || !request.getEndDate().isBefore(today)) {
+                    newStatus = MovieStatus.NOW_PLAYING;
+                } else {
+                    newStatus = MovieStatus.ARCHIVED;
+                }
+                
+                // Update existing movie with new dates and status
+                existing.setStatus(newStatus);
+                existing.setStartDate(request.getStartDate());
+                existing.setEndDate(request.getEndDate());
+                movieSummaryRepository.save(existing);
+                
+                // Also update MovieDetail if exists
+                Optional<MovieDetail> existingDetail = movieDetailRepository.findById(existing.getId());
+                if (existingDetail.isPresent()) {
+                    MovieDetail detail = existingDetail.get();
+                    detail.setStatus(newStatus);
+                    detail.setStartDate(request.getStartDate());
+                    detail.setEndDate(request.getEndDate());
+                    movieDetailRepository.save(detail);
+                    
+                    log.info("Re-opened archived movie: {} ({}), new status={}", 
+                            existing.getTitle(), existing.getId(), newStatus);
+                    
+                    return movieMapper.toDetailResponse(detail);
+                }
+            }
         }
 
         // Fetch movie data from TMDB (both Vietnamese and English)
@@ -756,10 +813,18 @@ public class MovieServiceImplement implements MovieService {
         MovieDetail movie = movieDetailRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Movie not found: " + id));
 
+        // Get Vietnamese title (default)
+        String titleVi = movie.getTitle();
+        
+        // Get English title from translation table
+        String titleEn = movieTranslationRepository.findByMovieIdAndLanguage(id, "en")
+                .map(translation -> translation.getTitle())
+                .orElse(movie.getTitleEn() != null ? movie.getTitleEn() : movie.getTitle());
+
         return com.cinehub.movie.dto.MovieTitleInternalResponse.builder()
                 .id(movie.getId())
-                .title(movie.getTitle())
-                .titleEn(movie.getTitleEn())
+                .title(titleVi)
+                .titleEn(titleEn)
                 .build();
     }
 }

@@ -13,6 +13,7 @@ import com.cinehub.profile.repository.UserProfileRepository;
 import com.cinehub.profile.service.cloud.S3Service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +25,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class UserProfileService {
 
     private final UserProfileRepository profileRepository;
@@ -32,7 +34,10 @@ public class UserProfileService {
     private final LoyaltyHistoryService loyaltyHistoryService;
 
     public UserProfileResponse createProfile(UserProfileRequest request) {
+        log.info("📝 Creating profile for userId: {}, email: {}", request.getUserId(), request.getEmail());
+        
         if (profileRepository.existsByUserId(request.getUserId())) {
+            log.warn("⚠️ Profile already exists for userId: {}", request.getUserId());
             throw new RuntimeException("Profile already exists for this user: " + request.getUserId());
         }
 
@@ -58,7 +63,9 @@ public class UserProfileService {
                 .updatedAt(LocalDateTime.now())
                 .build();
 
-        return mapToResponse(profileRepository.save(profile));
+        UserProfile savedProfile = profileRepository.save(profile);
+        log.info("✅ Profile created successfully for userId: {}", savedProfile.getUserId());
+        return mapToResponse(savedProfile);
     }
 
     public Optional<UserProfileResponse> getProfileByUserId(UUID userId) {

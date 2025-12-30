@@ -290,6 +290,100 @@ public class PaymentService {
                 }
         }
 
+        /**
+         * Cancel a pending payment by bookingId when user returns from payment gateway without completing
+         */
+        @Transactional
+        public void cancelPendingPaymentByBookingId(UUID bookingId, String reason) {
+                log.info("🔄 Cancelling pending payment for bookingId: {} | reason: {}", bookingId, reason);
+
+                List<PaymentTransaction> transactions = paymentRepository.findByBookingId(bookingId);
+
+                if (transactions.isEmpty()) {
+                        log.warn("No transaction found for bookingId: {}. Skipping cancellation.", bookingId);
+                        return;
+                }
+
+                // Get the latest pending transaction
+                PaymentTransaction txn = transactions.stream()
+                                .filter(t -> t.getStatus() == PaymentStatus.PENDING)
+                                .findFirst()
+                                .orElse(null);
+
+                if (txn == null) {
+                        log.warn("No PENDING transaction found for bookingId: {}. Skipping cancellation.", bookingId);
+                        return;
+                }
+
+                // Cập nhật status sang FAILED
+                txn.setStatus(PaymentStatus.FAILED);
+                paymentRepository.save(txn);
+
+                log.info("💔 Transaction marked as FAILED for bookingId: {}", bookingId);
+
+                // Gửi event để booking-service unlock ghế và cancel booking
+                PaymentBookingFailedEvent failedEvent = new PaymentBookingFailedEvent(
+                                txn.getId(),
+                                txn.getBookingId(),
+                                txn.getUserId(),
+                                txn.getShowtimeId(),
+                                txn.getAmount(),
+                                txn.getMethod(),
+                                txn.getSeatIds(),
+                                "Payment cancelled: " + reason);
+
+                paymentProducer.sendPaymentBookingFailedEvent(failedEvent);
+                log.info("📤 Sent PaymentBookingFailedEvent for bookingId: {}", bookingId);
+        }
+
+        /**
+         * Confirm a free booking (when finalPrice = 0, no payment gateway needed)
+         * This directly confirms the booking without going through ZaloPay
+         */
+        @Transactional
+        public void confirmFreeBooking(UUID bookingId) {
+                log.info("🎁 Confirming free booking for bookingId: {}", bookingId);
+
+                List<PaymentTransaction> transactions = paymentRepository.findByBookingId(bookingId);
+
+                if (transactions.isEmpty()) {
+                        throw new RuntimeException("No transaction found for bookingId: " + bookingId);
+                }
+
+                // Get the latest pending transaction
+                PaymentTransaction txn = transactions.stream()
+                                .filter(t -> t.getStatus() == PaymentStatus.PENDING)
+                                .findFirst()
+                                .orElseThrow(() -> new RuntimeException("No PENDING transaction found for bookingId: " + bookingId));
+
+                // Verify amount is 0
+                if (txn.getAmount().compareTo(java.math.BigDecimal.ZERO) > 0) {
+                        throw new RuntimeException("Cannot confirm free booking - amount is not 0: " + txn.getAmount());
+                }
+
+                // Update status to SUCCESS
+                txn.setStatus(PaymentStatus.SUCCESS);
+                txn.setMethod("FREE_VOUCHER");
+                txn.setTransactionRef("FREE_" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+                paymentRepository.save(txn);
+
+                log.info("✅ Free booking transaction marked as SUCCESS for bookingId: {}", bookingId);
+
+                // Send success event to booking-service
+                PaymentBookingSuccessEvent successEvent = new PaymentBookingSuccessEvent(
+                                txn.getId(),
+                                txn.getBookingId(),
+                                txn.getShowtimeId(),
+                                txn.getUserId(),
+                                txn.getAmount(),
+                                "FREE_VOUCHER",
+                                txn.getSeatIds(),
+                                "Free booking confirmed - paid with refund voucher");
+
+                paymentProducer.sendPaymentBookingSuccessEvent(successEvent);
+                log.info("📤 Sent PaymentBookingSuccessEvent for free bookingId: {}", bookingId);
+        }
+
         public PagedResponse<PaymentTransactionResponse> getPaymentsByCriteria(
                         PaymentCriteria criteria, int page, int size, String sortBy, String sortDir) {
 
