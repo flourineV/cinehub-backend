@@ -115,6 +115,7 @@ public class UserProfileService {
             return mapToResponse(existing);
         }
 
+        // cập nhật điểm 
         Integer currentPoints = existing.getLoyaltyPoint() != null ? existing.getLoyaltyPoint() : 0;
         Integer newLoyaltyPoint = currentPoints + addedPoints;
         existing.setLoyaltyPoint(newLoyaltyPoint);
@@ -122,6 +123,7 @@ public class UserProfileService {
         String description = request.getDescription() != null ? request.getDescription() 
                 : (addedPoints > 0 ? "Earned points from booking" : "Points adjustment");
 
+        // ghi lại lịch sử điểm
         loyaltyHistoryService.recordLoyaltyTransaction(
                 userId,
                 request.getBookingId(),
@@ -130,7 +132,7 @@ public class UserProfileService {
                 request.getAmountSpent(),
                 description);
 
-        // 3. Tìm và Cập nhật Rank (dựa trên newLoyaltyPoint)
+        //Tìm và Cập nhật Rank (dựa trên newLoyaltyPoint)
         rankService.findRankByLoyaltyPoint(newLoyaltyPoint)
                 .ifPresent(newRank -> {
                     // Chỉ cập nhật Rank nếu Rank mới khác Rank hiện tại
