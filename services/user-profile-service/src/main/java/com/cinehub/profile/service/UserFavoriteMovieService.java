@@ -48,6 +48,7 @@ public class UserFavoriteMovieService {
                 .collect(Collectors.toList());
     }
 
+    // xóa phim yêu thích 
     public void removeFavorite(UUID userId, UUID movieId) {
         if (!favoriteMovieRepository.existsById_UserIdAndId_MovieId(userId, movieId)) {
             throw new ResourceNotFoundException("Favorite movie not found for userId: " + userId);
